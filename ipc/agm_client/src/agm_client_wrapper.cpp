@@ -305,3 +305,12 @@ int agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool st
         return agm_client->ipc_agm_session_set_ec_ref(capture_session_id, aif_id, state);
     }
 }
+
+int agm_session_aif_set_cal(uint32_t session_id, uint32_t audio_intf,
+                                   struct agm_cal_config *cal_config) {
+    if (!agm_server_died) {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_aif_set_cal(session_id, audio_intf,
+                                                                  cal_config);
+    }
+}

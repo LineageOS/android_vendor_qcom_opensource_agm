@@ -100,6 +100,7 @@ enum {
     SESSION_SET_PARAMS,
     SET_PARAMS_WITH_TAG,
     SET_ECREF,
+    SET_CALIBRATION,
 };
 
 class BpAgmService : public ::android::BpInterface<IAgmService> {
@@ -215,8 +216,8 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             uint32_t ckv_size = kv_size * (metadata->num_ckvs);
             data.writeUint32(metadata->num_gkvs);
             data.writeUint32(metadata->num_ckvs);
-            ALOGE("Bp : amd.gkv.num_kvs = %d",metadata->num_gkvs);
-            ALOGE("Bp : amd.ckv.num_kvs = %d",metadata->num_ckvs);
+            ALOGV("Bp : amd.gkv.num_kvs = %d",metadata->num_gkvs);
+            ALOGV("Bp : amd.ckv.num_kvs = %d",metadata->num_ckvs);
             data.writeBlob(gkv_size, false, &gkv_blob);
             memset(gkv_blob.data(), 0x0, gkv_size);
             memcpy(gkv_blob.data(), &metadata->kv[0], gkv_size);
@@ -264,8 +265,8 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
             data.writeUint32(session_id);
             data.writeUint32(audio_intf);
-            ALOGE("Bp : amd.gkv.num_kvs = %d",metadata->num_gkvs);
-            ALOGE("Bp : amd.ckv.num_kvs = %d",metadata->num_ckvs);
+            ALOGV("Bp : amd.gkv.num_kvs = %d",metadata->num_gkvs);
+            ALOGV("Bp : amd.ckv.num_kvs = %d",metadata->num_ckvs);
             data.writeUint32(metadata->num_gkvs);
             data.writeUint32(metadata->num_ckvs);
             data.writeBlob(gkv_size, false, &gkv_blob);
@@ -379,7 +380,6 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             int rc = 0;
             android::Parcel data, reply;
             android::Parcel::ReadableBlob blob;
-            ALOGE("\n BP-INTERFACE handle:%p buf:%p count:%d\n", session_handle, buff, count);
             data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
             data.writeInt64((long)session_handle);
             data.writeUint32(count);
@@ -400,7 +400,6 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             android::Parcel data, reply;
             android::Parcel::WritableBlob blob;
             data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
-            ALOGE("\n BP-INTERFACER handle:%p buf:%p count:%d\n", session_handle, buff, count);
             data.writeInt64((long)session_handle);
             data.writeUint32(count);
             data.writeBlob(count, false, &blob);
@@ -416,13 +415,11 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             android::Parcel data, reply;
             int count = *num_aif_info, cp_val;
             data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
-            ALOGE("\nBUFFER in WRITE ON BP-INTERFACER handle:%p count:%d\n",aif_list, *num_aif_info);
             if (aif_list == NULL && count == 0) {
                 data.writeUint32(count);
                 data.writeInt64((long)aif_list);
                 remote()->transact(GET_AIF_LIST, data, &reply);
                 *num_aif_info = reply.readInt32();
-                ALOGE ("\n PROXY BP FIRST CASE AFTER COUNT UPDATE :%d\n", *num_aif_info);
                 return  reply.readInt32();
             } else if (aif_list != NULL && count != 0) {
                 uint32_t total_bytecnt = count * sizeof(struct aif_info);
@@ -479,7 +476,6 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
      {
          android::Parcel data, reply;
          data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
-         ALOGE("\nBUFFER in WRITE ON BP-INTERFACER handle:%p count:%d\n",payload, *size);
          int count = *size;
          if (payload == NULL) {
              data.writeInt64((long)payload);
@@ -488,7 +484,6 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
              data.writeUint32(aif_id);
              remote()->transact(GET_TAG_MODULE_INFO, data, &reply);
              *size = reply.readInt32();
-             ALOGE ("\n PROXY BP FIRST CASE AFTER COUNT UPDATE :%d\n", *size);
              return  reply.readInt32();
          } else if (payload != NULL && count != 0) {
              data.writeInt64((long)payload);
@@ -574,6 +569,28 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
         remote()->transact(SET_ECREF, data, &reply);
         return reply.readInt32();
     }
+
+    virtual int ipc_agm_session_aif_set_cal(uint32_t session_id,
+                                            uint32_t audio_intf,
+                                            struct agm_cal_config *cal_config) {
+        android::Parcel data, reply;
+        android::Parcel::WritableBlob ckv_blob;
+        uint32_t kv_size = sizeof(agm_key_value);
+        uint32_t ckv_size = kv_size * (cal_config->num_ckvs);
+
+        data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
+        ALOGV("\n%s: CKV key %x value:%x\n", __func__,
+                             (cal_config->kv[0].key),(cal_config->kv[0].value));
+        data.writeUint32(session_id);
+        data.writeUint32(audio_intf);
+        data.writeUint32(cal_config->num_ckvs);
+        data.writeBlob(ckv_size, false, &ckv_blob);
+        memset(ckv_blob.data(), 0x0, ckv_size);
+        memcpy(ckv_blob.data(), cal_config->kv, ckv_size);
+        remote()->transact(SET_CALIBRATION, data, &reply);
+        ckv_blob.release();
+        return reply.readInt32();
+    }
 };
 
 
@@ -584,7 +601,7 @@ void ipc_cb (uint32_t session_id, struct agm_event_cb_params *event_params, void
     pthread_mutex_lock(&clbk_data_list_lock);
     list_for_each(node, &clbk_data_list) {
         handle = node_to_item(node, clbk_data, list);
-        ALOGD("%s: session_id %d, client_data %p", __func__, handle->session_id, handle->client_data);
+        ALOGV("%s: session_id %d, client_data %p", __func__, handle->session_id, handle->client_data);
          if (handle != NULL && handle->session_id == session_id && handle->client_data == client_data) {
              ALOGD("%s: Found handle %p", __func__, handle);
              pthread_mutex_unlock(&clbk_data_list_lock);
@@ -640,12 +657,12 @@ android::status_t BnAgmService::onTransact(uint32_t code, const android::Parcel&
         num_ckv = data.readUint32();
         gkv_blob_size = num_gkv * sizeof(struct agm_key_value);
         ckv_blob_size = num_ckv * sizeof(struct agm_key_value);
-	ALOGE("Bn:gkv.num_kvs = %d size %d", num_gkv, gkv_blob_size);
-	ALOGE("Bn:ckv.num_kvs = %d size %d", num_ckv, ckv_blob_size);
+	ALOGV("Bn:gkv.num_kvs = %d size %d", num_gkv, gkv_blob_size);
+	ALOGV("Bn:ckv.num_kvs = %d size %d", num_ckv, ckv_blob_size);
 
         amd = (struct agm_meta_data *) calloc (1, sizeof(struct agm_meta_data) + gkv_blob_size + ckv_blob_size);
         if (!amd) {
-            ALOGE("%s:%d calloc failed", __func__, __LINE__);
+            ALOGV("%s:%d calloc failed", __func__, __LINE__);
             rc = -ENOMEM;
             goto fail_ses_set_meta;
         }
@@ -676,8 +693,8 @@ fail_ses_set_meta:
         num_ckv = data.readUint32();
         gkv_blob_size = num_gkv * sizeof(struct agm_key_value);
         ckv_blob_size = num_ckv * sizeof(struct agm_key_value);
-	ALOGE("Bn:gkv.num_kvs = %d size %d", num_gkv, gkv_blob_size);
-	ALOGE("Bn:ckv.num_kvs = %d size %d", num_ckv, ckv_blob_size);
+	ALOGV("Bn:gkv.num_kvs = %d size %d", num_gkv, gkv_blob_size);
+	ALOGV("Bn:ckv.num_kvs = %d size %d", num_ckv, ckv_blob_size);
         amd = (struct agm_meta_data *) calloc (1, sizeof(struct agm_meta_data) + gkv_blob_size + ckv_blob_size);
         if (!amd) {
             ALOGE("%s:%d calloc failed", __func__, __LINE__);
@@ -725,8 +742,8 @@ fail_ses_aud_set_meta:
         num_ckv = data.readUint32();
         gkv_blob_size = num_gkv * sizeof(struct agm_key_value);
         ckv_blob_size = num_ckv * sizeof(struct agm_key_value);
-	ALOGE("Bn:gkv.num_kvs = %d size %d", num_gkv, gkv_blob_size);
-	ALOGE("Bn:ckv.num_kvs = %d size %d", num_ckv, ckv_blob_size);
+	ALOGV("Bn:gkv.num_kvs = %d size %d", num_gkv, gkv_blob_size);
+	ALOGV("Bn:ckv.num_kvs = %d size %d", num_ckv, ckv_blob_size);
         amd = (struct agm_meta_data *) calloc (1, sizeof(struct agm_meta_data) + gkv_blob_size + ckv_blob_size);
         if (!amd) {
             ALOGE("%s:%d calloc failed", __func__, __LINE__);
@@ -741,7 +758,6 @@ fail_ses_aud_set_meta:
         data.readBlob(ckv_blob_size, &ckv_blob);
         memcpy(&amd->kv[num_gkv], ckv_blob.data(), ckv_blob_size);
         ckv_blob.release();
-        ALOGE("call ipc_agm_audio_intf_set_metadata");
 	rc = ipc_agm_audio_intf_set_metadata(audio_intf, amd);
 fail_audio_set_meta:
         if (amd)
@@ -911,7 +927,6 @@ fail_write:
         if (count == 0) {
             aif_list = (struct aif_info*)data.readInt64();
             rc = ipc_agm_get_aif_info_list(aif_list, &count);
-            ALOGE ("\n PROXY BN FIRST CASE AFTER COUNT UPDATE :%d\n", count);
             reply->writeInt32(count);
             reply->writeInt32(rc);
         } else if (count != 0){
@@ -924,7 +939,7 @@ fail_write:
             int total_bytecnt =  count*sizeof(struct aif_info);
             if(!rc) {
             for (cp_val= 0; cp_val < count; cp_val++)
-            ALOGE("\n BN-INTERFACE name:%s count:%d\n",aif_list_bn[cp_val].aif_name, total_bytecnt);
+            ALOGV("\n%s:name:%s count:%d\n",__func__, aif_list_bn[cp_val].aif_name, total_bytecnt);
             }
             android::Parcel::WritableBlob aif_list_blob;
             reply->writeBlob(total_bytecnt, false, &aif_list_blob);
@@ -933,7 +948,6 @@ fail_write:
             aif_list_blob.release();
             reply->writeInt32(rc);
             free(aif_list_bn);
-        ALOGE("BUFFER in WRITE ON TRANSACT return:%d",rc);
         }
         break; }
 
@@ -1010,7 +1024,6 @@ fail_write:
         be_idx = data.readUint32();
         if (bn_payload == NULL) {
             rc = ipc_agm_session_aif_get_tag_module_info(pcm_idx, be_idx, NULL, &count);
-            ALOGE ("\n PROXY BN TAG MODULE FIRST CASE AFTER COUNT UPDATE :%d\n", count);
             reply->writeInt32(count);
             reply->writeInt32(rc);
         } else if (count != 0){
@@ -1049,8 +1062,6 @@ fail_write:
 
         memcpy(bn_payload, blob.data(), count);
         rc = ipc_agm_session_aif_set_params(pcm_idx, be_idx, bn_payload, count);
-        ALOGE ("\n PROXY BN AIF SET PARAMS FIRST CASE AFTER COUNT UPDATE :%d\n", count);
-
         blob.release();
         free(bn_payload);
         reply->writeInt32(rc);
@@ -1093,7 +1104,7 @@ fail_write:
         tag = data.readUint32();
         num_tkv = data.readUint32();
         tkv_blob_size = num_tkv * sizeof(struct agm_key_value);
-	ALOGE("Bn:tkv.num_kvs = %d size %d", num_tkv, tkv_blob_size);
+	ALOGV("Bn:tkv.num_kvs = %d size %d", num_tkv, tkv_blob_size);
         atc = (struct agm_tag_config*)calloc(1, sizeof(struct agm_tag_config) + num_tkv * sizeof(agm_key_value));
         if (!atc) {
             ALOGE("%s:%d calloc failed", __func__, __LINE__);
@@ -1117,6 +1128,35 @@ fail_write:
         aif_id = data.readUint32();
         int state = data.readUint32();
         rc = ipc_agm_session_set_ec_ref(cap_sess_id, aif_id, state);
+        reply->writeInt32(rc);
+        break; }
+
+    case SET_CALIBRATION: {
+        uint32_t session_id, audio_intf = 0;
+        struct agm_cal_config *acc = NULL;
+        uint32_t num_ckv;
+        uint32_t ckv_blob_size = 0;
+        android::Parcel::ReadableBlob ckv_blob;
+
+        session_id = data.readUint32();
+        audio_intf = data.readUint32();
+        num_ckv = data.readUint32();
+        ckv_blob_size = num_ckv * sizeof(struct agm_key_value);
+        acc = (struct agm_cal_config *) calloc (1, sizeof(struct agm_cal_config)
+                                                               + ckv_blob_size);
+        if (!acc) {
+            ALOGE("%s:%d calloc failed", __func__, __LINE__);
+            rc = -ENOMEM;
+            goto fail_ses_aud_set_cal_data;
+        }
+        acc->num_ckvs = num_ckv;
+        data.readBlob(ckv_blob_size, &ckv_blob);
+        memcpy(acc->kv, ckv_blob.data(), ckv_blob_size);
+        ckv_blob.release();
+        rc = agm_session_aif_set_cal(session_id, audio_intf, acc);
+fail_ses_aud_set_cal_data:
+        if (acc)
+            free(acc);
         reply->writeInt32(rc);
         break; }
 

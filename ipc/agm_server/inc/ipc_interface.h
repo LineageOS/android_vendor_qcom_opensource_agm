@@ -64,15 +64,20 @@ class IAgmService: public ::android::IInterface {
         virtual int ipc_agm_session_open(uint32_t session_id, struct session_obj **handle) = 0;
         virtual int ipc_agm_session_register_for_events(uint32_t session_id, struct agm_event_reg_cfg *evt_reg_cfg) = 0;
         virtual int ipc_agm_session_register_cb(uint32_t session_id, agm_event_cb cb, enum event_type event, void *client_data) = 0;
-        virtual int ipc_agm_session_set_config(struct session_obj *handle,
-        			struct agm_session_config *session_config,
-        			struct agm_media_config *media_config,
-        			struct agm_buffer_config *buffer_config) = 0;
+        virtual int ipc_agm_session_set_config(
+                                    struct session_obj *handle,
+                                    struct agm_session_config *session_config,
+                                    struct agm_media_config *media_config,
+                                    struct agm_buffer_config *buffer_config) = 0;
         virtual int ipc_agm_session_aif_get_tag_module_info(uint32_t session_id, uint32_t aif_id, void *payload, size_t *size) = 0;
         virtual int ipc_agm_session_aif_set_params(uint32_t session_id, uint32_t aif_id, void *payload, size_t size) = 0;
         virtual int ipc_agm_session_set_params(uint32_t session_id, void *payload, size_t size) = 0;
         virtual int ipc_agm_set_params_with_tag(uint32_t session_id, uint32_t aif_id, struct agm_tag_config *tag_config) = 0;
         virtual int ipc_agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool state) = 0;
+        virtual int ipc_agm_session_aif_set_cal(
+                                    uint32_t session_id,
+                                    uint32_t audio_intf,
+                                    struct agm_cal_config *cal_config) = 0;
 };
 
 class BnAgmService : public ::android::BnInterface<IAgmService> {

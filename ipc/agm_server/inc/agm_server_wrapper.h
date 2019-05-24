@@ -66,9 +66,16 @@ class AgmService : public BnAgmService {
 
         virtual int ipc_agm_session_register_for_events(uint32_t session_id, struct agm_event_reg_cfg *evt_reg_cfg);
         virtual int ipc_agm_session_register_cb(uint32_t session_id, agm_event_cb cb, enum event_type event, void *client_data) ;
-        virtual int ipc_agm_session_set_config(struct session_obj *handle, struct agm_session_config *session_config, struct agm_media_config *media_config,
-       						                struct agm_buffer_config *buffer_config);
+        virtual int ipc_agm_session_set_config(
+                                     struct session_obj *handle,
+                                     struct agm_session_config *session_config,
+                                     struct agm_media_config *media_config,
+                                     struct agm_buffer_config *buffer_config);
         virtual int ipc_agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool state);
+        virtual int ipc_agm_session_aif_set_cal(
+                                     uint32_t session_id,
+                                     uint32_t audio_intf,
+                                     struct agm_cal_config *cal_config);
     private:
          bool agm_initialized = false;
 };
