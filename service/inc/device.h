@@ -30,9 +30,8 @@
 #ifndef __AGM_DEVICE_H__
 #define __AGM_DEVICE_H__
 
-#include <tinyalsa/asoundlib.h>
-#include "agm_api.h"
-#include "hw_intf_cmn_api.h"
+#include <pthread.h>
+#include "agm_priv.h"
 
 #define MAX_DEV_NAME_LEN     80
 
@@ -98,7 +97,7 @@ struct device_obj {
     struct pcm *pcm;
     uint32_t pcm_flags;
     struct agm_media_config media_config;
-    struct agm_meta_data metadata;
+    struct agm_meta_data_gsl metadata;
     pthread_t device_prepare_thread;
     pthread_cond_t device_prepared;
     bool prepare_thread_created;

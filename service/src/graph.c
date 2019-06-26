@@ -37,7 +37,9 @@
 #include <dlfcn.h>
 #include "graph.h"
 #include "graph_module.h"
+#include "metadata.h"
 #include "utils.h"
+#include "gsl_intf.h"
 
 #define DEVICE_RX 0
 #define DEVICE_TX 1
@@ -56,6 +58,21 @@
                    add_mod;\
                  })
 
+
+struct graph_obj {
+    pthread_mutex_t lock;
+    pthread_mutex_t gph_open_thread_lock;
+    pthread_t gph_open_thread;
+    pthread_cond_t gph_opened;
+    bool gph_open_thread_created;
+    graph_state_t state;
+    gsl_handle_t graph_handle;
+    struct listnode tagged_mod_list;
+    struct gsl_cmd_configure_read_write_params buf_config; 
+    event_cb cb;
+    void *client_data;
+    struct session_obj *sess_obj;
+};
 
 static int get_acdb_files_from_directory(const char* acdb_files_path,
                                          struct gsl_acdb_data_files *data_files)
@@ -195,84 +212,320 @@ int configure_codec_dma_ep(struct module_info *mod,
     int ret = 0;
     struct device_obj *dev_obj = mod->dev_obj;
     hw_ep_info_t hw_ep_info = dev_obj->hw_ep_info;
-    /**
-     *Once we have ACDB updated with Codec DMA tagged data will swith to this
-     *Till then we hardcode the config and use set custom config.
-     */
-#if 0
     struct gsl_key_vector tag_key_vect;
-
-    /*
-     * For Codec dma we need to configure the following tags
-     * Media Config :
-     * 1.Channels  - Channels are reused to derive the active channel mask
-     * 2.Sample Rate
-     * 3.Bit Width
-     * Codec DMA INTF Cfg:
-     * 4.LPAIF type
-     * 5.Interface ID.
-     */
-    tag_key_vect.num_kvps = 5;
-    tag_key_vect.kvp = calloc(tag_key_vect.num_kvps,
-                                sizeof(struct gsl_key_value_pair));
-
-    tag_key_vect.kvp[0].key = SAMPLINGRATE;
-    tag_key_vect.kvp[0].value = media_config.rate;
-
-    tag_key_vect.kvp[1].key = CHANNELS;
-    tag_key_vect.kvp[1].value = media_config.channels;
-
-    tag_key_vect.kvp[2].key = BITWIDTH;
-    tag_key_vect.kvp[2].value = get_bit_width(media_config.format);
-
-    tag_key_vect.kvp[3].key = LPAIF_TYPE;
-    tag_key_vect.kvp[3].value = hw_ep_info.lpaif_type;
-
-    tag_key_vect.kvp[4].key = CODEC_DMA_INTF_ID;
-    tag_key_vect.kvp[4].value = hw_ep_info.intf_idx;
-
-    ret = gsl_set_config(graph_obj->graph_handle, mod->tag, &tag_key_vect);
-
-    if (ret != 0) {
-        AGM_LOGE("set_config command for module %d failed with error %d",
-                      mod->tag, ret);
-    }
-#else
     struct apm_module_param_data_t *header;
     struct param_id_codec_dma_intf_cfg_t* codec_config;
-    size_t payload_size = 0;
+    size_t payload_sz, ret_payload_sz = 0;
     uint8_t *payload = NULL;
-    AGM_LOGD("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
-    payload_size = sizeof(struct apm_module_param_data_t) +
+    AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
+
+    payload_sz = sizeof(struct apm_module_param_data_t) +
         sizeof(struct param_id_codec_dma_intf_cfg_t);
 
-    if (payload_size % 8 != 0)
-        payload_size = payload_size + (8 - payload_size % 8);
+    if (payload_sz % 8 != 0)
+        payload_sz = payload_sz + (8 - payload_sz % 8);
 
-    payload = (uint8_t*)malloc((size_t)payload_size);
+    ret_payload_sz = payload_sz;
+    payload = (uint8_t*)calloc(1, (size_t)payload_sz);
+    if (!payload) {
+        AGM_LOGE("Not enough memory for payload");
+        ret = -ENOMEM;
+        goto done;
+    }
 
     header = (struct apm_module_param_data_t*)payload;
     codec_config = (struct param_id_codec_dma_intf_cfg_t*)
                      (payload + sizeof(struct apm_module_param_data_t));
 
-    header->module_instance_id = mod->miid;
-    header->param_id = PARAM_ID_CODEC_DMA_INTF_CFG;
-    header->error_code = 0x0;
-    header->param_size = payload_size;
-    codec_config->lpaif_type = hw_ep_info.lpaif_type; 
-    codec_config->intf_indx = hw_ep_info.intf_idx;
-    codec_config->active_channels_mask = 3;
-    
-    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
+    /*
+     * For Codec dma we need to configure the following tags
+     * 1.Channels  - Channels are reused to derive the active channel mask
+     */
+    tag_key_vect.num_kvps = 1;
+    tag_key_vect.kvp = calloc(tag_key_vect.num_kvps,
+                                sizeof(struct gsl_key_value_pair));
+
+    tag_key_vect.kvp[0].key = CHANNELS;
+    tag_key_vect.kvp[0].value = dev_obj->media_config.channels;
+
+    ret = gsl_get_tagged_data((struct gsl_key_vector *)mod->gkv,
+                               mod->tag, &tag_key_vect, (uint8_t *)payload,
+                               &ret_payload_sz);
+
     if (ret != 0) {
-        AGM_LOGE("custom_config command for module %d failed with error %d",
+        if (ret == CASA_ENEEDMORE)
+           AGM_LOGE("payload buffer sz %d smaller than expected size %d",
+                     payload_sz, ret_payload_sz);
+  
+        AGM_LOGE("get_tagged_data for mod tag:%x miid:%x failed with error %d",
+                      mod->tag, mod->miid, ret);
+        goto free_payload;
+    }
+
+    AGM_LOGV("hdr mid %x pid %x er_cd %x param_sz %d",
+             header->module_instance_id, header->param_id, header->error_code,
+             header->param_size);
+
+    codec_config->lpaif_type = hw_ep_info.lpaif_type;
+    codec_config->intf_indx = hw_ep_info.intf_idx;
+
+    AGM_LOGV("cdc_dma intf cfg lpaif %d indx %d ch_msk %x",
+              codec_config->lpaif_type, codec_config->intf_indx,
+              codec_config->active_channels_mask);
+
+    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
+    if (ret != 0) {
+        AGM_LOGE("custom_config for module %d failed with error %d",
                       mod->tag, ret);
     }
-#endif
+free_payload:
+    free(payload);
+done:
     AGM_LOGD("exit");
     return ret; 
 }
 
+int configure_i2s_ep(struct module_info *mod,
+                           struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct device_obj *dev_obj = mod->dev_obj;
+    hw_ep_info_t hw_ep_info = dev_obj->hw_ep_info;
+    struct gsl_key_vector tag_key_vect;
+    struct apm_module_param_data_t *header;
+    struct  param_id_i2s_intf_cfg_t* i2s_config;
+    size_t payload_sz, ret_payload_sz = 0;
+    uint8_t *payload = NULL;
+    AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
+
+    payload_sz = sizeof(struct apm_module_param_data_t) +
+        sizeof(struct  param_id_i2s_intf_cfg_t);
+
+    if (payload_sz % 8 != 0)
+        payload_sz = payload_sz + (8 - payload_sz % 8);
+
+    ret_payload_sz = payload_sz;
+    payload = (uint8_t*)calloc(1, (size_t)payload_sz);
+    if (!payload) {
+        AGM_LOGE("Not enough memory for payload");
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    header = (struct apm_module_param_data_t*)payload;
+    i2s_config = (struct  param_id_i2s_intf_cfg_t*)
+                     (payload + sizeof(struct apm_module_param_data_t));
+
+    /*
+     * For Codec dma we need to configure the following tags
+     * 1.Channels  - Channels are reused to derive the active channel mask
+     */
+    tag_key_vect.num_kvps = 1;
+    tag_key_vect.kvp = calloc(tag_key_vect.num_kvps,
+                                sizeof(struct gsl_key_value_pair));
+
+    tag_key_vect.kvp[0].key = CHANNELS;
+    tag_key_vect.kvp[0].value = dev_obj->media_config.channels;
+
+    ret = gsl_get_tagged_data((struct gsl_key_vector *)mod->gkv,
+                               mod->tag, &tag_key_vect, (uint8_t *)payload,
+                               &ret_payload_sz);
+
+    if (ret != 0) {
+        if (ret == CASA_ENEEDMORE)
+           AGM_LOGE("payload buffer sz %d smaller than expected size %d",
+                     payload_sz, ret_payload_sz);
+
+        AGM_LOGE("get_tagged_data for module %d failed with error %d",
+                      mod->tag, ret);
+        goto free_payload;
+    }
+
+    AGM_LOGV("hdr mid %x pid %x er_cd %x param_sz %d",
+             header->module_instance_id, header->param_id, header->error_code,
+             header->param_size);
+
+    i2s_config->lpaif_type = hw_ep_info.lpaif_type;
+    i2s_config->intf_idx = hw_ep_info.intf_idx;
+
+    AGM_LOGV("i2s intf cfg lpaif %d indx %d sd_ln_idx %x ws_src %d",
+              i2s_config->lpaif_type, i2s_config->intf_idx,
+              i2s_config->sd_line_idx, i2s_config->ws_src);
+
+    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
+    if (ret != 0) {
+        AGM_LOGE("custom_config for module %d failed with error %d",
+                      mod->tag, ret);
+    }
+free_payload:
+    free(payload);
+done:
+    free(tag_key_vect.kvp);
+    AGM_LOGD("exit");
+    return ret; 
+}
+
+int configure_tdm_ep(struct module_info *mod,
+                           struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct device_obj *dev_obj = mod->dev_obj;
+    hw_ep_info_t hw_ep_info = dev_obj->hw_ep_info;
+    struct gsl_key_vector tag_key_vect;
+    struct apm_module_param_data_t *header;
+    struct param_id_tdm_intf_cfg_t* tdm_config;
+    size_t payload_sz, ret_payload_sz = 0;
+    uint8_t *payload = NULL;
+    AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
+
+    payload_sz = sizeof(struct apm_module_param_data_t) +
+        sizeof(struct param_id_tdm_intf_cfg_t);
+
+    if (payload_sz % 8 != 0)
+        payload_sz = payload_sz + (8 - payload_sz % 8);
+
+    ret_payload_sz = payload_sz;
+    payload = (uint8_t*)calloc(1, (size_t)payload_sz);
+    if (!payload) {
+        AGM_LOGE("Not enough memory for payload");
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    header = (struct apm_module_param_data_t*)payload;
+    tdm_config = (struct  param_id_tdm_intf_cfg_t*)
+                     (payload + sizeof(struct apm_module_param_data_t));
+
+    /*
+     * For Codec dma we need to configure the following tags
+     * 1.Channels  - Channels are reused to derive the active channel mask
+     */
+    tag_key_vect.num_kvps = 1;
+    tag_key_vect.kvp = calloc(tag_key_vect.num_kvps,
+                                sizeof(struct gsl_key_value_pair));
+
+    tag_key_vect.kvp[0].key = CHANNELS;
+    tag_key_vect.kvp[0].value = dev_obj->media_config.channels;
+
+    ret = gsl_get_tagged_data((struct gsl_key_vector *)mod->gkv,
+                               mod->tag, &tag_key_vect, (uint8_t *)payload,
+                               &ret_payload_sz);
+
+    if (ret != 0) {
+
+        if (ret == CASA_ENEEDMORE)
+           AGM_LOGE("payload buffer sz %d smaller than expected size %d",
+                     payload_sz, ret_payload_sz);
+
+        AGM_LOGE("get_tagged_data for module %d failed with error %d",
+                      mod->tag, ret);
+        goto free_payload;
+    }
+
+    tdm_config->lpaif_type = hw_ep_info.lpaif_type;
+    tdm_config->intf_idx = hw_ep_info.intf_idx;
+
+    AGM_LOGV("tdm intf cfg lpaif %d idx %d sync_src %d ctrl_dt_ot_enb %d",
+             tdm_config->lpaif_type, tdm_config->intf_idx, tdm_config->sync_src,
+             tdm_config->ctrl_data_out_enable);
+    AGM_LOGV("slt_msk %x nslts_per_frm %x slt_wdth %d sync_mode %d",
+             tdm_config->slot_mask, tdm_config->nslots_per_frame,
+             tdm_config->slot_width, tdm_config->sync_mode);
+    AGM_LOGV("inv_sync_pulse %d sync_data_delay %d",
+             tdm_config->ctrl_invert_sync_pulse, tdm_config->ctrl_sync_data_delay);
+
+    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
+    if (ret != 0) {
+        AGM_LOGE("custom_config for module %d failed with error %d",
+                      mod->tag, ret);
+    }
+free_payload:
+    free(payload);
+done:
+    free(tag_key_vect.kvp);
+    AGM_LOGD("exit");
+    return ret; 
+}
+
+int configure_aux_pcm_ep(struct module_info *mod,
+                           struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct device_obj *dev_obj = mod->dev_obj;
+    hw_ep_info_t hw_ep_info = dev_obj->hw_ep_info;
+    struct gsl_key_vector tag_key_vect;
+    struct apm_module_param_data_t *header;
+    struct param_id_tdm_intf_cfg_t* tdm_config;
+    struct param_id_hw_pcm_intf_cfg_t* aux_pcm_cfg;
+    size_t payload_sz ,ret_payload_sz = 0;
+    uint8_t *payload = NULL;
+    AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
+
+    payload_sz = sizeof(struct apm_module_param_data_t) +
+        sizeof(struct param_id_hw_pcm_intf_cfg_t);
+
+    if (payload_sz % 8 != 0)
+        payload_sz = payload_sz + (8 - payload_sz % 8);
+
+    ret_payload_sz = payload_sz;
+    payload = (uint8_t*)calloc(1, (size_t)payload_sz);
+    if (!payload) {
+        AGM_LOGE("Not enough memory for payload");
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    header = (struct apm_module_param_data_t*)payload;
+    aux_pcm_cfg = (struct  param_id_hw_pcm_intf_cfg_t*)
+                     (payload + sizeof(struct apm_module_param_data_t));
+
+    /*
+     * For Codec dma we need to configure the following tags
+     * 1.Channels  - Channels are reused to derive the active channel mask
+     */
+    tag_key_vect.num_kvps = 1;
+    tag_key_vect.kvp = calloc(tag_key_vect.num_kvps,
+                                sizeof(struct gsl_key_value_pair));
+
+    tag_key_vect.kvp[0].key = CHANNELS;
+    tag_key_vect.kvp[0].value = dev_obj->media_config.channels;
+
+    ret = gsl_get_tagged_data((struct gsl_key_vector *)mod->gkv,
+                               mod->tag, &tag_key_vect, (uint8_t *)payload,
+                               &ret_payload_sz);
+
+    if (ret != 0) {
+       if (ret == CASA_ENEEDMORE)
+           AGM_LOGE("payload buffer sz %d smaller than expected size %d",
+                     payload_sz, ret_payload_sz);
+
+        AGM_LOGE("get_tagged_data for module %d failed with error %d",
+                      mod->tag, ret);
+        goto free_payload;
+    }
+
+    aux_pcm_cfg->lpaif_type = hw_ep_info.lpaif_type;
+    aux_pcm_cfg->intf_idx = hw_ep_info.intf_idx;
+
+    AGM_LOGV("aux intf cfg lpaif %d idx %d sync_src %d ctrl_dt_ot_enb %d",
+             aux_pcm_cfg->lpaif_type, aux_pcm_cfg->intf_idx, aux_pcm_cfg->sync_src,
+             aux_pcm_cfg->ctrl_data_out_enable);
+    AGM_LOGV("slt_msk %x frm_setting %x aux_mode %d",
+             aux_pcm_cfg->slot_mask, aux_pcm_cfg->frame_setting,
+             aux_pcm_cfg->aux_mode);
+
+    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
+    if (ret != 0) {
+        AGM_LOGE("custom_config for module %d failed with error %d",
+                      mod->tag, ret);
+    }
+free_payload:
+    free(payload);
+done:
+    free(tag_key_vect.kvp);
+    AGM_LOGD("exit");
+    return ret; 
+}
 
 int configure_hw_ep_media_config(struct module_info *mod,
                                 struct graph_obj *graph_obj)
@@ -293,7 +546,12 @@ int configure_hw_ep_media_config(struct module_info *mod,
     if (payload_size % 8 != 0)
         payload_size = payload_size + (8 - payload_size % 8);
 
-    payload = malloc((size_t)payload_size);
+    payload = calloc(1, (size_t)payload_size);
+    if (!payload) {
+        AGM_LOGE("No memory to allocate for payload");
+        ret = -ENOMEM;
+        goto done;
+    }
 
     header = (struct apm_module_param_data_t*)payload;
     hw_ep_media_conf = (struct param_id_hw_ep_mf_t*)
@@ -308,15 +566,25 @@ int configure_hw_ep_media_config(struct module_info *mod,
     hw_ep_media_conf->bit_width = get_bit_width(media_config.format);
 
     hw_ep_media_conf->num_channels = media_config.channels;
+    /*
+     *TODO:Expose a parameter to client to update this as, this will change
+     *once we move to supporting compress data through hw ep
+     *
+     */
     hw_ep_media_conf->data_format = DATA_FORMAT_FIXED_POINT;
+
+    AGM_LOGV("rate %d bw %d ch %d", media_config.rate,
+                    hw_ep_media_conf->bit_width, media_config.channels);
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
         AGM_LOGE("custom_config command for module %d failed with error %d",
                       mod->tag, ret);
     }
-   AGM_LOGD("exit");
-   return ret;
+    free(payload);
+done:
+    AGM_LOGD("exit");
+    return ret;
 }
 
 int configure_hw_ep(struct module_info *mod,
@@ -334,7 +602,16 @@ int configure_hw_ep(struct module_info *mod,
          ret = configure_codec_dma_ep(mod, graph_obj);
          break;
     case MI2S:
+         ret = configure_i2s_ep(mod, graph_obj);
+         break;
+    case AUXPCM:
+         ret = configure_aux_pcm_ep(mod, graph_obj);
+         break;
+    case TDM:
+         ret = configure_tdm_ep(mod, graph_obj);
+         break;
     default:
+         AGM_LOGE("hw intf %d not enabled yet", dev_obj->hw_ep_info.intf);
          break;
     }
     return ret;
@@ -648,13 +925,20 @@ void gsl_callback_func(struct gsl_event_cb_params *event_params,
      }
 
      if (graph_obj->cb)
-         graph_obj->cb((struct graph_event_cb_params *)event_params,
+         graph_obj->cb((struct agm_event_cb_params *)event_params,
                         graph_obj->client_data);
 
      return; 
 }
 
-int graph_open(struct agm_meta_data *meta_data_kv,
+int graph_get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
+				    void *payload, size_t *size)
+{
+    return gsl_get_tags_with_module_info((struct gsl_key_vector *) gkv,
+                                         payload, size);
+}
+
+int graph_open(struct agm_meta_data_gsl *meta_data_kv,
                struct session_obj *ses_obj, struct device_obj *dev_obj,
                struct graph_obj **gph_obj)
 {
@@ -663,8 +947,9 @@ int graph_open(struct agm_meta_data *meta_data_kv,
     struct listnode *temp_node,*node = NULL;
     size_t module_info_size;
     struct gsl_module_id_info *module_info;
+    struct agm_key_vector_gsl *gkv;
     int i = 0;
-    module_info_t *mod = NULL;
+    module_info_t *mod, *temp_mod = NULL;
 
     AGM_LOGD("entry");
     if (meta_data_kv == NULL || gph_obj == NULL) {
@@ -723,6 +1008,8 @@ int graph_open(struct agm_meta_data *meta_data_kv,
     }
 
     if (dev_obj != NULL) {
+
+
         int count = sizeof(hw_ep_module)/sizeof(struct module_info);
 
         for (i = 0; i < count; i++) {
@@ -738,10 +1025,30 @@ int graph_open(struct agm_meta_data *meta_data_kv,
              }
              mod->miid = module_info->module_entry[0].module_iid;
              mod->mid = module_info->module_entry[0].module_id;
+             /*store GKV which describes/contains this module*/
+             gkv = calloc(1, sizeof(struct agm_key_vector_gsl));
+             if (!gkv) {
+                 AGM_LOGE("No memory to create merged metadata\n");
+                 ret = -ENOMEM;
+                 goto free_graph_obj;
+             }
+
+             gkv->num_kvs = meta_data_kv->gkv.num_kvs;
+             gkv->kv = calloc(gkv->num_kvs, sizeof(struct agm_key_value));
+             if (!gkv->kv) {
+                 AGM_LOGE("No memory to create merged metadata gkv\n");
+                 free(gkv);
+                 ret = -ENOMEM;
+                 goto free_graph_obj;
+             }
+             memcpy(gkv->kv, meta_data_kv->gkv.kv,
+                    gkv->num_kvs * sizeof(struct agm_key_value));
+             mod->gkv = gkv;
              AGM_LOGD("miid %x mid %x tag %x", mod->miid, mod->mid, mod->tag);
              ADD_MODULE(*mod, dev_obj); 
              if (module_info)
-                free(module_info);
+                 free(module_info);
+             gkv = NULL;
         }
     }
 
@@ -753,14 +1060,13 @@ int graph_open(struct agm_meta_data *meta_data_kv,
        goto free_graph_obj;
     }
 
-    graph_obj->state = OPENED;
     ret = gsl_register_event_cb(graph_obj->graph_handle,
                                 gsl_callback_func, graph_obj);
     if (ret != 0) {
         AGM_LOGE("failed to register callback");
         goto close_graph;
     }
-
+    graph_obj->state = OPENED;
     *gph_obj = graph_obj;
 
     goto done;
@@ -771,7 +1077,12 @@ free_graph_obj:
     /*free the list of modules associated with this graph_object*/
     list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
         list_remove(node);
-        free(node_to_item(node, module_info_t, list));
+        temp_mod = node_to_item(node, module_info_t, list);
+        if (temp_mod->gkv) {
+            free(temp_mod->gkv->kv);
+            free(temp_mod->gkv);
+        }
+        free(temp_mod);
     }
     free(graph_obj);
 done:
@@ -783,6 +1094,7 @@ int graph_close(struct graph_obj *graph_obj)
 {
     int ret = 0;
     struct listnode *temp_node,*node = NULL;
+    module_info_t *temp_mod = NULL;
 
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object");
@@ -803,9 +1115,13 @@ int graph_close(struct graph_obj *graph_obj)
     /*free the list of modules associated with this graph_object*/
     list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
         list_remove(node);
-        free(node_to_item(node, module_info_t, list));
+        temp_mod = node_to_item(node, module_info_t, list);
+        if (temp_mod->gkv) {
+            free(temp_mod->gkv->kv);
+            free(temp_mod->gkv);
+        }
+        free(temp_mod);
     }
- 
     pthread_mutex_unlock(&graph_obj->lock);
     pthread_mutex_destroy(&graph_obj->lock);
     free(graph_obj);
@@ -991,11 +1307,54 @@ int graph_set_config(struct graph_obj *graph_obj, void *payload,
     AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size); 
     if (ret !=0)
-        AGM_LOGE("graph_set_config failed %d", ret);
+        AGM_LOGE("%s: graph_set_config failed %d", __func__, ret);
 
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit");
+
     return ret;
+}
+
+int graph_set_config_with_tag(struct graph_obj *graph_obj,
+                              struct agm_key_vector_gsl *gkv,
+                              struct agm_tag_config_gsl *tag_config)
+{
+     int ret = 0;
+
+     if (graph_obj == NULL) {
+         AGM_LOGE("invalid graph object");
+         return -EINVAL;
+     }
+
+     pthread_mutex_lock(&graph_obj->lock);
+     ret = gsl_set_config(graph_obj->graph_handle,// (struct gsl_key_vector *)gkv, uncomment once gsl implements gkv for set_config
+                          tag_config->tag_id, (struct gsl_key_vector *)&tag_config->tkv);
+     if (ret)
+         AGM_LOGE("graph_set_config failed %d", ret);
+
+     pthread_mutex_unlock(&graph_obj->lock);
+
+     return ret;
+}
+
+int graph_set_cal(struct graph_obj *graph_obj,
+                  struct agm_meta_data_gsl *metadata)
+{
+     int ret = 0;
+
+     if (graph_obj == NULL) {
+         AGM_LOGE("invalid graph object");
+         return -EINVAL;
+     }
+
+     pthread_mutex_lock(&graph_obj->lock);
+     ret = gsl_set_cal(graph_obj->graph_handle,
+                       (struct gsl_key_vector *)&metadata->ckv);
+     if (ret)
+         AGM_LOGE("graph_set_cal failed %d", ret);
+
+     pthread_mutex_unlock(&graph_obj->lock);
+
+     return ret;
 }
 
 int graph_write(struct graph_obj *graph_obj, void *buffer, size_t size)
@@ -1066,13 +1425,14 @@ done:
 }
 
 int graph_add(struct graph_obj *graph_obj,
-              struct agm_meta_data *meta_data_kv,
+              struct agm_meta_data_gsl *meta_data_kv,
               struct device_obj *dev_obj)
 {
     int ret = 0;
     struct session_obj *sess_obj;
     struct gsl_cmd_graph_select add_graph;
     module_info_t *mod = NULL;
+    struct agm_key_vector_gsl *gkv;
     struct listnode *node = NULL;
 
     if (graph_obj == NULL) {
@@ -1146,10 +1506,28 @@ int graph_add(struct graph_obj *graph_obj,
             /**
              *This is a new device object, add this module to the list and 
              */
+            /*Make a local copy of gkv and use when we query gsl
+            for tagged data*/
+            gkv = calloc(1, sizeof(struct agm_key_vector_gsl));
+            if (!gkv) {
+                AGM_LOGE("No memory to allocate for gkv\n");
+                ret = -ENOMEM;
+                goto done;
+            }
+            gkv->num_kvs = meta_data_kv->gkv.num_kvs;
+            gkv->kv = calloc(gkv->num_kvs, sizeof(struct agm_key_value));
+            if (!gkv->kv) {
+                AGM_LOGE("No memory to allocate for kv\n");
+                free(gkv);
+                ret = -ENOMEM;
+                goto done;
+            }
+            memcpy(gkv->kv, meta_data_kv->gkv.kv,
+                    gkv->num_kvs * sizeof(struct agm_key_value));
+            mod->gkv = gkv;
+            gkv = NULL;
             AGM_LOGD("Adding the new module tag %x mid %x miid %x", mod->tag, mod->mid, mod->miid);
-            add_module = ADD_MODULE(*mod, dev_obj);
-            add_module->miid = module_info->module_entry[0].module_iid;
-            add_module->mid = module_info->module_entry[0].module_id; 
+            ADD_MODULE(*mod, dev_obj);
         }
     }
     /*configure the newly added modules*/
@@ -1169,13 +1547,14 @@ done:
 }
 
 int graph_change(struct graph_obj *graph_obj,
-                     struct agm_meta_data *meta_data_kv,
+                     struct agm_meta_data_gsl *meta_data_kv,
                      struct device_obj *dev_obj)
 {
     int ret = 0;
     struct session_obj *sess_obj;
     struct gsl_cmd_graph_select change_graph;
     module_info_t *mod = NULL;
+    struct agm_key_vector_gsl *gkv;
     struct listnode *node, *temp_node = NULL;
 
     if (graph_obj == NULL) {
@@ -1247,13 +1626,37 @@ int graph_change(struct graph_obj *graph_obj,
                 if ((temp_mod->tag = DEVICE_HW_ENDPOINT_TX) ||
                     (temp_mod->tag = DEVICE_HW_ENDPOINT_RX)) {
                     list_remove(node);
+                    if (temp_mod->gkv) {
+                        free(temp_mod->gkv->kv);
+                        free(temp_mod->gkv);
+                    }
                     free(temp_mod);
-                    temp_mod = NULL; 
+                    temp_mod = NULL;
                 }
             }
             add_module = ADD_MODULE(*mod, dev_obj);
             add_module->miid = module_info->module_entry[0].module_iid;
-            add_module->mid = module_info->module_entry[0].module_id; 
+            add_module->mid = module_info->module_entry[0].module_id;
+            /*Make a local copy of gkv and use when we query gsl
+            for tagged data*/
+            gkv = calloc(1, sizeof(struct agm_key_vector_gsl));
+            if (!gkv) {
+                AGM_LOGE("No memory to allocate for gkv\n");
+                ret = -ENOMEM;
+                goto done;
+            }
+            gkv->num_kvs = meta_data_kv->gkv.num_kvs;
+            gkv->kv = calloc(gkv->num_kvs, sizeof(struct agm_key_value));
+            if (!gkv->kv) {
+                AGM_LOGE("No memory to allocate for kv\n");
+                free(gkv);
+                ret = -ENOMEM;
+                goto done;
+            }
+            memcpy(gkv->kv, meta_data_kv->gkv.kv,
+                    gkv->num_kvs * sizeof(struct agm_key_value));
+            add_module->gkv = gkv;
+            gkv = NULL; 
         }
     } 
     /*Send the new GKV for CHANGE_GRAPH*/
@@ -1284,7 +1687,7 @@ done:
 }
 
 int graph_remove(struct graph_obj *graph_obj,
-                 struct agm_meta_data *meta_data_kv)
+                 struct agm_meta_data_gsl *meta_data_kv)
 {
     int ret = 0;
     struct gsl_cmd_remove_graph rm_graph;
@@ -1316,20 +1719,80 @@ int graph_remove(struct graph_obj *graph_obj,
     return ret;
 }
 
-int graph_register_cb(struct graph_obj *graph_obj, event_cb cb,
+int graph_register_cb(struct graph_obj *gph_obj, event_cb cb,
                       void *client_data)
 {
-    int ret = 0;
-    if ((graph_obj == NULL) || (cb == NULL)) {
-        AGM_LOGE("invalid graph object or null callback");
+
+    if (gph_obj == NULL){
+        AGM_LOGE("invalid graph object");
         return -EINVAL;
     }
-    pthread_mutex_lock(&graph_obj->lock);
-    graph_obj->cb = cb;
-    graph_obj->client_data = client_data; 
-    pthread_mutex_unlock(&graph_obj->lock);
+
+    if (cb == NULL) {
+        AGM_LOGE("No callback to register");
+        return -EINVAL;
+    }
+
+    pthread_mutex_lock(&gph_obj->lock);
+    gph_obj->cb = cb;
+    gph_obj->client_data = client_data;
+    pthread_mutex_unlock(&gph_obj->lock);
 
     return 0;
+}
+
+int graph_register_for_events(struct graph_obj *gph_obj,
+                              struct agm_event_reg_cfg *evt_reg_cfg)
+{
+    int ret = 0;
+    struct gsl_cmd_register_custom_event *reg_ev_payload = NULL;
+    size_t payload_size = 0;
+
+    if (gph_obj == NULL){
+        AGM_LOGE("invalid graph object");
+        ret = -EINVAL;
+        goto done;
+    }
+
+    if (evt_reg_cfg == NULL) {
+        AGM_LOGE("No event register payload passed");
+        ret = -EINVAL;
+        goto done;
+    }
+    pthread_mutex_lock(&gph_obj->lock);
+
+    if (gph_obj->graph_handle == NULL) {
+        AGM_LOGE("invalid graph handle");
+        ret = -EINVAL;
+        goto done;
+    }
+    payload_size = sizeof(struct gsl_cmd_register_custom_event) +
+                                       evt_reg_cfg->event_config_payload_size;
+
+    reg_ev_payload = calloc(1, payload_size);
+    if (reg_ev_payload == NULL) {
+        AGM_LOGE("calloc failed for reg_ev_payload");
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    reg_ev_payload->event_id = evt_reg_cfg->event_id;
+    reg_ev_payload->module_instance_id = evt_reg_cfg->module_instance_id;
+    reg_ev_payload->event_config_payload_size =
+                                 evt_reg_cfg->event_config_payload_size;
+    reg_ev_payload->is_register = evt_reg_cfg->is_register;
+
+    memcpy(reg_ev_payload + sizeof(apm_module_register_events_t),
+          evt_reg_cfg->event_config_payload, evt_reg_cfg->event_config_payload_size); 
+
+    ret = gsl_ioctl(gph_obj->graph_handle, GSL_CMD_REGISTER_CUSTOM_EVENT, reg_ev_payload, payload_size);
+    if (ret != 0) {
+       AGM_LOGE("event registration failed with error %d", ret);
+    }
+    pthread_mutex_unlock(&gph_obj->lock);
+
+done:
+    return ret;
 }
 
 size_t graph_get_hw_processed_buff_cnt(struct graph_obj *graph_obj,

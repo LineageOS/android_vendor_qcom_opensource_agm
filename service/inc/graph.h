@@ -30,11 +30,10 @@
 #ifndef GPH_OBJ_H
 #define GPH_OBJ_H
 
-#include <cutils/list.h>
 #include "device.h"
 #include "session_obj.h"
-#include "agm_api.h"
-#include "gsl_intf.h"
+#include "agm_priv.h"
+#include "list.h"
 
 #define ATTRIBUTES_DATA_MODE_MASK 0x3
 #define DATA_MODE_FLAG_SHMEM 0x0 /**< shared memory mode */
@@ -50,15 +49,6 @@ typedef enum state
     STOPPED = 0x1000,
 } graph_state_t;
 
-/*TODO: Ensure that the below event cb payload is in sync with GSL*/
-/** data that will be passed to client in the event callback */
-struct graph_event_cb_params {
-    /**< identifies the module which generated event */
-    uint32_t source_module_id;
-    uint32_t event_id; /**< identifies the event */
-    uint32_t event_payload_size; /**< size of payload below */
-    void *event_payload; /**< payload associated with the event if any */
-};
 
 /**
  * \brief Callback function signature for events to client
@@ -66,22 +56,10 @@ struct graph_event_cb_params {
  * \param[in] event_params: holds all event related info
  * \param[in] client_data: client data that was provided during cb registration
  */
-typedef void (*event_cb)(struct graph_event_cb_params *event_params,
+typedef void (*event_cb)(struct agm_event_cb_params *event_params,
                          void *client_data);
-struct graph_obj {
-    pthread_mutex_t lock;
-    pthread_mutex_t gph_open_thread_lock;
-    pthread_t gph_open_thread;
-    pthread_cond_t gph_opened;
-    bool gph_open_thread_created;
-    graph_state_t state;
-    gsl_handle_t graph_handle;
-    struct listnode tagged_mod_list;
-    struct gsl_cmd_configure_read_write_params buf_config; 
-    event_cb cb;
-    void *client_data;
-    struct session_obj *sess_obj;
-};
+
+struct graph_obj;
 
 /**
  *\brief Initialize graph handling module, this in turn initializes
@@ -127,7 +105,7 @@ int graph_deinit();
  *
  * return CASA_EOK on success or error code otherwise.
  */
-int graph_open(struct agm_meta_data *meta_data_kv,
+int graph_open(struct agm_meta_data_gsl *meta_data_kv,
                    struct session_obj *ses_obj,
                    struct device_obj *dev_obj,
                    struct graph_obj **gph_obj);
@@ -142,6 +120,18 @@ int graph_open(struct agm_meta_data *meta_data_kv,
  */
 int graph_register_cb(struct graph_obj *gph_obj, event_cb cb,
                           void *client_data);
+
+/**
+  * \brief Register for events from Modules. Not needed for data path events.
+  *
+  * \param[in] graph_obj - Valid graph_obj
+  * \param[out] evt_reg_info - event specific configuration.
+  *
+  * \return 0 on success, error code otherwise
+  */
+int graph_register_for_events(struct graph_obj *gph_obj,
+                              struct agm_event_reg_cfg *evt_reg_cfg);
+
 
 /**
  *\brief Set a custom config on the graph
@@ -230,7 +220,7 @@ int graph_resume(struct graph_obj *gph_obj);
  * return CASA_EOK on success or error code otherwise.
  */
 int graph_add(struct graph_obj *gph_obj,
-                  struct agm_meta_data *meta_data_kv,
+                  struct agm_meta_data_gsl *meta_data_kv,
                   struct device_obj *dev_obj);
 
 /**
@@ -246,7 +236,7 @@ int graph_add(struct graph_obj *gph_obj,
  * return CASA_EOK on success or error code otherwise.
  */
 int graph_change(struct graph_obj *gph_obj,
-                     struct agm_meta_data *meta_data_kv,
+                     struct agm_meta_data_gsl *meta_data_kv,
                      struct device_obj *dev_obj);
 
 
@@ -260,7 +250,7 @@ int graph_change(struct graph_obj *gph_obj,
  * return CASA_EOK on success or error code otherwise.
  */
 int graph_remove(struct graph_obj *gph_obj,
-                 struct agm_meta_data *meta_data_kv);
+                 struct agm_meta_data_gsl *meta_data_kv);
 
 /**
  *\brief Issue stop to the associated graph
@@ -289,5 +279,14 @@ int graph_close(struct graph_obj *gph_obj);
  */
 size_t graph_get_hw_processed_buff_cnt(struct graph_obj *gph_obj,
                                     enum direction dir);
+
+int graph_get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
+		                            void *payload, size_t *size);
+
+int graph_set_config_with_tag(struct graph_obj *gph_obj,
+                              struct agm_key_vector_gsl *gkv,
+                              struct agm_tag_config_gsl *tag_config);
+int graph_set_cal(struct graph_obj *gph_obj,
+		struct agm_meta_data_gsl *meta_data);
 
 #endif /*GPH_OBJ_H*/

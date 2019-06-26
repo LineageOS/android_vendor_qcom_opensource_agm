@@ -84,7 +84,7 @@ void server_death_notifier::binderDied(const wp<IBinder>& who)
     //add further functionality
 }
 
-int agm_audio_intf_set_media_config(uint32_t audio_intf, struct agm_media_config *media_config) {
+int agm_aif_set_media_config(uint32_t audio_intf, struct agm_media_config *media_config) {
     if(!agm_server_died)
     {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -110,7 +110,7 @@ int agm_deinit(){
       return 0;
 }
 
-int agm_audio_intf_set_metadata(uint32_t audio_intf, struct agm_meta_data *metadata){
+int agm_aif_set_metadata(uint32_t audio_intf, struct agm_meta_data *metadata){
     if(!agm_server_died)
     {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -126,7 +126,7 @@ int agm_session_set_metadata(uint32_t session_id, struct agm_meta_data *metadata
     }
 }
 
-int agm_session_audio_inf_set_metadata(uint32_t session_id, uint32_t audio_intf, struct agm_meta_data *metadata){
+int agm_session_aif_set_metadata(uint32_t session_id, uint32_t audio_intf, struct agm_meta_data *metadata){
     if(!agm_server_died)
     {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -190,7 +190,7 @@ int agm_session_open(uint32_t session_id, struct session_obj **handle) {
     }
 }
 
-int  agm_session_audio_inf_connect(uint32_t session_id, uint32_t audio_intf, bool state) {
+int  agm_session_aif_connect(uint32_t session_id, uint32_t audio_intf, bool state) {
     if(!agm_server_died)
     {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -243,5 +243,65 @@ int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info) {
     {
         android::sp<IAgmService> agm_client = get_agm_server();
         return agm_client->ipc_agm_get_aif_info_list(aif_list, num_aif_info);
+    }
+}
+
+int agm_session_aif_get_tag_module_info(uint32_t session_id, uint32_t aif_id, void *payload, size_t *size)
+{
+    if(!agm_server_died)
+    {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_aif_get_tag_module_info(session_id, aif_id, payload, size);
+    }
+}
+
+
+int agm_session_aif_set_params(uint32_t session_id, uint32_t aif_id, void *payload, size_t size)
+{
+    if(!agm_server_died)
+    {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_aif_set_params(session_id, aif_id, payload, size);
+    }
+}
+
+int agm_session_set_params(uint32_t session_id, void *payload, size_t size)
+{
+    if(!agm_server_died)
+    {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_set_params(session_id, payload, size);
+    }
+}
+
+int agm_set_params_with_tag(uint32_t session_id, uint32_t aif_id, struct agm_tag_config *tag_config)
+{
+    if(!agm_server_died)
+    {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_set_params_with_tag(session_id, aif_id, tag_config);
+    }
+}
+
+int agm_session_register_for_events(uint32_t session_id, struct agm_event_reg_cfg *evt_reg_cfg)
+{
+    if(!agm_server_died) {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_register_for_events(session_id, evt_reg_cfg);
+    }
+}
+int agm_session_register_cb(uint32_t session_id, agm_event_cb cb, enum event_type event, void *client_data)
+{
+    if(!agm_server_died) {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_register_cb(session_id, cb, event, client_data);
+    }
+}
+
+int agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool state)
+{
+    if(!agm_server_died) {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_set_ec_ref(capture_session_id, aif_id, state);
     }
 }

@@ -27,7 +27,7 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 
-#include <agm_api.h>
+#include <agm/agm_api.h>
 #include <errno.h>
 #include <limits.h>
 #include <linux/ioctl.h>
@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <tinyalsa/pcm_plugin.h>
-#include <snd-card-def/snd-card-def.h>
+#include <snd-card-def.h>
 #include <tinyalsa/asoundlib.h>
 
 /* 2 words of uint32_t = 64 bits of mask */
@@ -47,6 +47,7 @@ struct agm_pcm_priv {
     struct agm_buffer_config *buffer_config;
     struct agm_session_config *session_config;
     struct session_obj *handle;
+    void *card_node;
 };
 
 struct pcm_plugin_hw_constraints agm_pcm_constrs = {
@@ -348,6 +349,7 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
 
     ret = agm_session_close(handle);
 
+    snd_card_def_put_card(priv->card_node);
     free(priv->buffer_config);
     free(priv->media_config);
     free(priv->session_config);
@@ -370,7 +372,7 @@ struct pcm_plugin_ops agm_pcm_ops = {
     .drop = agm_pcm_drop,
 };
 
-PCM_PLUGIN_OPEN_FN(agm_pcm)
+PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
 {
     struct pcm_plugin *agm_pcm_plugin;
     struct agm_pcm_priv *priv;
@@ -378,7 +380,8 @@ PCM_PLUGIN_OPEN_FN(agm_pcm)
     struct agm_media_config *media_config;
     struct agm_buffer_config *buffer_config;
     struct session_obj *handle;
-    int ret = 0, session_id = 0;
+    int ret = 0, session_id = device;
+    void *card_node, *pcm_node;
 
     agm_pcm_plugin = calloc(1, sizeof(struct pcm_plugin));
     if (!agm_pcm_plugin)
@@ -408,9 +411,21 @@ PCM_PLUGIN_OPEN_FN(agm_pcm)
         goto err_buf_free;
     }
 
+    card_node = snd_card_def_get_card(card);
+    if (!card_node) {
+        ret = -EINVAL;
+        goto err_session_free;
+    }
+
+    pcm_node = snd_card_def_get_node(card_node, device, SND_NODE_TYPE_PCM);
+    if (!pcm_node) {
+        ret = -EINVAL;
+        goto err_card_put;
+    }
+
     agm_pcm_plugin->card = card;
     agm_pcm_plugin->ops = &agm_pcm_ops;
-    agm_pcm_plugin->node = snd_node_def;
+    agm_pcm_plugin->node = pcm_node;
     agm_pcm_plugin->mode = mode;
     agm_pcm_plugin->constraints = &agm_pcm_constrs;
     agm_pcm_plugin->priv = priv;
@@ -418,20 +433,19 @@ PCM_PLUGIN_OPEN_FN(agm_pcm)
     priv->media_config = media_config;
     priv->buffer_config = buffer_config;
     priv->session_config = session_config;
+    priv->card_node = card_node;
 
-    ret = snd_card_def_get_int(snd_node_def, "id", &session_id);
-    if (ret)
-       goto err_session_free;
-    
     ret = agm_session_open(session_id, &handle);
     if (ret)
-        goto err_session_free;
+        goto err_card_put;
 
     priv->handle = handle;
     *plugin = agm_pcm_plugin;
 
      return 0;
 
+err_card_put:
+    snd_card_def_put_card(card_node);
 err_session_free:
     free(session_config);
 err_buf_free:

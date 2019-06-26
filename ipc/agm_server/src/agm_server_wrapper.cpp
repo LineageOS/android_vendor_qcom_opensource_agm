@@ -79,7 +79,7 @@ int AgmService::ipc_agm_init(){
 
 int AgmService::ipc_agm_audio_intf_set_metadata(uint32_t audio_intf, struct agm_meta_data *metadata){
     ALOGE("%s called\n", __func__);
-    return agm_audio_intf_set_metadata(audio_intf, metadata);
+    return agm_aif_set_metadata(audio_intf, metadata);
 };
 
 int AgmService::ipc_agm_session_set_metadata(uint32_t session_id, struct agm_meta_data *metadata){
@@ -89,7 +89,7 @@ int AgmService::ipc_agm_session_set_metadata(uint32_t session_id, struct agm_met
 
 int AgmService::ipc_agm_session_audio_inf_set_metadata(uint32_t session_id, uint32_t audio_intf, struct agm_meta_data *metadata){
     ALOGE("%s called\n", __func__);
-    return agm_session_audio_inf_set_metadata(session_id, audio_intf, metadata);
+    return agm_session_aif_set_metadata(session_id, audio_intf, metadata);
 };
 
 int AgmService::ipc_agm_session_close(struct session_obj *handle){
@@ -137,6 +137,26 @@ int AgmService::ipc_agm_get_aif_info_list(struct aif_info *aif_list, size_t *num
     return agm_get_aif_info_list(aif_list, num_aif_info);
 };
 
+int AgmService::ipc_agm_session_aif_get_tag_module_info(uint32_t session_id, uint32_t aif_id, void *payload, size_t *size){
+    ALOGE("%s called\n", __func__);
+    return agm_session_aif_get_tag_module_info(session_id, aif_id, payload, size);
+};
+
+int AgmService::ipc_agm_session_aif_set_params(uint32_t session_id, uint32_t aif_id, void *payload, size_t size){
+    ALOGE("%s called\n", __func__);
+    return agm_session_aif_set_params(session_id, aif_id, payload, size);
+};
+
+int AgmService::ipc_agm_session_set_params(uint32_t session_id, void *payload, size_t size){
+    ALOGE("%s called\n", __func__);
+    return agm_session_set_params(session_id, payload, size);
+};
+
+int AgmService::ipc_agm_set_params_with_tag(uint32_t session_id, uint32_t aif_id, struct agm_tag_config *tag_config){
+    ALOGE("%s called\n", __func__);
+    return agm_set_params_with_tag(session_id, aif_id, tag_config);
+};
+
 int AgmService::ipc_agm_session_open(uint32_t session_id, struct session_obj **handle){
     ALOGE("%s called\n", __func__);
     return agm_session_open(session_id, handle);
@@ -150,14 +170,27 @@ int AgmService::ipc_agm_session_set_config(struct session_obj *handle,
     return agm_session_set_config(handle, session_config, media_config, buffer_config);
 };
 
- int AgmService::ipc_agm_session_audio_inf_connect(uint32_t session_id, uint32_t audio_intf, bool state){	
-     ALOGE("%s called\n", __func__);	
-     return agm_session_audio_inf_connect(session_id, audio_intf, state);	
+ int AgmService::ipc_agm_session_audio_inf_connect(uint32_t session_id, uint32_t audio_intf, bool state){
+     ALOGE("%s called\n", __func__);
+     return agm_session_aif_connect(session_id, audio_intf, state);
  };
- 
+
 int AgmService::ipc_agm_audio_intf_set_media_config(uint32_t audio_intf, struct agm_media_config *media_config){
     ALOGE("%s called\n", __func__);
-    return agm_audio_intf_set_media_config(audio_intf, media_config);
+    return agm_aif_set_media_config(audio_intf, media_config);
 };
 
+int AgmService::ipc_agm_session_register_for_events(uint32_t session_id, struct agm_event_reg_cfg *evt_reg_cfg) {
+    ALOGE("%s called\n", __func__);
+    return agm_session_register_for_events(session_id, evt_reg_cfg);
+};
 
+int AgmService::ipc_agm_session_register_cb(uint32_t session_id, agm_event_cb cb, enum event_type event, void *client_data) {
+    ALOGE("%s called\n", __func__);
+    return agm_session_register_cb(session_id, cb, event, client_data) ;
+};
+
+int AgmService::ipc_agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool state) {
+    ALOGE("%s called\n", __func__);
+    return agm_session_set_ec_ref(capture_session_id, aif_id, state) ;
+};

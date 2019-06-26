@@ -34,20 +34,88 @@
 #include "metadata.h"
 #include "utils.h"
 
-struct agm_meta_data* metadata_merge(int num, ...)
+static void metadata_print(struct agm_meta_data_gsl* meta_data)
+{
+	int i, size = meta_data->gkv.num_kvs;
+	AGM_LOGE("GKV size:%d\n", size);
+	for (i = 0; i < size; i++) {
+		AGM_LOGE("key:0x%x, value:0x%x ", meta_data->gkv.kv[i].key, meta_data->gkv.kv[i].value);
+	}
+
+	size = meta_data->ckv.num_kvs;
+	AGM_LOGE("\nCKV size:%d\n", size);
+	for (i = 0; i < size; i++) {
+		AGM_LOGE("key:0x%x, value:0x%d ", meta_data->ckv.kv[i].key, meta_data->ckv.kv[i].value);
+	}
+	AGM_LOGE("\n");
+}
+
+static void metadata_remove_dup(
+		struct agm_meta_data_gsl* meta_data) {
+
+	int i, j, k, size;
+
+	//sort gkvs
+	size = meta_data->gkv.num_kvs;
+	for (i = 0; i < size; i++) {
+		for (j = i + 1; j < size; j++) {
+			if (meta_data->gkv.kv[i].key == meta_data->gkv.kv[j].key) {
+				for (k = j; k < size; k++) {
+					meta_data->gkv.kv[k].key = meta_data->gkv.kv[k + 1].key;
+					meta_data->gkv.kv[k].value = meta_data->gkv.kv[k + 1].value;
+				}
+				size--;
+				j--;
+			}
+		}
+	}
+	meta_data->gkv.num_kvs = size;
+
+	//sort ckvs
+	size = meta_data->ckv.num_kvs;
+	for (i = 0; i < size; i++) {
+		for (j = i + 1; j < size; j++) {
+			if (meta_data->ckv.kv[i].key == meta_data->ckv.kv[j].key) {
+				for (k = j; k < size; k++) {
+					meta_data->ckv.kv[k].key = meta_data->ckv.kv[k + 1].key;
+					meta_data->ckv.kv[k].value = meta_data->ckv.kv[k + 1].value;
+				}
+				size--;
+				j--;
+			}
+		}
+	}
+	meta_data->ckv.num_kvs = size;
+	//metadata_print(meta_data);
+}
+
+void metadata_update_cal(struct agm_meta_data_gsl *meta_data, struct agm_key_vector_gsl *ckv)
+{
+	int i, j;
+
+	for (i = 0; i < meta_data->ckv.num_kvs; i++) {
+		for (j = 0; j < ckv->num_kvs; j++) {
+			if (meta_data->ckv.kv[i].key == ckv->kv[j].key) {
+				meta_data->ckv.kv[i].value = ckv->kv[j].value;
+			}
+		}
+	}
+}
+
+struct agm_meta_data_gsl* metadata_merge(int num, ...)
 {
 	int total_gkv = 0;
 	int total_ckv = 0;
 	struct agm_key_value *gkv_offset;
 	struct agm_key_value *ckv_offset;
-	struct agm_meta_data *temp, *merged = NULL;
+	struct agm_meta_data_gsl *temp, *merged = NULL;
 
 	va_list valist;
 	int i = 0;
 
 	va_start(valist, num);
 	for (i = 0; i < num; i++) {
-		temp = va_arg(valist, struct agm_meta_data*);
+		temp = va_arg(valist, struct agm_meta_data_gsl*);
 		if (temp) {
 			total_gkv += temp->gkv.num_kvs;
 			total_ckv += temp->ckv.num_kvs;
@@ -55,7 +123,7 @@ struct agm_meta_data* metadata_merge(int num, ...)
 	}
 	va_end(valist);
 
-	merged = calloc(1, sizeof(struct agm_meta_data));
+	merged = calloc(1, sizeof(struct agm_meta_data_gsl));
 	if (!merged) {
 		AGM_LOGE("%s: No memory to create merged metadata\n", __func__);
 		return NULL;
@@ -83,7 +151,7 @@ struct agm_meta_data* metadata_merge(int num, ...)
 	ckv_offset = merged->ckv.kv;
 	va_start(valist, num);
 	for (i = 0; i < num; i++) {
-		temp = va_arg(valist, struct agm_meta_data*);
+		temp = va_arg(valist, struct agm_meta_data_gsl*);
 		if (temp) {
 			memcpy(gkv_offset, temp->gkv.kv, temp->gkv.num_kvs * sizeof(struct agm_key_value));
 			gkv_offset += temp->gkv.num_kvs;
@@ -93,23 +161,18 @@ struct agm_meta_data* metadata_merge(int num, ...)
 	}
 	va_end(valist);
 
+	metadata_remove_dup(merged);
+
 	return merged;
 }
 
-int metadata_copy(struct agm_meta_data *dest, struct agm_meta_data *src)
+int metadata_copy(struct agm_meta_data_gsl *dest, struct agm_meta_data *src)
 {
 	int ret = 0;
 
 	//validate src metadata
-	if (src->ckv.num_kvs &&
-		(!src->ckv.kv)) {
+	if (!src->num_gkvs || !src->num_ckvs || !src->kv) {
 		AGM_LOGE("%s: Invalid input CKV", __func__);
-		return -EINVAL;
-	}
-
-	if (src->gkv.num_kvs &&
-		(!src->gkv.kv)) {
-		AGM_LOGE("%s: Invalid input GKV", __func__);
 		return -EINVAL;
 	}
 
@@ -120,26 +183,27 @@ int metadata_copy(struct agm_meta_data *dest, struct agm_meta_data *src)
 	dest->gkv.kv = NULL;
 
 	// set new no of kvs
-	dest->ckv.num_kvs = src->ckv.num_kvs;
-	dest->gkv.num_kvs = src->gkv.num_kvs;
-
-	//allocate new ckv array
-	dest->ckv.kv = calloc(src->ckv.num_kvs, sizeof(struct agm_key_value));
-	if (!dest->ckv.kv) {
-		printf("%s No memory to allocate CKV\n", __func__);
-		ret = -ENOMEM;
-		goto error;
-	}
-	memcpy(dest->ckv.kv, src->ckv.kv, src->ckv.num_kvs * sizeof(struct agm_key_value));
+	dest->ckv.num_kvs = src->num_ckvs;
+	dest->gkv.num_kvs = src->num_gkvs;
 
 	//allocate new gkv array
-	dest->gkv.kv = calloc(src->gkv.num_kvs, sizeof(struct agm_key_value));
+	dest->gkv.kv = calloc(src->num_gkvs, sizeof(struct agm_key_value));
 	if (!dest->gkv.kv) {
 		printf("%s No memory to allocate GKV \n", __func__);
 		ret = -ENOMEM;
 		goto error;
 	}
-	memcpy(dest->gkv.kv, src->gkv.kv, src->gkv.num_kvs * sizeof(struct agm_key_value));
+	memcpy(dest->gkv.kv, src->kv, (src->num_gkvs * sizeof(struct agm_key_value)));
+
+	//allocate new ckv array
+	dest->ckv.kv = calloc(src->num_ckvs, sizeof(struct agm_key_value));
+	if (!dest->ckv.kv) {
+		printf("%s No memory to allocate CKV\n", __func__);
+		ret = -ENOMEM;
+		goto error;
+	}
+	memcpy(dest->ckv.kv, (src->kv + src->num_gkvs), (src->num_ckvs * sizeof(struct agm_key_value)));
+	//metadata_print(dest);
 
 	return ret;
 
@@ -152,7 +216,7 @@ error:
 	return ret;
 }
 
-void metadata_free(struct agm_meta_data *metadata)
+void metadata_free(struct agm_meta_data_gsl *metadata)
  {
 	 if (metadata) {
          free(metadata->ckv.kv);

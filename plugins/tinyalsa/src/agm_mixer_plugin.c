@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include <cutils/list.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <limits.h>
@@ -45,8 +46,8 @@
 #include <tinyalsa/mixer_plugin.h>
 #include <tinyalsa/asoundlib.h>
 
-#include <agm_api.h>
-#include <snd-card-def/snd-card-def.h>
+#include <agm/agm_api.h>
+#include <snd-card-def.h>
 
 #define ARRAY_SIZE(a)    \
     (sizeof(a) / sizeof(a[0]))
@@ -57,8 +58,8 @@
 #define AMP_PRIV_GET_CTL_NAME_PTR(p, idx) \
     (p->ctl_names[idx])
 
-#define BE_CTL_NAME_EXTN_MEDIA_CONFIG 0
-#define BE_CTL_NAME_EXTN_METADATA 1
+#define BE_CTL_NAME_MEDIA_CONFIG 0
+#define BE_CTL_NAME_METADATA 1
 
 /* strings should be at the index as per the #defines */
 static char *amp_be_ctl_name_extn[] = {
@@ -66,10 +67,17 @@ static char *amp_be_ctl_name_extn[] = {
     "metadata",
 };
 
-#define PCM_CTL_NAME_EXTN_CONNECT 0
-#define PCM_CTL_NAME_EXTN_DISCONNECT 1
-#define PCM_CTL_NAME_EXTN_MTD_CONTROL 2
-#define PCM_CTL_NAME_EXTN_METADATA 3
+enum {
+    PCM_CTL_NAME_CONNECT = 0,
+    PCM_CTL_NAME_DISCONNECT,
+    PCM_CTL_NAME_MTD_CONTROL,
+    PCM_CTL_NAME_METADATA,
+    PCM_CTL_NAME_SET_PARAM,
+    PCM_CTL_NAME_SET_PARAM_TAG = 5,
+    PCM_CTL_NAME_GET_TAG_INFO,
+    PCM_CTL_NAME_EVENT,
+    /* Add new ones here */
+};
 
 /* strings should be at the index as per the #defines */
 static char *amp_pcm_ctl_name_extn[] = {
@@ -77,16 +85,34 @@ static char *amp_pcm_ctl_name_extn[] = {
     "disconnect",
     "control",
     "metadata",
+    "setParam",
+    "setParamTag",
+    "getTaggedInfo",
+    "event",
+    /* Add new ones below, be sure to update enum as well */
 };
 
-#define PCM_TX_CTL_NAME_EXTN_LOOPBACK 0
+enum {
+    PCM_TX_CTL_NAME_LOOPBACK = 0,
+    PCM_TX_CTL_NAME_ECHOREF,
+    /* Add new ones here */
+};
 /* strings should be at the index as per the #defines */
 static char *amp_pcm_tx_ctl_names[] = {
     "loopback",
+    "echoReference"
+    /* Add new ones here, be sue to update enum as well */
+};
+
+enum {
+    PCM_RX_CTL_NAME_SIDETONE = 0,
+};
+/* strings should be at the index as per the enum */
+static char *amp_pcm_rx_ctl_names[] = {
+    "sidetone",
 };
 
 struct amp_dev_info {
- //   char (*names) [AIF_NAME_MAX_LEN];
     char **names;
     int *idx_arr;
     int count;
@@ -103,10 +129,11 @@ struct amp_dev_info {
 
 struct amp_priv {
     unsigned int card;
-    void *snd_def_node;
     void *card_node;
 
     struct aif_info *aif_list;
+    struct listnode events_list;
+    struct listnode events_paramlist;
 
     struct amp_dev_info rx_be_devs;
     struct amp_dev_info tx_be_devs;
@@ -121,6 +148,18 @@ struct amp_priv {
     struct snd_value_enum rx_be_enum;
 
     struct agm_media_config media_fmt;
+    event_callback event_cb;
+};
+
+struct event_params_node {
+    uint32_t session_id;
+    struct listnode node;
+    struct agm_event_cb_params event_params;
+};
+
+struct mixer_plugin_event_data {
+    struct snd_ctl_event ev;
+    struct listnode node;
 };
 
 static enum agm_pcm_format alsa_to_agm_fmt(int fmt)
@@ -209,6 +248,77 @@ static void amp_free_ctls(struct amp_priv *amp_priv)
     }
 
     amp_priv->ctl_count = 0;
+}
+
+static void amp_add_event_params(struct amp_priv *amp_priv,
+                                 uint32_t session_id,
+                                 struct agm_event_cb_params *event_params)
+{
+    struct event_params_node *event_node;
+    struct agm_event_cb_params *eparams;
+    uint32_t len = event_params->event_payload_size;
+
+    event_node = calloc(1, sizeof(struct event_params_node) + len);
+    if (!event_node)
+        return;
+
+    event_node->session_id = session_id;
+    eparams = &event_node->event_params;
+    eparams->source_module_id = event_params->source_module_id;
+    eparams->event_id = event_params->event_id;
+    eparams->event_payload_size = len;
+
+    memcpy(&eparams->event_payload, &event_params->event_payload, len);
+    list_add_tail(&amp_priv->events_paramlist, &event_node->node);
+}
+
+void amp_event_cb(uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data)
+{
+    struct mixer_plugin *plugin = client_data;
+    struct amp_priv *amp_priv;
+    struct snd_ctl_event event;
+    struct mixer_plugin_event_data *data;
+    char *stream = "PCM";
+    char *ctl_name = "event";
+    char *mixer_str = NULL;
+    int ctl_len;
+
+    if (!plugin)
+        return;
+
+    if (!plugin->subscribed)
+        return;
+
+    amp_priv = plugin->priv;
+    if (!amp_priv)
+        return;
+
+    amp_add_event_params(amp_priv, session_id, event_params);
+
+    /* To support Compress device related event instead of PCM
+       session_id needs to go through adi list to check if it belongs
+       to pcm device or compress device.
+     */
+    event.type = SNDRV_CTL_EVENT_ELEM;
+    ctl_len = strlen(stream) + 4 + strlen(ctl_name) + 1;
+    mixer_str = calloc(1, ctl_len);
+    if (!mixer_str)
+        return;
+
+    snprintf(mixer_str, ctl_len, "%s%d %s", stream, session_id, ctl_name);
+    strncpy(event.data.elem.id.name, mixer_str, sizeof(event.data.elem.id.name));
+
+    data = calloc(1, sizeof(struct mixer_plugin_event_data));
+    if (!data)
+        return;
+
+    data->ev = event;
+    list_add_tail(&amp_priv->events_list, &data->node);
+
+    if (amp_priv->event_cb)
+        amp_priv->event_cb(plugin);
+
+    free(mixer_str);
 }
 
 static void amp_copy_be_names_from_aif_list(struct aif_info *aif_list,
@@ -417,6 +527,30 @@ done:
     return ret;
 }
 
+static void amp_register_event_callback(struct mixer_plugin *plugin, int enable)
+{
+    struct amp_priv *amp_priv = plugin->priv;
+    struct amp_dev_info *rx_adi = &amp_priv->rx_pcm_devs;
+    struct amp_dev_info *tx_adi = &amp_priv->tx_pcm_devs;
+    agm_event_cb cb;
+    int idx, session_id;
+
+    if (enable)
+        cb = &amp_event_cb;
+    else
+        cb = NULL;
+
+    for (idx = 1; idx < rx_adi->count; idx++) {
+        session_id = rx_adi->idx_arr[idx];
+        agm_session_register_cb(session_id, cb, AGM_EVENT_MODULE, plugin);
+    }
+
+    for (idx = 1; idx < tx_adi->count; idx++) {
+        session_id = tx_adi->idx_arr[idx];
+        agm_session_register_cb(session_id, cb, AGM_EVENT_MODULE, plugin);
+    }
+}
+
 static int amp_get_be_ctl_count(struct amp_priv *amp_priv)
 {
     struct amp_dev_info *rx_adi = &amp_priv->rx_be_devs;
@@ -451,17 +585,32 @@ static int amp_get_pcm_ctl_count(struct amp_priv *amp_priv)
     ctl_per_pcm = ARRAY_SIZE(amp_pcm_tx_ctl_names);
     count += (tx_adi->count -1) * ctl_per_pcm;
 
+    /* Count only RX pcm specific controls */
+    ctl_per_pcm = ARRAY_SIZE(amp_pcm_rx_ctl_names);
+    count += (rx_adi->count - 1) * ctl_per_pcm;
+
     return count;
 }
 
-/* 512 max bytes for non-tlv controls, reserving 16 for future use */
-static struct snd_value_bytes be_metadata_bytes =
-    SND_VALUE_BYTES(512 - 16);
-static struct snd_value_bytes pcm_metadata_bytes =
-    SND_VALUE_BYTES(512 - 16);
+static int amp_pcm_get_control_value(struct amp_priv *amp_priv,
+                int pcm_idx, struct amp_dev_info *pcm_adi)
+{
+    int mtd_idx;
 
-static struct snd_value_int media_fmt_int = 
-    SND_VALUE_INTEGER(3, 0, 384000, 1);
+    /* Find the index for metadata_ctl for this pcm */
+    for (mtd_idx = 1; mtd_idx < pcm_adi->count; mtd_idx++) {
+        if (pcm_idx == pcm_adi->idx_arr[mtd_idx])
+            break;
+    }
+
+    if (mtd_idx >= pcm_adi->count) {
+        printf("%s: metadata index not found for pcm_idx %d",
+               __func__, pcm_idx);
+        return -EINVAL;
+    }
+
+    return pcm_adi->pcm_mtd_ctl[mtd_idx];
+}
 
 static int amp_be_media_fmt_get(struct mixer_plugin *plugin,
                 struct snd_control *ctl, struct snd_ctl_elem_value *ev)
@@ -483,8 +632,11 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
     amp_priv->media_fmt.channels = ev->value.integer.value[1];
     amp_priv->media_fmt.format = alsa_to_agm_fmt(ev->value.integer.value[2]);
 
-    ret = agm_audio_intf_set_media_config(audio_intf_id,
-                                          &amp_priv->media_fmt);
+    ret = agm_aif_set_media_config(audio_intf_id,
+                                   &amp_priv->media_fmt);
+    if (ret == -EALREADY)
+        ret = 0;
+
     if (ret)
         printf("%s: set_media_config failed, err %d, aif_id %u rate %u channels %u fmt %u\n",
                __func__, ret, audio_intf_id, amp_priv->media_fmt.rate, 
@@ -507,9 +659,13 @@ static int amp_be_metadata_put(struct mixer_plugin *plugin,
     struct agm_meta_data *metadata;
     int ret;
 
-       metadata = (struct agm_meta_data *) ev->value.bytes.data;
+    metadata = (struct agm_meta_data *) ev->value.bytes.data;
     printf ("%s: enter\n", __func__);
-    ret = agm_audio_intf_set_metadata(audio_intf_id, metadata);
+    ret = agm_aif_set_metadata(audio_intf_id, metadata);
+
+    if (ret == -EALREADY)
+        ret = 0;
+
     if (ret)
         printf("%s: set_metadata failed, err %d, aid_id %u\n",
                __func__, ret, audio_intf_id);
@@ -557,7 +713,10 @@ static int amp_pcm_aif_connect_put(struct mixer_plugin *plugin,
         state = true;
 
     be_idx = be_adi->idx_arr[val];
-    ret = agm_session_audio_inf_connect(pcm_idx, be_idx, state);
+    ret = agm_session_aif_connect(pcm_idx, be_idx, state);
+    if (ret == -EALREADY)
+        ret = 0;
+
     if (ret)
         printf("%s: connect failed err %d, pcm_idx %d be_idx %d\n",
                __func__, ret, pcm_idx, be_idx);
@@ -592,6 +751,50 @@ static int amp_pcm_mtd_control_put(struct mixer_plugin *plugin,
     return 0;
 }
 
+static int amp_pcm_event_get(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+{
+    struct amp_priv *amp_priv = plugin->priv;
+    struct listnode *eparams_node, *temp;
+    struct event_params_node *event_node;
+    struct agm_event_cb_params *eparams;
+    int session_id = ctl->private_value;
+
+    printf ("%s: enter\n", __func__);
+    list_for_each_safe(eparams_node, temp, &amp_priv->events_paramlist) {
+        event_node = node_to_item(eparams_node, struct event_params_node, node);
+	if (event_node->session_id == session_id) {
+            eparams = &event_node->event_params;
+            memcpy(&ev->value.bytes.data[0], eparams,
+                   sizeof(struct agm_event_cb_params) + eparams->event_payload_size);
+            list_remove(&event_node->node);
+            free(event_node);
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int amp_pcm_event_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+{
+    struct agm_event_reg_cfg *evt_reg_cfg;
+    int session_id = ctl->private_value;
+    int ret;
+
+    evt_reg_cfg = (struct agm_event_reg_cfg *) (struct agm_meta_data *) &ev->value.bytes.data[0];
+    ret = agm_session_register_for_events(session_id, evt_reg_cfg);
+    if (ret == -EALREADY)
+        ret = 0;
+
+    if (ret)
+        printf("%s: set_event failed, err %d, session_id %u\n",
+               __func__, ret, session_id);
+
+    return ret;
+}
+
 static int amp_pcm_metadata_get(struct mixer_plugin *plugin,
                 struct snd_control *Ctl, struct snd_ctl_elem_value *ev)
 {
@@ -605,42 +808,150 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
 {
     struct amp_dev_info *pcm_adi = ctl->private_data;
     struct amp_dev_info *be_adi;
-    struct agm_meta_data *metadata;
     int pcm_idx = ctl->private_value;
-    int mtd_control, be_idx, ret, mtd_idx;
+    int pcm_control, be_idx, ret;
+    void *payload;
 
     printf("%s: enter\n", __func__);
 
-    metadata = (struct agm_meta_data *) &ev->value.bytes.data[0];
-    /* Find the index for metadata_ctl for this pcm */
-    for (mtd_idx = 1; mtd_idx < pcm_adi->count; mtd_idx++) {
-        if (pcm_idx == pcm_adi->idx_arr[mtd_idx])
-            break;
-    }
+    pcm_control = amp_pcm_get_control_value(plugin->priv, pcm_idx, pcm_adi);
+    if (pcm_control < 0)
+        return pcm_control;
 
-    if (mtd_idx >= pcm_adi->count) {
-        printf("%s: metadata index not found for ctl %s",
-               __func__, ctl->name);
-        return -EINVAL;
-    }
+    payload = &ev->value.bytes.data[0];
+    if (pcm_control == 0) {
+        ret = agm_session_set_metadata(pcm_idx, payload);
+        if (ret == -EALREADY)
+            ret = 0;
 
-    mtd_control = pcm_adi->pcm_mtd_ctl[mtd_idx];
-    if (mtd_control == 0) {
-        ret = agm_session_set_metadata(pcm_idx, metadata);
         if (ret)
             printf("%s: set_session_metadata failed err %d for %s\n",
                    __func__, ret, ctl->name);
         return ret;
     } 
     
-    /* metadata control is not 0, set the (session + be) metadata */
+    /* pcm control is not 0, set the (session + be) metadata */
     be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
-    be_idx = be_adi->idx_arr[mtd_control];
-    ret = agm_session_audio_inf_set_metadata(pcm_idx, be_idx, metadata);
+    be_idx = be_adi->idx_arr[pcm_control];
+    ret = agm_session_aif_set_metadata(pcm_idx, be_idx, payload);
+    if (ret == -EALREADY)
+        ret = 0;
+
     if (ret)
         printf("%s: set_aif_ses_metadata failed err %d for %s\n",
                __func__, ret, ctl->name);
     return ret;
+}
+
+static int amp_pcm_set_param_get(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_tlv *ev)
+{
+    /* get of set_param not implemented */
+    return 0;
+}
+
+static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
+{
+    struct amp_dev_info *pcm_adi = ctl->private_data;
+    struct amp_dev_info *be_adi;
+    void *payload;
+    int pcm_idx = ctl->private_value;
+    int pcm_control, be_idx, ret = 0;
+    size_t tlv_size;
+    bool is_param_tag = false;
+
+    printf("%s: enter\n", __func__);
+
+    if (strstr(ctl->name, "setParamTag"))
+        is_param_tag = true;
+
+    payload = &tlv->tlv[0];
+    tlv_size = tlv->length;
+    pcm_control = amp_pcm_get_control_value(plugin->priv, pcm_idx, pcm_adi);
+    if (pcm_control < 0)
+        return pcm_control;
+
+    if (pcm_control == 0) {
+        if (is_param_tag) {
+            printf("%s: aif not provided for setParamTag\n",
+                    __func__);
+            return -EINVAL;
+        }
+
+        ret = agm_session_set_params(pcm_idx, payload, tlv_size);
+        if (ret)
+            printf("%s: session_set_params failed err %d for %s\n",
+                   __func__, ret, ctl->name);
+        return ret;
+    } 
+    
+    /* control is not 0, set the (session + be) set_param */
+    be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
+    be_idx = be_adi->idx_arr[pcm_control];
+    if (is_param_tag)
+            ret = agm_set_params_with_tag(pcm_idx, be_idx, payload);
+    else
+        ret = agm_session_aif_set_params(pcm_idx, be_idx,
+                            payload, tlv_size);
+    if (ret == -EALREADY)
+        ret = 0;
+
+    if (ret)
+        printf("%s: set_params failed err %d for %s is_param_tag %s\n",
+               __func__, ret, ctl->name, is_param_tag ? "true" : "false");
+    return ret;
+}
+
+static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
+{
+    struct amp_dev_info *pcm_adi = ctl->private_data;
+    struct amp_dev_info *be_adi;
+    void *payload;
+    int pcm_idx = ctl->private_value;
+    int pcm_control, be_idx, ret = 0;
+    size_t tlv_size, get_size;
+
+    printf("%s: enter\n", __func__);
+
+    pcm_control = amp_pcm_get_control_value(plugin->priv, pcm_idx, pcm_adi);
+    if(pcm_control < 0)
+        return pcm_control;
+
+    if (pcm_control == 0) {
+        printf("%s: cannot get tag info for session only\n",
+                __func__);
+        return -EINVAL;
+    }
+    
+    /* control is not 0, get the (session + be) get_tag_info */
+    payload = &tlv->tlv[0];
+    tlv_size = tlv->length;
+    be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
+    be_idx = be_adi->idx_arr[pcm_control];
+
+    ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
+                    NULL, &get_size);
+    if (ret || get_size == 0 || tlv_size < get_size) {
+        printf("%s: invalid size, ret %d, tlv_size %ld, get_size %ld\n",
+                __func__, ret, tlv_size, get_size);
+        return -EINVAL;
+    }
+
+    ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
+                            payload, &get_size);
+    if (ret)
+        printf("%s: session_aif_get_tag_module_info failed err %d for %s\n",
+               __func__, ret, ctl->name);
+    return ret;
+}
+
+static int amp_pcm_tag_info_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
+{
+    /* Set for getTaggedInfo mixer control is not supported */
+    return 0;
 }
 
 static int amp_pcm_loopback_get(struct mixer_plugin *plugin,
@@ -655,7 +966,6 @@ static int amp_pcm_loopback_put(struct mixer_plugin *plugin,
                 struct snd_control *ctl, struct snd_ctl_elem_value *ev)
 {
     struct amp_priv *amp_priv = plugin->priv;
-    struct amp_dev_info *pcm_tx_adi = ctl->private_data;
     struct amp_dev_info *pcm_rx_adi;
     int rx_pcm_idx, tx_pcm_idx = ctl->private_value;
     unsigned int val;
@@ -678,12 +988,88 @@ static int amp_pcm_loopback_put(struct mixer_plugin *plugin,
     }
 
     ret = agm_session_set_loopback(tx_pcm_idx, rx_pcm_idx, state);
+    if (ret == -EALREADY)
+        ret = 0;
+
     if (ret)
         printf("%s: loopback failed err %d, tx_pcm_idx %d rx_pcm_idx %d\n",
                __func__, ret, tx_pcm_idx, rx_pcm_idx);
 
     return 0;
 }
+
+static int amp_pcm_echoref_get(struct mixer_plugin *plugin,
+                struct snd_control *Ctl, struct snd_ctl_elem_value *ev)
+{
+    /* TODO: AGM API not available */
+    printf ("%s: enter\n", __func__);
+    return 0;
+}
+
+static int amp_pcm_echoref_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+{
+    struct amp_priv *amp_priv = plugin->priv;
+    struct amp_dev_info *be_adi;
+    int be_idx, pcm_idx = ctl->private_value;
+    unsigned int val;
+    int ret;
+    bool state = true;
+
+    printf ("%s: enter\n", __func__);
+    be_adi = amp_get_be_adi(amp_priv, RX);
+    if (!be_adi) 
+        return -EINVAL;
+
+    val = ev->value.enumerated.item[0];
+
+    /* setting to ZERO is reset echoref */
+    if (val == 0)
+        state = false;
+
+    be_idx = be_adi->idx_arr[val];
+    ret = agm_session_set_ec_ref(pcm_idx, be_idx, state);
+    if (ret == -EALREADY)
+        ret = 0;
+
+    if (ret)
+        printf("%s: set ecref failed err %d, pcm_idx %d be_idx %d\n",
+               __func__, ret, pcm_idx, be_idx);
+
+    return 0;
+}
+
+static int amp_pcm_sidetone_get(struct mixer_plugin *plugin,
+                struct snd_control *Ctl, struct snd_ctl_elem_value *ev)
+{
+    /* TODO: AGM API not available */
+    printf ("%s: enter\n", __func__);
+    return 0;
+}
+
+static int amp_pcm_sidetone_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+{
+    //TODO
+    return 0;
+}
+
+/* 512 max bytes for non-tlv controls, reserving 16 for future use */
+static struct snd_value_bytes be_metadata_bytes =
+    SND_VALUE_BYTES(512 - 16);
+static struct snd_value_bytes pcm_metadata_bytes =
+    SND_VALUE_BYTES(512 - 16);
+static struct snd_value_bytes pcm_event_bytes =
+    SND_VALUE_BYTES(512 - 16);
+static struct snd_value_tlv_bytes pcm_taginfo_bytes =
+    SND_VALUE_TLV_BYTES(1024, amp_pcm_tag_info_get, amp_pcm_tag_info_put);
+static struct snd_value_tlv_bytes pcm_setparamtag_bytes =
+    SND_VALUE_TLV_BYTES(1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
+static struct snd_value_tlv_bytes pcm_setparam_bytes =
+    SND_VALUE_TLV_BYTES(64 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
+
+static struct snd_value_int media_fmt_int = 
+    SND_VALUE_INTEGER(3, 0, 384000, 1);
 
 /* PCM related mixer controls here */
 static void amp_create_connect_ctl(struct amp_priv *amp_priv,
@@ -694,8 +1080,7 @@ static void amp_create_connect_ctl(struct amp_priv *amp_priv,
     char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
 
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
-             pname, amp_pcm_ctl_name_extn[PCM_CTL_NAME_EXTN_CONNECT]);
-    printf("%s - %s\n", __func__, ctl_name);
+             pname, amp_pcm_ctl_name_extn[PCM_CTL_NAME_CONNECT]);
     INIT_SND_CONTROL_ENUM(ctl, ctl_name, amp_pcm_aif_connect_get,
                     amp_pcm_aif_connect_put, e, pval, pdata);
 }
@@ -708,8 +1093,7 @@ static void amp_create_disconnect_ctl(struct amp_priv *amp_priv,
     char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
 
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
-             pname, amp_pcm_ctl_name_extn[PCM_CTL_NAME_EXTN_DISCONNECT]);
-    printf("%s - %s\n", __func__, ctl_name);
+             pname, amp_pcm_ctl_name_extn[PCM_CTL_NAME_DISCONNECT]);
     INIT_SND_CONTROL_ENUM(ctl, ctl_name, amp_pcm_aif_connect_get,
                     amp_pcm_aif_connect_put, e, pval, pdata);
 }
@@ -722,11 +1106,24 @@ static void amp_create_mtd_control_ctl(struct amp_priv *amp_priv,
     char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
 
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
-             pname, amp_pcm_ctl_name_extn[PCM_CTL_NAME_EXTN_MTD_CONTROL]);
-    printf("%s - %s\n", __func__, ctl_name);
+             pname, amp_pcm_ctl_name_extn[PCM_CTL_NAME_MTD_CONTROL]);
     INIT_SND_CONTROL_ENUM(ctl, ctl_name, amp_pcm_mtd_control_get,
                     amp_pcm_mtd_control_put, e, pval, pdata);
 
+}
+
+static void amp_create_pcm_event_ctl(struct amp_priv *amp_priv,
+                char *name, int ctl_idx, int pval, void *pdata)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+             name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_EVENT]);
+
+    INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_pcm_event_get,
+                    amp_pcm_event_put, pcm_event_bytes,
+                    pval, pdata);
 }
 
 static void amp_create_pcm_metadata_ctl(struct amp_priv *amp_priv,
@@ -736,14 +1133,48 @@ static void amp_create_pcm_metadata_ctl(struct amp_priv *amp_priv,
     char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
 
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
-             name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_EXTN_METADATA]);
+             name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_METADATA]);
 
-    printf("%s - %s\n", __func__, ctl_name);
     INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_pcm_metadata_get,
                     amp_pcm_metadata_put, pcm_metadata_bytes,
                     pval, pdata);
 }
 
+static void amp_create_pcm_set_param_ctl(struct amp_priv *amp_priv,
+                char *name, int ctl_idx, int pval, void *pdata,
+                bool istagged_setparam)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    if (!istagged_setparam) {
+        snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+             name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_SET_PARAM]);
+        INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_setparam_bytes,
+                    pval, pdata);
+    } else {
+        snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+             name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_SET_PARAM_TAG]);
+        INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_setparamtag_bytes,
+                    pval, pdata);
+    }
+
+}
+
+static void amp_create_pcm_get_tag_info_ctl(struct amp_priv *amp_priv,
+                char *name, int ctl_idx, int pval, void *pdata)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+             name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_GET_TAG_INFO]);
+
+    INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_taginfo_bytes,
+                    pval, pdata);
+}
+
+/* TX only mixer control creations here */
 static void amp_create_pcm_loopback_ctl(struct amp_priv *amp_priv,
             char *pname, int ctl_idx, struct snd_value_enum *e,
             int pval, void *pdata)
@@ -752,12 +1183,37 @@ static void amp_create_pcm_loopback_ctl(struct amp_priv *amp_priv,
     char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
 
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
-             pname, amp_pcm_tx_ctl_names[PCM_TX_CTL_NAME_EXTN_LOOPBACK]);
-    printf("%s - %s\n", __func__, ctl_name);
+             pname, amp_pcm_tx_ctl_names[PCM_TX_CTL_NAME_LOOPBACK]);
     INIT_SND_CONTROL_ENUM(ctl, ctl_name, amp_pcm_loopback_get,
                     amp_pcm_loopback_put, e, pval, pdata);
 }
 
+static void amp_create_pcm_echoref_ctl(struct amp_priv *amp_priv,
+            char *pname, int ctl_idx, struct snd_value_enum *e,
+            int pval, void *pdata)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+             pname, amp_pcm_tx_ctl_names[PCM_TX_CTL_NAME_ECHOREF]);
+    INIT_SND_CONTROL_ENUM(ctl, ctl_name, amp_pcm_echoref_get,
+                    amp_pcm_echoref_put, e, pval, pdata);
+}
+
+/* RX only mixer control creations here */
+static void amp_create_pcm_sidetone_ctl(struct amp_priv *amp_priv,
+            char *pname, int ctl_idx, struct snd_value_enum *e,
+            int pval, void *pdata)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+             pname, amp_pcm_rx_ctl_names[PCM_RX_CTL_NAME_SIDETONE]);
+    INIT_SND_CONTROL_ENUM(ctl, ctl_name, amp_pcm_sidetone_get,
+                    amp_pcm_sidetone_put, e, pval, pdata);
+}
 
 /* BE related mixer control creations here */
 static void amp_create_metadata_ctl(struct amp_priv *amp_priv,
@@ -767,9 +1223,8 @@ static void amp_create_metadata_ctl(struct amp_priv *amp_priv,
     char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
 
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
-             be_name, amp_be_ctl_name_extn[BE_CTL_NAME_EXTN_METADATA]);
+             be_name, amp_be_ctl_name_extn[BE_CTL_NAME_METADATA]);
 
-    printf("%s - %s\n", __func__, ctl_name);
     INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_be_metadata_get,
                     amp_be_metadata_put, be_metadata_bytes,
                     pval, pdata);
@@ -782,8 +1237,7 @@ static void amp_create_media_fmt_ctl(struct amp_priv *amp_priv,
     char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
 
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
-             be_name, amp_be_ctl_name_extn[BE_CTL_NAME_EXTN_MEDIA_CONFIG]);
-    printf("%s - %s\n", __func__, ctl_name);
+             be_name, amp_be_ctl_name_extn[BE_CTL_NAME_MEDIA_CONFIG]);
     INIT_SND_CONTROL_INTEGER(ctl, ctl_name, amp_be_media_fmt_get,
                     amp_be_media_fmt_put, media_fmt_int, pval, pdata);
 }
@@ -815,68 +1269,161 @@ static int amp_form_be_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt)
     return 0;
 }
 
-static int amp_form_pcm_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt)
+static int amp_form_common_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx,
+                struct amp_dev_info *pcm_adi, struct amp_dev_info *be_adi)
+{
+    int i;
+
+    for (i = 1; i < pcm_adi->count; i++) {
+        char *name = pcm_adi->names[i];
+        int idx = pcm_adi->idx_arr[i];
+        amp_create_connect_ctl(amp_priv, name, (*ctl_idx)++,
+                        &be_adi->dev_enum, idx, pcm_adi);
+        amp_create_disconnect_ctl(amp_priv, name, (*ctl_idx)++,
+                        &be_adi->dev_enum, idx, pcm_adi);
+        pcm_adi->pcm_mtd_ctl = calloc(pcm_adi->count, sizeof(int));
+        if (!pcm_adi->pcm_mtd_ctl)
+            return -ENOMEM;
+        amp_create_mtd_control_ctl(amp_priv, name, (*ctl_idx)++,
+                        &be_adi->dev_enum, i, pcm_adi);
+        amp_create_pcm_metadata_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, pcm_adi);
+        amp_create_pcm_set_param_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, pcm_adi, false);
+        amp_create_pcm_set_param_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, pcm_adi, true);
+        amp_create_pcm_get_tag_info_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, pcm_adi);
+        amp_create_pcm_event_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, pcm_adi);
+    }
+
+    return 0;
+}
+
+static int amp_form_tx_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx)
 {
     struct amp_dev_info *rx_adi = &amp_priv->rx_pcm_devs;
     struct amp_dev_info *tx_adi = &amp_priv->tx_pcm_devs;
     struct amp_dev_info *be_rx_adi = &amp_priv->rx_be_devs;
+    int i;
+
+    for (i = 1; i < tx_adi->count; i++) {
+        char *name = tx_adi->names[i];
+        int idx = tx_adi->idx_arr[i];
+
+        /* create loopback controls, enum values are RX PCMs*/
+        amp_create_pcm_loopback_ctl(amp_priv, name, (*ctl_idx)++,
+                        &rx_adi->dev_enum, idx, tx_adi);
+        /* Echo Reference has backend RX as enum values */
+        amp_create_pcm_echoref_ctl(amp_priv, name, (*ctl_idx)++,
+                        &be_rx_adi->dev_enum, idx, tx_adi);
+    }
+
+    return 0;
+}
+
+static int amp_form_rx_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx)
+{
+    struct amp_dev_info *rx_adi = &amp_priv->rx_pcm_devs;
     struct amp_dev_info *be_tx_adi = &amp_priv->tx_be_devs;
     int i;
 
     for (i = 1; i < rx_adi->count; i++) {
         char *name = rx_adi->names[i];
         int idx = rx_adi->idx_arr[i];
-        amp_create_connect_ctl(amp_priv, name, ctl_idx,
-                        &be_rx_adi->dev_enum, idx, rx_adi);
-        ctl_idx++;
-        amp_create_disconnect_ctl(amp_priv, name, ctl_idx,
-                        &be_rx_adi->dev_enum, idx, rx_adi);
-        ctl_idx++;
 
-        rx_adi->pcm_mtd_ctl = calloc(rx_adi->count, sizeof(int));
-        if (!rx_adi->pcm_mtd_ctl)
-            return -ENOMEM;
-
-        amp_create_mtd_control_ctl(amp_priv, name, ctl_idx,
-                        &be_rx_adi->dev_enum, i, rx_adi);
-        ctl_idx++;
-        amp_create_pcm_metadata_ctl(amp_priv, name, ctl_idx, idx, rx_adi);
-        ctl_idx++;
-    }
-
-    for (i = 1; i < tx_adi->count; i++) {
-        char *name = tx_adi->names[i];
-        int idx = tx_adi->idx_arr[i];
-        amp_create_connect_ctl(amp_priv, name, ctl_idx,
-                        &be_tx_adi->dev_enum, idx, tx_adi);
-        ctl_idx++;
-        amp_create_disconnect_ctl(amp_priv, name, ctl_idx,
-                        &be_tx_adi->dev_enum, idx, tx_adi);
-        ctl_idx++;
-
-        tx_adi->pcm_mtd_ctl = calloc(tx_adi->count, sizeof(int));
-        if (!tx_adi->pcm_mtd_ctl)
-            return -ENOMEM;
-        amp_create_mtd_control_ctl(amp_priv, name, ctl_idx,
-                        &be_tx_adi->dev_enum, i, tx_adi);
-        ctl_idx++;
-        amp_create_pcm_metadata_ctl(amp_priv, name, ctl_idx, idx, tx_adi);
-        ctl_idx++;
-        /* create loopback control for TX PCMs, enum values are RX PCMs*/
-        amp_create_pcm_loopback_ctl(amp_priv, name, ctl_idx,
-                        &rx_adi->dev_enum, idx, tx_adi);
-        ctl_idx++;
+        /* Create sidetone control, enum values are TX backends */
+        amp_create_pcm_sidetone_ctl(amp_priv, name, (*ctl_idx)++,
+                        &be_tx_adi->dev_enum, idx, rx_adi);
     }
 
     return 0;
 }
 
-static int amp_subscribe_events(struct mixer_plugin *plugin,
-                int *subscribe)
+static int amp_form_pcm_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt)
+{
+    struct amp_dev_info *rx_adi = &amp_priv->rx_pcm_devs;
+    struct amp_dev_info *tx_adi = &amp_priv->tx_pcm_devs;
+    struct amp_dev_info *be_rx_adi = &amp_priv->rx_be_devs;
+    struct amp_dev_info *be_tx_adi = &amp_priv->tx_be_devs;
+    int ret;
+
+    /* Form common controls for RX pcms */
+    ret = amp_form_common_pcm_ctls(amp_priv, &ctl_idx, rx_adi, be_rx_adi);
+    if (ret)
+        return ret;
+
+    /* Form RX PCM specific mixer controls */
+    ret = amp_form_rx_pcm_ctls(amp_priv, &ctl_idx);
+    if (ret)
+        return ret;
+
+    /* Form common controls for TX pcms */
+    ret = amp_form_common_pcm_ctls(amp_priv, &ctl_idx, tx_adi, be_tx_adi);
+    if (ret)
+        return ret;
+
+    /* Form TX PCM specific mixer controls */
+    ret = amp_form_tx_pcm_ctls(amp_priv, &ctl_idx);
+    if (ret)
+        return ret;
+
+    return 0;
+}
+
+static ssize_t amp_read_event(struct mixer_plugin *plugin,
+                              struct snd_ctl_event *ev, size_t size)
 {
     struct amp_priv *amp_priv = plugin->priv;
+    struct listnode *ev_node, *temp;
+    ssize_t result = 0;
 
-    printf("%s: enter, card: %d\n", __func__, amp_priv->card);
+    while (size >= sizeof(struct snd_ctl_event)) {
+        struct mixer_plugin_event_data *data;
+
+        if (list_empty(&amp_priv->events_list))
+            return result;
+
+        data = node_to_item(amp_priv->events_list.next, struct mixer_plugin_event_data, node);
+        memcpy(ev, &data->ev, sizeof(struct snd_ctl_event));
+
+        list_remove(&data->node);
+        free(data);
+        ev += sizeof(struct snd_ctl_event);
+        size -= sizeof(struct snd_ctl_event);
+        result += sizeof(struct snd_ctl_event);
+    }
+
+    return result;
+}
+
+static int amp_subscribe_events(struct mixer_plugin *plugin,
+                                  event_callback event_cb)
+{
+    struct amp_priv *amp_priv = plugin->priv;
+    struct listnode *eparams_node, *ev_node, *temp, *temp2;
+    struct event_params_node *event_node;
+    struct mixer_plugin_event_data *ev_data;
+
+    printf ("%s: enter\n", __func__);
+
+    amp_priv->event_cb = event_cb;
+
+    /* clear all event params on unsubscribe */
+    if (event_cb == NULL) {
+        list_for_each_safe(eparams_node, temp, &amp_priv->events_paramlist) {
+            event_node = node_to_item(eparams_node, struct event_params_node, node);
+            list_remove(&event_node->node);
+            free(event_node);
+        }
+
+        list_for_each_safe(ev_node, temp2, &amp_priv->events_list) {
+            ev_data = node_to_item(ev_node, struct mixer_plugin_event_data, node);
+            list_remove(&ev_data->node);
+            free(ev_data);
+        }
+    }
     return 0;
 }
 
@@ -885,6 +1432,8 @@ static void amp_close(struct mixer_plugin **plugin)
     struct mixer_plugin *amp = *plugin;
     struct amp_priv *amp_priv = amp->priv;
 
+    amp_register_event_callback(amp, 0);
+    amp_subscribe_events(amp, NULL);
     snd_card_def_put_card(amp_priv->card_node);
     amp_free_pcm_dev_info(amp_priv);
     amp_free_be_dev_info(amp_priv);
@@ -898,9 +1447,10 @@ static void amp_close(struct mixer_plugin **plugin)
 struct mixer_plugin_ops amp_ops = {
     .close = amp_close,
     .subscribe_events = amp_subscribe_events,
+    .read_event = amp_read_event,
 };
 
-MIXER_PLUGIN_OPEN_FN(agm_mixer)
+MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
 {
     struct mixer_plugin *amp;
     struct amp_priv *amp_priv;
@@ -931,8 +1481,6 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer)
         ret = -EINVAL;
         goto err_get_card;
     }
-
-    amp_priv->snd_def_node = snd_def_node;
 
     amp_priv->rx_be_devs.dir = RX;
     amp_priv->tx_be_devs.dir = TX;
@@ -980,6 +1528,9 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer)
     amp->priv = amp_priv;
     *plugin = amp;
 
+    amp_register_event_callback(amp, 1);
+    list_init(&amp_priv->events_paramlist);
+    list_init(&amp_priv->events_list);
     printf("%s: total_ctl_cnt = %d\n", __func__, total_ctl_cnt);
 
     return 0;

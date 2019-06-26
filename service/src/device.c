@@ -41,6 +41,7 @@
 #include "metadata.h"
 #include "utils.h"
 #include <tinyalsa/asoundlib.h>
+#include <hw_intf_cmn_api.h>
 
 #define PCM_DEVICE_FILE "/proc/asound/pcm"
 
@@ -77,7 +78,6 @@ static struct pcm_config config = {
      .format = PCM_FORMAT_S16_LE,
      .start_threshold = DEFAULT_PERIOD_SIZE / 4,
      .stop_threshold = INT_MAX,
-     .avail_min = DEFAULT_PERIOD_SIZE / 4,
 };
 
 enum pcm_format agm_to_pcm_format(enum agm_pcm_format format)
@@ -296,21 +296,18 @@ int device_close(struct device_obj *dev_obj)
     }
 
     pthread_mutex_lock(&dev_obj->lock);
-    if (!dev_obj->refcnt.open) {
-        AGM_LOGE("%s: PCM device %u already closed\n", __func__, dev_obj->pcm_id);
-        goto done;
+    if (--dev_obj->refcnt.open == 0) {
+        ret = pcm_close(dev_obj->pcm);
+        if (ret) {
+            AGM_LOGE("%s: PCM device %u close failed, ret = %d\n",
+                     __func__, dev_obj->pcm_id, ret);
+            dev_obj->refcnt.open++;
+            goto done;
+        }
+        dev_obj->state = DEV_CLOSED;
+        dev_obj->refcnt.prepare = 0;
+        dev_obj->refcnt.start = 0;
     }
-
-    ret = pcm_close(dev_obj->pcm);
-    if (ret) {
-        AGM_LOGE("%s: PCM device %u close failed, ret = %d\n",
-                __func__, dev_obj->pcm_id, ret);
-        goto done;
-    }
-    dev_obj->state = DEV_CLOSED;
-    dev_obj->refcnt.prepare--;
-    dev_obj->refcnt.open--;
-
 done:
     pthread_mutex_unlock(&dev_obj->lock);
     return ret;

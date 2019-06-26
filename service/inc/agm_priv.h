@@ -27,15 +27,38 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _METADATA_H_
-#define _METADATA_H_
+#ifndef _AGM_PRIV_H_
+#define _AGM_PRIV_H_
 
-#include <stdarg.h>
-#include "agm_priv.h"
+#include "agm_api.h"
 
-struct agm_meta_data_gsl* metadata_merge(int num, ...);
-int metadata_copy(struct agm_meta_data_gsl *dest, struct agm_meta_data *src);
-void metadata_free(struct agm_meta_data_gsl *metadata);
-void metadata_update_cal(struct agm_meta_data_gsl *meta_data, struct agm_key_vector_gsl *ckv);
+/**
+ * Key Vector
+ */
+struct agm_key_vector_gsl {
+    uint32_t num_kvs;                 /**< number of key value pairs */
+    struct agm_key_value *kv;       /**< array of key value pairs */
+};
 
-#endif //METADATA_H
+/**
+ * Metadata Key Vectors
+ */
+struct agm_meta_data_gsl {
+    /**
+    * Used to lookup the calibration data
+    */
+    struct agm_key_vector_gsl gkv;
+
+    /**
+    * Used to lookup the calibration data
+    */
+     struct agm_key_vector_gsl ckv;
+};
+
+struct agm_tag_config_gsl {
+	uint32_t tag_id;       /**< tag id */
+	struct agm_key_vector_gsl tkv;
+};
+
+
+#endif /* _AGM_PRIV_H_ */

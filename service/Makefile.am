@@ -5,7 +5,7 @@ EXTRA_DIST = $(pkgconfig_DATA)
 
 h_sources = ${top_srcdir}/inc/agm_api.h
 
-AM_CFLAGS = -I ${top_srcdir}/inc
+AM_CFLAGS = -I ${top_srcdir}/inc  -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/gecko
 
 library_include_HEADERS = $(h_sources)
 library_includedir = $(includedir)/agm

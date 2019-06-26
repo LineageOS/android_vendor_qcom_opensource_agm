@@ -34,9 +34,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
-#include <cutils/list.h>
 
-#include "agm_api.h"
+#include "agm_priv.h"
+#include "list.h"
 #include "metadata.h"
 #include "graph.h"
 
@@ -55,7 +55,7 @@ struct aif {
 	uint32_t aif_id;
 	struct device_obj *dev_obj;
 	enum aif_state state;
-	struct agm_meta_data sess_aif_meta;
+	struct agm_meta_data_gsl sess_aif_meta;
 	void *params;
 	size_t params_size;
 };
@@ -69,12 +69,20 @@ enum session_state {
 	SESSION_STOPPED,
 };
 
+struct session_cb {
+	struct listnode node;
+	agm_event_cb cb;
+	enum event_type evt_type;
+	void *client_data;
+};
+
 struct session_obj {
 	struct listnode node;
 	uint32_t sess_id;
 	enum session_state state;
-	struct agm_meta_data sess_meta;
+	struct agm_meta_data_gsl sess_meta;
 	struct listnode aif_pool;
+	struct listnode cb_pool;
 	struct graph_obj *graph;
 	struct agm_session_config stream_config;
 	struct agm_media_config media_config;
@@ -82,6 +90,9 @@ struct session_obj {
 	void *params;
 	size_t params_size;
 	uint32_t loopback_sess_id;
+	bool loopback_state;
+	uint32_t ec_ref_aif_id;
+	bool ec_ref_state;
 	pthread_mutex_t lock;
 };
 
@@ -113,7 +124,22 @@ int session_obj_sess_aif_connect(struct session_obj *sess_obj,
 int session_obj_set_sess_metadata(struct session_obj *sess_obj, struct agm_meta_data *metadata);
 int session_obj_set_sess_aif_metadata(struct session_obj *sess_obj,
 	uint32_t audio_intf, struct agm_meta_data *metadata);
+int session_obj_set_sess_params(struct session_obj *sess_obj,
+	void* payload, size_t size);
+int session_obj_set_sess_aif_params(struct session_obj *sess_obj,
+	uint32_t audio_intf,
+	void *payload, size_t size);
+int session_obj_set_sess_aif_params_with_tag(struct session_obj *sess_obj,
+	uint32_t aif_id,
+	struct agm_tag_config *tag_config);
+int session_obj_set_sess_aif_cal(struct session_obj *sess_obj,
+	uint32_t aif_id,
+	struct agm_cal_config *cal_config);
+int session_obj_get_tag_with_module_info(struct session_obj *sess_obj, uint32_t audio_intf, void *payload, size_t *size);
 size_t session_obj_hw_processed_buff_cnt(struct session_obj *sess_obj, enum direction dir);
 int session_obj_set_loopback(struct session_obj *sess_obj, uint32_t playback_sess_id, bool state);
-
+int session_obj_set_ec_ref(struct session_obj *sess_obj, uint32_t aif_id, bool state);
+int session_obj_register_cb(struct session_obj *sess_obj, agm_event_cb cb, enum event_type evt_type, void *client_data);
+int session_obj_register_for_events(struct session_obj *sess_obj, struct agm_event_reg_cfg *evt_reg_cfg);
+int session_obj_set_ec_ref(struct session_obj *sess_obj, uint32_t aif_id, bool state);
 #endif

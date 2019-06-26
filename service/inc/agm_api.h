@@ -57,26 +57,23 @@ struct agm_key_value {
 };
 
 /**
- * Key Vector
- */
-struct agm_key_vector {
-    size_t num_kvs;                 /**< number of key value pairs */
-    struct agm_key_value *kv;       /**< array of key value pairs */
-};
-
-/**
  * Metadata Key Vectors
  */
 struct agm_meta_data {
     /**
-    * Used to lookup the calibration data
-    */
-    struct agm_key_vector gkv;
+      * number of GKVs
+      */
+	uint32_t num_gkvs;
 
     /**
-    * Used to lookup the calibration data
-    */
-     struct agm_key_vector ckv;
+      * number of CKVs
+      */
+	uint32_t num_ckvs;
+
+	/**
+	  * key values containing GKV followed by CKVs.
+	  */
+	struct agm_key_value kv[];
 };
 
 /**
@@ -138,8 +135,121 @@ struct agm_session_config {
  */
 struct agm_buffer_config {
     uint32_t count; /**< number of buffers */
-    size_t size;   /**< size of each buffer */
+    size_t size;    /**< size of each buffer */
 };
+
+/**
+ * Maps the modules instance id to module id for a single module
+ */
+struct agm_module_id_iid_map {
+	uint32_t module_id;  /**< module id */
+	uint32_t module_iid; /**< globally unique module instance id */
+};
+
+/**
+ * Structure which holds tag and corresponding modules tagged with tag id
+ */
+struct agm_tag_info {
+	uint32_t tag_id;                      /**< tag id */
+	uint32_t num_modules;                 /**< number of modules matching the tag_id */
+	struct agm_module_id_iid_map mid_iid_list[0]; /**< agm_module_id_iid_map list */
+};
+
+/**
+ * Structure which holds tag info of a given graph.
+ */
+struct agm_tag_module_info_list {
+	uint32_t num_tags;          /**< number of tags */
+	uint8_t tag_info_list[];	/**< variable payload of type struct agm_tag_module_info */
+};
+
+/**
+ * Structure which holds tag config for setparams
+ */
+struct agm_tag_config {
+	uint32_t tag;                /**< tag id */
+	uint32_t num_tkvs;           /**< num  of tag key values*/
+	struct agm_key_value kv[];   /**< tag key vector*/
+};
+
+struct agm_cal_config {
+	uint32_t num_ckvs;         /**< num  of tag key values*/
+	struct agm_key_value kv[]; /**< tag key vector*/
+};
+
+/**
+ * Event types
+ */
+enum event_type {
+	AGM_EVENT_DATA_PATH = 1,         /**< Events on the Data path, READ_DONE or WRITE_DONE */
+	AGM_EVENT_MODULE,                /**< Events raised by modules */
+};
+
+/**
+ * Event registration structure.
+ */
+struct agm_event_reg_cfg {
+	/** Valid instance ID of module */
+	uint32_t module_instance_id;
+
+	/** Valid event ID of the module */
+	uint32_t event_id;
+
+	/**
+	 * Size of the event config data based upon the	module_instance_id/event_id
+	 * combination.	@values > 0 bytes, in multiples of	4 bytes atleast
+	 */
+	uint32_t event_config_payload_size;
+
+	/**
+	 * 1 - to register the event
+	 * 0 - to de-register the event
+	 */
+	uint8_t is_register;
+
+	/**
+	 * module specifc event registration payload
+	 */
+	uint8_t event_config_payload[];
+};
+
+/** Data Events that will be notified to client from AGM */
+enum agm_event_id {
+	/**
+	 * Indicates buffer provided as part of read call has been filled.
+	 */
+	AGM_EVENT_READ_DONE = 0x1,
+	/**
+	 * Indicates buffer provided as part of write has been consumed
+	 */
+	AGM_EVENT_WRITE_DONE = 0x2,
+
+	AGM_EVENT_ID_MAX
+};
+
+/** data that will be passed to client in the event callback */
+struct agm_event_cb_params {
+	 /**< identifies the module which generated event */
+	uint32_t source_module_id;
+
+	 /**< identifies the event */
+	uint32_t event_id;
+
+	 /**< size of payload below */
+	uint32_t event_payload_size;
+
+	 /**< payload associated with the event if any */
+	uint8_t event_payload[];
+};
+
+/**
+ * \brief Callback function signature for events to client
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[in] event_params - holds all event related info
+ * \param[in] client_data - client data set during callback registration.
+ */
+typedef void (*agm_event_cb)(uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data);
 
 /**
  *  \brief Initialize agm.
@@ -158,7 +268,7 @@ int agm_deinit();
  /**
   * \brief Set media configuration for an audio interface.
   *
-  * \param[in] audio_intf - Valid audio interface id
+  * \param[in] aif_id - Valid audio interface id
   * \param[in] media_config - valid media configuration for the
   *       audio interafce.
   *
@@ -167,14 +277,14 @@ int agm_deinit();
   *       new media_config is different from previous, api will return
   *       failure.
   */
-int agm_audio_intf_set_media_config(uint32_t audio_intf,
+int agm_aif_set_media_config(uint32_t aif_id,
                                     struct agm_media_config *media_config);
 
 
  /**
   * \brief Set metadata for an audio interface.
   *
-  * \param[in] audio_intf - Valid audio interface id
+  * \param[in] aif_id - Valid audio interface id
   * \param[in] metadata - valid metadata for the audio
   *       interafce.
   *
@@ -183,7 +293,7 @@ int agm_audio_intf_set_media_config(uint32_t audio_intf,
   *       new meta data is set, api will return
   *       failure.
   */
-int agm_audio_intf_set_metadata(uint32_t audio_intf,
+int agm_aif_set_metadata(uint32_t aif_id,
                                 struct agm_meta_data *metadata);
 
  /**
@@ -202,8 +312,8 @@ int agm_session_set_metadata(uint32_t session_id,
  /**
   * \brief Set metadata for the session, audio intf pair.
   *
-  * \param[in] session_id - Valid audio session id
-  * \param[in] audio_intf - Valid audio interface id
+  * \param[in] session_id - Valid session id
+  * \param[in] aif_id - Valid audio interface id
   * \param[in] metadata - valid metadata for the session and
   *            audio_intf.
   *
@@ -211,30 +321,127 @@ int agm_session_set_metadata(uint32_t session_id,
   *       If the session is already opened and the new
   *       meta data is set, api will return failure.
   */
-int agm_session_audio_inf_set_metadata(uint32_t session_id,
-                                           uint32_t audio_intf,
+int agm_session_aif_set_metadata(uint32_t session_id,
+                                           uint32_t aif_id,
                                            struct agm_meta_data *metadata);
 
 /**
  * \brief Set metadata for the session, audio intf pair.
  *
  * \param[in] session_id - Valid audio session id
- * \param[in] audio_intf - Valid audio interface id
+ * \param[in] aif_id - Valid audio interface id
  * \param[in] state - Connect or Disconnect AIF to Session
  *
  *  \return 0 on success, error code on failure.
  *       If the session is already opened and the new
  *       meta data is set, api will return failure.
  */
-int agm_session_audio_inf_connect(uint32_t session_id,
-	uint32_t audio_intf,
+int agm_session_aif_connect(uint32_t session_id,
+	uint32_t aif_id,
 	bool state);
+
+/**
+ * \brief Set metadata for the session, audio intf pair.
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[in] aif_id - Valid audio interface id
+ * \param[in] payload - payload containing tag module info list in the graph.
+ *           The memory for this pointer is allocated by client.
+ * \param [in,out] size: size of the payload.
+ * 			if the value of size is zero, AGM will update required module
+ * 			info list of a given graph.
+ * 			if size equal or greater than the required size,
+ * 			AGM will copy the module info.
+ *
+ *  \return 0 on success, error code on failure.
+ */
+int agm_session_aif_get_tag_module_info(uint32_t session_id,
+		uint32_t aif_id, void *payload, size_t *size);
+
+/**
+ * \brief Set parameters for modules in b/w stream and audio interface
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[in] aif_id - Valid audio interface id
+ * \param[in] payload - payload
+ * \param[in] size - payload size in bytes
+ *
+ *  \return 0 on success, error code on failure.
+ *       If the session is already opened and the new
+ *       meta data is set, api will return failure.
+ */
+int agm_session_aif_set_params(uint32_t session_id,
+	uint32_t aif_id,
+	void* payload, size_t size);
+
+/**
+ * \brief Set calibration for modules in b/w stream and audio interface
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[in] aif_id - Valid audio interface id
+ * \param[in] cal_config - calibration key vector
+ *
+ *  \return 0 on success, error code on failure.
+ */
+int agm_session_aif_set_cal(uint32_t session_id,
+	uint32_t aif_id,
+	struct agm_cal_config *cal_config);
+
+/**
+ * \brief Set parameters for modules in stream
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[in] payload - payload
+ * \param[in] size - payload size in bytes
+ *
+ *  \return 0 on success, error code on failure.
+ *       If the session is already opened and the new
+ *       meta data is set, api will return failure.
+ */
+int agm_session_set_params(uint32_t session_id,
+	void* payload, size_t size);
+
+/**
+ * \brief Set parameters for modules in b/w stream and audio interface
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[in] aif_id - valid audio interface id
+ * \param[in] tag_config - tag config structure with tag id and tag key vector
+ *
+ *  \return 0 on success, error code on failure.
+ *       If the session is already opened and the new
+ *       meta data is set, api will return failure.
+ */
+
+int agm_set_params_with_tag(uint32_t session_id, uint32_t aif_id, struct agm_tag_config *tag_config);
 
 /**
   * \brief Open the session with specified session id.
   *
- * \param[in] session_id - Valid audio session id
- * \param[out] handle - updated with valid session
+  * \param[in] session_id - Valid audio session id
+  * \param[in] cb - callback function to be invoked when an event occurs.
+  * \param[in] evt_type - event type that
+  * \param[in] client_data - client data.
+  *
+  * \return 0 on success, error code otherwise
+  */
+int agm_session_register_cb(uint32_t session_id, agm_event_cb cb, enum event_type evt_type, void *client_data);
+
+/**
+  * \brief Register for events from Modules. Not needed for data path events.
+  *
+  * \param[in] session_id - Valid audio session id
+  * \param[out] evt_reg_info - event specific configuration.
+  *
+  * \return 0 on success, error code otherwise
+  */
+int agm_session_register_for_events(uint32_t session_id, struct agm_event_reg_cfg *evt_reg_cfg);
+
+/**
+  * \brief Open the session with specified session id.
+  *
+  * \param[in] session_id - Valid audio session id
+  * \param[out] handle - updated with valid session
   *       handle if the operation is successful.
   *
   * \return 0 on success, error code otherwise
@@ -381,13 +588,22 @@ int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info);
   *
   * \param[in] capture_session_id : a non zero capture session id
   * \param[in] playback_session_id: playback session id.
-  * 				A non zero value enables the loopback.
-  * 				A zero value disables the loopback.
   * \param[in] state : flag to indicate to enable(true) or disable(false) loopback
   *
   * \return: 0 on success, error code otherwise
   */
 int agm_session_set_loopback(uint32_t capture_session_id, uint32_t playback_session_id, bool state);
+
+/**
+  * \brief Set ec reference on capture session
+  *
+  * \param[in] capture_session_id : a non zero capture session id
+  * \param[in] aif_id: aif_id on RX path.
+  * \param[in] state : flag to indicate to enable(true) or disable(false) ec_ref
+  *
+  * \return: 0 on success, error code otherwise
+  */
+int agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool state);
 
 
 #ifdef __cplusplus

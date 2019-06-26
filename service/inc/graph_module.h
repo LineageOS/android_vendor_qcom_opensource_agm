@@ -29,8 +29,8 @@
 #ifndef GPH_MODULE_H
 #define GPH_MODULE_H
 
-#include <cutils/list.h>
 #include "device.h"
+#include "list.h"
 
 /*Platfrom Key Value file, defines tag keys and their values*/
 #include "kvh2xml.h"
@@ -99,6 +99,8 @@ struct module_info
     bool is_configured;
     /*Device object if this module is associated with an hardware end point*/
     struct device_obj *dev_obj;
+    /*GKV which contains/describes this module*/
+    struct agm_key_vector_gsl *gkv;
     /*
      *Every module defines its configuration api, which in turn
      *then is used by graph object to configure the module using

@@ -27,14 +27,46 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 
-#ifndef __UTILS_H__
-#include "casa_osal_log.h"
-#include "casa_osal_error.h"
-#include "list.h"
+#include <stdlib.h>
+#include <utils/RefBase.h>
+#include <utils/Log.h>
+#include <binder/TextOutput.h>
+#include <cutils/list.h>
+#include <binder/IInterface.h>
+#include <binder/IBinder.h>
+#include <binder/ProcessState.h>
+#include <binder/IServiceManager.h>
+#include <binder/IPCThreadState.h>
 
-#define AGM_LOGE(...) CASA_LOG_ERR(LOGTAG, __VA_ARGS__)
-#define AGM_LOGD(...) CASA_LOG_ERR(LOGTAG, __VA_ARGS__)
-#define AGM_LOGI(...) CASA_LOG_INFO(LOGTAG, __VA_ARGS__)
-#define AGM_LOGV(...) CASA_LOG_ERR(LOGTAG, __VA_ARGS__)
+#include <binder/IPCThreadState.h>
+#include <agm/agm_api.h>
 
-#endif /*__UTILS_H*/
+
+using namespace android;
+
+class ICallback : public ::android::IInterface {
+    public:
+        DECLARE_META_INTERFACE(Callback);
+    virtual int event_cb (uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data, agm_event_cb cb_func) = 0;
+};
+
+
+class BnCallback : public ::android::BnInterface<ICallback> {
+public:
+    BnCallback(){};
+    ~BnCallback(){};
+private:
+    int32_t onTransact(uint32_t code,
+                            const Parcel& data,
+                            Parcel* reply,
+                            uint32_t flags) override;
+    int event_cb (uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data, agm_event_cb cb_func) override;
+};
+
+typedef struct {
+struct listnode list;
+uint32_t session_id;
+sp<ICallback> cb_binder;
+agm_event_cb cb_func;
+void * client_data;
+}clbk_data ;
