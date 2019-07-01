@@ -29,8 +29,8 @@
 #ifndef GPH_MODULE_H
 #define GPH_MODULE_H
 
+#include "agm_list.h"
 #include "device.h"
-#include "list.h"
 
 /*Platfrom Key Value file, defines tag keys and their values*/
 #include "kvh2xml.h"

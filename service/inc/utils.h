@@ -30,7 +30,6 @@
 #ifndef __UTILS_H__
 #include "casa_osal_log.h"
 #include "casa_osal_error.h"
-#include "list.h"
 
 #define AGM_LOGE(...) CASA_LOG_ERR(LOGTAG, __VA_ARGS__)
 #define AGM_LOGD(...) CASA_LOG_ERR(LOGTAG, __VA_ARGS__)

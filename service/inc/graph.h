@@ -26,14 +26,14 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
+
 #ifndef GPH_OBJ_H
 #define GPH_OBJ_H
 
+#include "agm_list.h"
 #include "device.h"
 #include "session_obj.h"
 #include "agm_priv.h"
-#include "list.h"
 
 #define ATTRIBUTES_DATA_MODE_MASK 0x3
 #define DATA_MODE_FLAG_SHMEM 0x0 /**< shared memory mode */
@@ -42,8 +42,8 @@
 
 typedef enum state
 {
-    CLOSED = 0x0,  
-    OPENED = 0x01, 
+    CLOSED = 0x0,
+    OPENED = 0x01,
     PREPARED = 0x10,
     STARTED = 0x100,
     STOPPED = 0x1000,

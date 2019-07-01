@@ -34,9 +34,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
-
+#include "agm_list.h"
 #include "agm_priv.h"
-#include "list.h"
 #include "metadata.h"
 #include "graph.h"
 
