@@ -167,22 +167,22 @@ int graph_start(struct graph_obj *gph_obj);
 /**
  *\brief Read audio data captured by the graph.
  *\param [in] graph_obj: associated graph obj
- *\param [in] size: size of data to be read.
+ *\param [in/out] size: size of data to be read.
  *\param [in/out] buffer: buffer where data is copied/filled to.
  *
  * return num of bytes read on success or error code on failure.
  */
-int graph_read(struct graph_obj *gph_obj, void *buffer, size_t size);
+int graph_read(struct graph_obj *gph_obj, void *buffer, size_t *size);
 
 /**
  *\brief write audio data to be rendered
  *\param [in] graph_obj: associated graph obj
- *\param [in] size: size of data to be written
+ *\param [in/out] size: size of data to be written
  *\param [in/out] buffer: buffer from where data is copied
  *
  * return zero on success or error code on failure.
  */
-int graph_write(struct graph_obj *gph_obj, void *buffer, size_t size);
+int graph_write(struct graph_obj *gph_obj, void *buffer, size_t *size);
 
 /**
  *\brief pause an existing graph.
@@ -289,4 +289,20 @@ int graph_set_config_with_tag(struct graph_obj *gph_obj,
 int graph_set_cal(struct graph_obj *gph_obj,
 		struct agm_meta_data_gsl *meta_data);
 
+/**
+ *\brief Issue eos to the associated graph
+ *\param [in] graph_obj: associated graph obj
+ *
+ * return CASA_EOK on success or error code otherwise.
+ */
+int graph_eos(struct graph_obj *gph_obj);
+
+/**
+ *\brief Get timestamp of the associated running graph
+ *\param [in] graph_obj: associated graph obj
+ *\param [out] timestamp: updated the timestamp value if success
+ *
+ * return CASA_EOK on success or error code otherwise.
+ */
+int graph_get_session_time(struct graph_obj *gph_obj, uint64_t *timestamp);
 #endif /*GPH_OBJ_H*/

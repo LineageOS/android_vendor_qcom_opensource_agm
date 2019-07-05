@@ -45,6 +45,9 @@
 #define DEVICE_TX 1
 #define MONO 1
 
+/*TODO: remove this and get it from kvh2xml */
+#define PAUSE 0x100001
+
 #define CONVX(x) #x
 #define CONV_TO_STRING(x) CONVX(x)
 
@@ -182,19 +185,59 @@ static void get_default_channel_map(uint8_t *channel_map, int channels)
     }
 }
 
-static int get_bit_width(enum agm_pcm_format format)
+static bool is_format_pcm(enum agm_media_format fmt_id)
+{
+    if (fmt_id >= AGM_FORMAT_PCM_S8 && fmt_id <= AGM_FORMAT_PCM_S32_LE)
+        return true;
+
+    return false;
+}
+
+static int get_pcm_bit_width(enum agm_media_format fmt_id)
 {
     int bit_width = 16;
 
-    switch (format) {
-    case AGM_PCM_FORMAT_S24_3LE:
-    case AGM_PCM_FORMAT_S24_LE:
+    switch (fmt_id) {
+    case AGM_FORMAT_PCM_S24_3LE:
+    case AGM_FORMAT_PCM_S24_LE:
          bit_width = 24;
          break;
-    case AGM_PCM_FORMAT_S32_LE:
+    case AGM_FORMAT_PCM_S32_LE:
          bit_width = 32;
          break;
-    case AGM_PCM_FORMAT_S16_LE:
+    case AGM_FORMAT_PCM_S16_LE:
+    default:
+         break;
+    }
+
+    return bit_width;
+}
+
+static int get_media_bit_width(struct session_obj *sess_obj)
+{
+    int bit_width = 16;
+
+    if (is_format_pcm(sess_obj->media_config.format))
+        return get_pcm_bit_width(sess_obj->media_config.format);
+
+    switch (sess_obj->media_config.format) {
+    case AGM_FORMAT_FLAC:
+        bit_width = sess_obj->stream_config.codec.flac_dec.sample_size;
+        break;
+    case AGM_FORMAT_ALAC:
+        bit_width = sess_obj->stream_config.codec.alac_dec.bit_depth;
+        break;
+    case AGM_FORMAT_APE:
+        bit_width = sess_obj->stream_config.codec.ape_dec.bit_width;
+        break;
+    case AGM_FORMAT_WMASTD:
+        bit_width = sess_obj->stream_config.codec.wma_dec.bits_per_sample;
+        break;
+    case AGM_FORMAT_WMAPRO:
+        bit_width = sess_obj->stream_config.codec.wmapro_dec.bits_per_sample;
+        break;
+    case AGM_FORMAT_MP3:
+    case AGM_FORMAT_AAC:
     default:
          break;
     }
@@ -203,10 +246,10 @@ static int get_bit_width(enum agm_pcm_format format)
 }
 
 #define GET_BITS_PER_SAMPLE(format, bit_width) \
-                           (format == AGM_PCM_FORMAT_S24_LE? 32 : bit_width)
+                           (format == AGM_FORMAT_PCM_S24_LE? 32 : bit_width)
 
 #define GET_Q_FACTOR(format, bit_width)\
-                     (format == AGM_PCM_FORMAT_S24_LE ? 27 : (bit_width - 1))
+                     (format == AGM_FORMAT_PCM_S24_LE ? 27 : (bit_width - 1))
 
 int configure_codec_dma_ep(struct module_info *mod,
                            struct graph_obj *graph_obj)
@@ -593,7 +636,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
     header->param_size = (uint32_t)payload_size;
 
     hw_ep_media_conf->sample_rate = media_config.rate;
-    hw_ep_media_conf->bit_width = get_bit_width(media_config.format);
+    hw_ep_media_conf->bit_width = get_pcm_bit_width(media_config.format);
 
     hw_ep_media_conf->num_channels = media_config.channels;
     /*
@@ -622,6 +665,7 @@ int configure_hw_ep(struct module_info *mod,
 {
     int ret = 0;
     struct device_obj *dev_obj = mod->dev_obj;
+
     ret = configure_hw_ep_media_config(mod, graph_obj);
     if (ret) {
         AGM_LOGE("hw_ep_media_config failed %d", ret);
@@ -708,11 +752,11 @@ int configure_pcm_enc_dec_conv(struct module_info *mod,
                                     sizeof(uint8_t) * num_channels);
 
     pcm_output_fmt_payload->endianness = PCM_LITTLE_ENDIAN;
-    pcm_output_fmt_payload->bit_width = get_bit_width(sess_obj->media_config.format);
+    pcm_output_fmt_payload->bit_width = get_media_bit_width(sess_obj);
     /**
      *alignment field is referred to only in case where bit width is 
      *24 and bits per sample is 32, tiny alsa only supports 24 bit
-     *in 32 word size in LSB aligned mode(AGM_PCM_FORMAT_S24_LE).
+     *in 32 word size in LSB aligned mode(AGM_FORMAT_PCM_S24_LE).
      *Hence we hardcode this to PCM_LSB_ALIGNED;
      */
     pcm_output_fmt_payload->alignment = PCM_LSB_ALIGNED;
@@ -747,7 +791,285 @@ int configure_pcm_enc_dec_conv(struct module_info *mod,
     return ret;
 }
 
-int configure_shared_mem_ep(struct module_info *mod,
+int get_media_fmt_id_and_size(enum agm_media_format fmt_id,
+                              size_t *payload_size, size_t *real_fmt_id)
+{
+    int ret = 0;
+    size_t format_size = 0;
+
+    if (is_format_pcm(fmt_id)) {
+        format_size = sizeof(struct payload_media_fmt_pcm_t);;
+        *real_fmt_id = MEDIA_FMT_PCM;
+        goto pl_size;
+    }
+
+    switch (fmt_id) {
+    case AGM_FORMAT_MP3:
+        format_size = 0;
+        *real_fmt_id = MEDIA_FMT_MP3;
+        break;
+    case AGM_FORMAT_AAC:
+        format_size = sizeof(struct payload_media_fmt_aac_t);
+        *real_fmt_id = MEDIA_FMT_AAC;
+        break;
+    case AGM_FORMAT_FLAC:
+        format_size = sizeof(struct payload_media_fmt_flac_t);
+        *real_fmt_id = MEDIA_FMT_FLAC;
+        break;
+    case AGM_FORMAT_ALAC:
+        format_size = sizeof(struct payload_media_fmt_alac_t);
+        *real_fmt_id = MEDIA_FMT_ALAC;
+        break;
+    case AGM_FORMAT_APE:
+        format_size = sizeof(struct payload_media_fmt_ape_t);
+        *real_fmt_id = MEDIA_FMT_APE;
+        break;
+    case AGM_FORMAT_WMASTD:
+        format_size = sizeof(struct payload_media_fmt_wmastd_t);
+        *real_fmt_id = MEDIA_FMT_WMASTD;
+        break;
+    case AGM_FORMAT_WMAPRO:
+        format_size = sizeof(struct payload_media_fmt_wmapro_t);
+        *real_fmt_id = MEDIA_FMT_WMAPRO;
+        break;
+    case AGM_FORMAT_VORBIS:
+        format_size = 0;
+        *real_fmt_id = MEDIA_FMT_VORBIS;
+        break;
+    default:
+        ret = -EINVAL;
+        break;
+    }
+
+pl_size:
+    *payload_size = sizeof(struct apm_module_param_data_t) +
+                   sizeof(struct media_format_t) + format_size;
+
+    return ret;
+}
+
+
+int set_media_format_payload(enum agm_media_format fmt_id,
+                       struct media_format_t *media_fmt_hdr,
+                       struct session_obj *sess_obj)
+{
+    int ret = 0;
+    size_t fmt_size = 0;
+
+    switch (fmt_id) {
+    case AGM_FORMAT_MP3:
+    {
+        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_MP3;
+        media_fmt_hdr->payload_size = 0;
+        break;
+    }
+    case AGM_FORMAT_AAC:
+    {
+        struct payload_media_fmt_aac_t *fmt_pl;
+        fmt_size = sizeof(struct payload_media_fmt_aac_t);
+        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_AAC;
+        media_fmt_hdr->payload_size = fmt_size;
+
+        fmt_pl = (struct payload_media_fmt_aac_t*)media_fmt_hdr->payload;
+        memcpy(fmt_pl, &sess_obj->stream_config.codec.aac_dec,
+               fmt_size);
+        AGM_LOGD("AAC payload: fmt:%d, Obj_type:%d, ch:%d, SR:%d",
+                 fmt_pl->aac_fmt_flag, fmt_pl->audio_obj_type,
+                 fmt_pl->num_channels, fmt_pl->sample_rate);
+        break;
+    }
+    case AGM_FORMAT_FLAC:
+    {
+        struct payload_media_fmt_flac_t *fmt_pl;
+        fmt_size = sizeof(struct payload_media_fmt_flac_t);
+        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_FLAC;
+        media_fmt_hdr->payload_size = fmt_size;
+
+        fmt_pl = (struct payload_media_fmt_flac_t*)media_fmt_hdr->payload;
+        memcpy(fmt_pl, &sess_obj->stream_config.codec.flac_dec,
+               fmt_size);
+        AGM_LOGD("FLAC payload: ch:%d, sample_size:%d, SR:%d",
+                 fmt_pl->num_channels, fmt_pl->sample_size, fmt_pl->sample_rate);
+        break;
+    }
+    case AGM_FORMAT_ALAC:
+    {
+        struct payload_media_fmt_alac_t *fmt_pl;
+        fmt_size = sizeof(struct payload_media_fmt_alac_t);
+        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_ALAC;
+        media_fmt_hdr->payload_size = fmt_size;
+
+        fmt_pl = (struct payload_media_fmt_alac_t*)media_fmt_hdr->payload;
+        memcpy(fmt_pl, &sess_obj->stream_config.codec.alac_dec,
+               fmt_size);
+        AGM_LOGD("ALAC payload: bit_depth:%d, ch:%d, SR:%d",
+                 fmt_pl->bit_depth, fmt_pl->num_channels,
+                 fmt_pl->sample_rate);
+        break;
+    }
+    case AGM_FORMAT_APE:
+    {
+        struct payload_media_fmt_ape_t *fmt_pl;
+        fmt_size = sizeof(struct payload_media_fmt_ape_t);
+        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_ALAC;
+        media_fmt_hdr->payload_size = fmt_size;
+
+        fmt_pl = (struct payload_media_fmt_ape_t*)media_fmt_hdr->payload;
+        memcpy(fmt_pl, &sess_obj->stream_config.codec.ape_dec,
+               fmt_size);
+        AGM_LOGD("APE payload: bit_width:%d, ch:%d, SR:%d",
+                 fmt_pl->bit_width, fmt_pl->num_channels,
+                 fmt_pl->sample_rate);
+        break;
+    }
+    case AGM_FORMAT_WMASTD:
+    {
+        struct payload_media_fmt_wmastd_t *fmt_pl;
+        fmt_size = sizeof(struct payload_media_fmt_wmastd_t);
+        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_WMASTD;
+        media_fmt_hdr->payload_size = fmt_size;
+
+        fmt_pl = (struct payload_media_fmt_wmastd_t*)media_fmt_hdr->payload;
+        memcpy(fmt_pl, &sess_obj->stream_config.codec.wma_dec,
+               fmt_size);
+        AGM_LOGD("WMA payload: fmt:%d, ch:%d, SR:%d, bit_width:%d",
+                  fmt_pl->fmt_tag, fmt_pl->num_channels,
+                 fmt_pl->sample_rate, fmt_pl->bits_per_sample);
+        break;
+    }
+    case AGM_FORMAT_WMAPRO:
+    {
+        struct payload_media_fmt_wmapro_t *fmt_pl;
+        fmt_size = sizeof(struct payload_media_fmt_wmapro_t);
+        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_WMAPRO;
+        media_fmt_hdr->payload_size = fmt_size;
+
+        fmt_pl = (struct payload_media_fmt_wmapro_t*)media_fmt_hdr->payload;
+        memcpy(fmt_pl, &sess_obj->stream_config.codec.wmapro_dec,
+               fmt_size);
+        AGM_LOGD("WMAPro payload: fmt:%d, ch:%d, SR:%d, bit_width:%d",
+                  fmt_pl->fmt_tag, fmt_pl->num_channels,
+                 fmt_pl->sample_rate, fmt_pl->bits_per_sample);
+        break;
+    }
+    default:
+        return -EINVAL;
+    }
+
+    return ret;
+}
+
+/**
+ *Configure placeholder decoder/encoder with real dec/enc ID
+*/
+int configure_placeholder_enc_dec(struct module_info *mod,
+                               struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct gsl_key_vector tkv;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+    int fmt_id = 0;
+    size_t payload_size = 0, real_fmt_id = 0;
+
+    AGM_LOGE("enter");
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object");
+        return -EINVAL;
+    }
+
+    ret = get_media_fmt_id_and_size(sess_obj->media_config.format,
+                                    &payload_size, &real_fmt_id);
+    if (ret) {
+        AGM_LOGD("module is not configured for format: %d\n",
+                 sess_obj->media_config.format);
+        /* If ret is non-zero then placeholder module would be
+         * configured by client so return from here.
+         */
+        return 0;
+    }
+
+    tkv.num_kvps = 1;
+    tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
+    tkv.kvp->key = MEDIA_FMT_ID;
+    tkv.kvp->value = real_fmt_id;
+
+    AGM_LOGD("Placeholder mod TKV key:%0x value: %0x", tkv.kvp->key,
+             tkv.kvp->value);
+    ret = gsl_set_config(graph_obj->graph_handle, NULL,
+                         TAG_STREAM_PLACEHOLDER_DECODER, &tkv);
+    if (ret != 0) {
+        AGM_LOGE("set_config command failed with error: %d", ret);
+        return ret;
+    }
+
+    return ret;
+}
+
+int configure_compress_shared_mem_ep(struct module_info *mod,
+                            struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+    struct media_format_t *media_fmt_hdr;
+    struct apm_module_param_data_t *header;
+    uint8_t *payload = NULL;
+    size_t payload_size = 0, real_fmt_id = 0;
+
+    ret = get_media_fmt_id_and_size(sess_obj->media_config.format,
+                                    &payload_size, &real_fmt_id);
+    if (ret) {
+        AGM_LOGD("module is not configured for format: %d\n",
+                 sess_obj->media_config.format);
+        /* If ret is non-zero then shared memory module would be
+         * configured by client so return from here.
+         */
+        return 0;
+    }
+
+    /*ensure that the payloadsize is byte multiple atleast*/
+    if (payload_size % 8 != 0)
+        payload_size = payload_size + (8 - payload_size % 8);
+
+    payload = malloc((size_t)payload_size);
+
+    header = (struct apm_module_param_data_t*)payload;
+
+    media_fmt_hdr = (struct media_format_t*)(payload +
+                         sizeof(struct apm_module_param_data_t));
+
+    header->module_instance_id = mod->miid;
+    header->param_id = PARAM_ID_MEDIA_FORMAT;
+    header->error_code = 0x0;
+    header->param_size = payload_size;
+
+    ret = set_media_format_payload(sess_obj->media_config.format,
+                             media_fmt_hdr, sess_obj);
+    if (ret) {
+        AGM_LOGD("Shared mem EP is not configured for format: %d\n",
+                 sess_obj->media_config.format);
+        /* If ret is non-zero then shared memory module would be
+         * configured by client so return from here.
+         */
+        return 0;
+    }
+
+    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
+    if (ret != 0) {
+        AGM_LOGE("custom_config command for module %d failed with error %d",
+                      mod->tag, ret);
+    }
+
+    return ret;
+}
+
+int configure_pcm_shared_mem_ep(struct module_info *mod,
                             struct graph_obj *graph_obj)
 {
     int ret = 0;
@@ -803,12 +1125,12 @@ int configure_shared_mem_ep(struct module_info *mod,
                                      sizeof(uint8_t) * num_channels);
 
     media_fmt_payload->endianness = PCM_LITTLE_ENDIAN;
-    media_fmt_payload->bit_width = get_bit_width(sess_obj->media_config.format);
+    media_fmt_payload->bit_width = get_media_bit_width(sess_obj);
     media_fmt_payload->sample_rate = sess_obj->media_config.rate;
     /**
      *alignment field is referred to only in case where bit width is 
      *24 and bits per sample is 32, tiny alsa only supports 24 bit
-     *in 32 word size in LSB aligned mode(AGM_PCM_FORMAT_S24_LE).
+     *in 32 word size in LSB aligned mode(AGM_FORMAT_PCM_S24_LE).
      *Hence we hardcode this to PCM_LSB_ALIGNED;
      */
     media_fmt_payload->alignment = PCM_LSB_ALIGNED;
@@ -837,6 +1159,23 @@ int configure_shared_mem_ep(struct module_info *mod,
     return ret;
 }
 
+int configure_shared_mem_ep(struct module_info *mod,
+                            struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+
+    if (is_format_pcm(sess_obj->media_config.format))
+        ret = configure_pcm_shared_mem_ep(mod, graph_obj);
+    else
+        ret = configure_compress_shared_mem_ep(mod, graph_obj);
+
+    if (ret)
+        return ret;
+
+    return 0;
+}
+
 static module_info_t hw_ep_module[] = {
    {
        .module = MODULE_HW_EP_RX,
@@ -862,6 +1201,11 @@ static module_info_t stream_module_list[] = {
      .configure = configure_pcm_enc_dec_conv,
  },
  {
+     .module = MODULE_PLACEHOLDER_DECODER,
+     .tag = TAG_STREAM_PLACEHOLDER_DECODER,
+     .configure = configure_placeholder_enc_dec,
+ },
+ {
      .module = MODULE_PCM_CONVERTER,
      .tag = STREAM_PCM_CONVERTER,
      .configure = configure_pcm_enc_dec_conv,
@@ -880,6 +1224,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     int ret = 0;
     size_t size = 0;
     enum gsl_cmd_id cmd_id;
+    enum agm_data_mode mode = sess_obj->stream_config.data_mode;
 
     AGM_LOGD("%s sess buf_sz %d num_bufs %d", sess_obj->stream_config.dir == RX?
                  "Playback":"Capture", sess_obj->buffer_config.size,
@@ -893,7 +1238,15 @@ int configure_buffer_params(struct graph_obj *gph_obj,
      *TODO:expose a flag to chose between different data passing modes
      *BLOCKING/NON-BLOCKING/SHARED_MEM.
      */
-    buf_config.attributes = GSL_DATA_MODE_BLOCKING;
+    if (mode == AGM_DATA_BLOCKING)
+        buf_config.attributes = GSL_DATA_MODE_BLOCKING;
+    else if (mode == AGM_DATA_NON_BLOCKING)
+        buf_config.attributes = GSL_DATA_MODE_NON_BLOCKING;
+    else {
+        AGM_LOGE("Unsupported buffer mode : %d, Default to Blocking", mode);
+        buf_config.attributes = GSL_DATA_MODE_BLOCKING;
+    }
+
     size = sizeof(struct gsl_cmd_configure_read_write_params);
 
     if (sess_obj->stream_config.dir == RX)
@@ -1315,7 +1668,7 @@ int graph_stop(struct graph_obj *graph_obj)
     }
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP, NULL, 0); 
     if (ret !=0) {
-        AGM_LOGE("graph start failed %d", ret);
+        AGM_LOGE("graph stop failed %d", ret);
     } else {
         graph_obj->state = STOPPED;
     }
@@ -1329,21 +1682,57 @@ done:
 int graph_pause(struct graph_obj *graph_obj)
 {
      /**
-      *#TODO: Add support to set config using TKV to pause/resume modules
-      *This is needed for compress decoder/encoders.For PCM
-      *client is suppose to do a set config as there is no Tinyalsa API
+      *This is needed for compress decoder/encoders.For PCM client is
+      *suppose to do a set config as there is no Tinyalsa API
+
       */
-     return -ENOSYS;
+    int ret = 0;
+    struct gsl_key_vector tkv;
+
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object");
+        return -EINVAL;
+    }
+
+    tkv.num_kvps = 1;
+    tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
+    tkv.kvp->key = PAUSE;
+    tkv.kvp->value = 1;
+
+    ret = gsl_set_config(graph_obj->graph_handle, NULL, TAG_PAUSE, &tkv);
+
+    if (ret != 0) {
+        AGM_LOGE("RESUME set_config command failed with error %d", ret);
+    }
+    return ret;
 }
 
 int graph_resume(struct graph_obj *graph_obj)
 {
      /**
-      *#TODO: Add support to set config using TKV to pause/resume modules
-      *This is needed for compress decoder/encoders.For PCM
-      *client is suppose to do a set config as there is no TinyAlsa API
+      *This is needed for compress decoder/encoders.For PCM client is
+      *suppose to do a set config as there is no TinyAlsa API
       */
-     return -ENOSYS;
+    int ret = 0;
+    struct gsl_key_vector tkv;
+
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object");
+        return -EINVAL;
+    }
+
+    tkv.num_kvps = 1;
+    tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
+    tkv.kvp->key = PAUSE;
+    tkv.kvp->value = 0;
+
+    /*TODO: when to clean up memory */
+    ret = gsl_set_config(graph_obj->graph_handle, NULL, TAG_PAUSE, &tkv);
+
+    if (ret != 0) {
+        AGM_LOGE("RESUME set_config command failed with error %d", ret);
+    }
+    return ret;
 }
 
 int graph_set_config(struct graph_obj *graph_obj, void *payload,
@@ -1378,7 +1767,7 @@ int graph_set_config_with_tag(struct graph_obj *graph_obj,
      }
 
      pthread_mutex_lock(&graph_obj->lock);
-     ret = gsl_set_config(graph_obj->graph_handle,// (struct gsl_key_vector *)gkv, uncomment once gsl implements gkv for set_config
+     ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)&gkv,
                           tag_config->tag_id, (struct gsl_key_vector *)&tag_config->tkv);
      if (ret)
          AGM_LOGE("graph_set_config failed %d", ret);
@@ -1400,6 +1789,7 @@ int graph_set_cal(struct graph_obj *graph_obj,
 
      pthread_mutex_lock(&graph_obj->lock);
      ret = gsl_set_cal(graph_obj->graph_handle,
+                       (struct gsl_key_vector *)&metadata->gkv,
                        (struct gsl_key_vector *)&metadata->ckv);
      if (ret)
          AGM_LOGE("graph_set_cal failed %d", ret);
@@ -1409,7 +1799,7 @@ int graph_set_cal(struct graph_obj *graph_obj,
      return ret;
 }
 
-int graph_write(struct graph_obj *graph_obj, void *buffer, size_t size)
+int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
 {
     int ret = 0;
     struct gsl_buff gsl_buff;
@@ -1419,17 +1809,18 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t size)
         return -EINVAL;
     }
     pthread_mutex_lock(&graph_obj->lock);
-    if (!(graph_obj->state & STARTED)) {
+    // TODO: update below check
+   /* if (!(graph_obj->state & (PREPARED|STARTED))) {
         AGM_LOGE("Cannot add a graph in start state");
         ret = -EINVAL;
         goto done;
-    }
+    }*/
 
     /*TODO: Update the write api to take timeStamps/other buffer meta data*/
     gsl_buff.timestamp = 0x0;
     /*TODO: get the FLAG info from client e.g. FLAG_EOS)*/
     gsl_buff.flags = 0;
-    gsl_buff.size = (uint32_t)size;
+    gsl_buff.size = *size;
     gsl_buff.addr = (uint8_t *)(buffer);
     ret = gsl_write(graph_obj->graph_handle,
                     SHMEM_ENDPOINT, &gsl_buff, &size_written);
@@ -1437,13 +1828,13 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t size)
         AGM_LOGE("gsl_write for size %d failed with error %d", size, ret);
         goto done;
     }
-
+    *size = size_written;
 done:
     pthread_mutex_unlock(&graph_obj->lock);
     return ret;
 }
 
-int graph_read(struct graph_obj *graph_obj, void *buffer, size_t size)
+int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
 {
     int ret = 0;
     struct gsl_buff gsl_buff;
@@ -1463,7 +1854,7 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t size)
     gsl_buff.timestamp = 0x0;
     /*TODO: get the FLAG info from client e.g. FLAG_EOS)*/
     gsl_buff.flags = 0;
-    gsl_buff.size = (uint32_t)size;
+    gsl_buff.size = *size;
     gsl_buff.addr = (uint8_t *)(buffer);
     ret = gsl_read(graph_obj->graph_handle,
                     SHMEM_ENDPOINT, &gsl_buff, &size_read);
@@ -1471,6 +1862,7 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t size)
         AGM_LOGE("size_requested %d size_read %d error %d",
                       size, size_read, ret);
     }
+    *size = size_read;
 done:
     pthread_mutex_unlock(&graph_obj->lock);
     return ret;
@@ -1864,4 +2256,44 @@ size_t graph_get_hw_processed_buff_cnt(struct graph_obj *graph_obj,
     /*TODO: Uncomment that call once platform moves to latest GSL release*/
     return 2 /*gsl_get_processed_buff_cnt(graph_obj->graph_handle, dir)*/;
 
+}
+
+int graph_eos(struct graph_obj *graph_obj)
+{
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object");
+        return -EINVAL;
+    }
+        AGM_LOGE("enter");
+    return gsl_ioctl(graph_obj->graph_handle, GSL_CMD_EOS, NULL, 0);
+}
+
+int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
+{
+    int ret = 0;
+    uint8_t *payload = NULL;
+    struct apm_module_param_data_t *header;
+    size_t payload_size = 0;
+
+
+    /* TODO: udpate size properly */
+    payload_size = 100; //GET_SPR_MODULE_FORMAT_SIZE;
+    /*ensure that the payloadsize is byte multiple */
+    if (payload_size % 8 != 0)
+        payload_size = payload_size + (8 - payload_size % 8);
+
+    payload = malloc((size_t)payload_size);
+
+    header = (struct apm_module_param_data_t*)payload;
+
+    ret = gsl_get_custom_config(graph_obj->graph_handle, payload, &payload_size);
+
+    if (ret != 0) {
+        AGM_LOGE("set_config command failed with error %d", ret);
+        ret = 0;
+    }
+
+    /*TODO: update payload timestamp properly */
+    *tstamp = 100; //payload->timestamp;
+    return ret;
 }

@@ -228,8 +228,8 @@ int  agm_session_aif_connect(uint32_t session_id, uint32_t audio_intf, bool stat
     return -EAGAIN;
 }
 
-int agm_session_read(struct session_obj *handle, void *buf, size_t byte_count)
-{
+int agm_session_read(struct session_obj *handle, void *buf, size_t *byte_count){
+
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
         if(handle == NULL)
@@ -241,8 +241,8 @@ int agm_session_read(struct session_obj *handle, void *buf, size_t byte_count)
     return -EAGAIN;
 }
 
-int agm_session_write(struct session_obj *handle, void *buf, size_t byte_count)
-{
+int agm_session_write(struct session_obj *handle, void *buf, size_t *byte_count) {
+
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
         if(handle == NULL)
@@ -362,6 +362,26 @@ int agm_session_aif_set_cal(uint32_t session_id, uint32_t audio_intf,
         android::sp<IAgmService> agm_client = get_agm_server();
         return agm_client->ipc_agm_session_aif_set_cal(session_id, audio_intf,
                                                                   cal_config);
+    }
+    ALOGE("%s: agm service is not running\n", __func__);
+    return -EAGAIN;
+}
+
+int agm_session_eos(struct session_obj *handle)
+{
+    if(!agm_server_died) {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_eos(handle);
+    }
+    ALOGE("%s: agm service is not running\n", __func__);
+    return -EAGAIN;
+}
+
+int agm_get_session_time(struct session_obj *handle, uint64_t *timestamp)
+{
+    if(!agm_server_died) {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_get_session_time(handle, timestamp);
     }
     ALOGE("%s: agm service is not running\n", __func__);
     return -EAGAIN;

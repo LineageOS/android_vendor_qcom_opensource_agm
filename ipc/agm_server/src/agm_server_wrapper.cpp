@@ -63,11 +63,12 @@ AgmService::~AgmService()
 }
 #endif
 
-int AgmService::ipc_agm_session_read(struct session_obj *handle, void *buff, size_t count){
+int AgmService::ipc_agm_session_read(struct session_obj *handle, void *buff, size_t *count){
     ALOGV("%s called \n", __func__);
     return agm_session_read(handle, buff, count);
 };
-int AgmService::ipc_agm_session_write(struct session_obj *handle, void *buff, size_t count){
+
+int AgmService::ipc_agm_session_write(struct session_obj *handle, void *buff, size_t *count){
     ALOGV("%s called \n", __func__);
     return agm_session_write(handle, buff, count);
 };
@@ -200,4 +201,13 @@ int AgmService::ipc_agm_session_aif_set_cal(uint32_t session_id,
                                             struct agm_cal_config *cal_config){
     ALOGV("%s called\n", __func__);
     return agm_session_aif_set_cal(session_id, audio_intf, cal_config);
+};
+int AgmService::ipc_agm_session_eos(struct session_obj *handle) {
+    ALOGV("%s called\n", __func__);
+    return agm_session_eos(handle);
+};
+
+int AgmService::ipc_agm_get_session_time(struct session_obj *handle, uint64_t *timestamp) {
+    ALOGV("%s called\n", __func__);
+    return agm_get_session_time(handle, timestamp);
 };

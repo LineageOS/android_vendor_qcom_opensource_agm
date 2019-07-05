@@ -82,19 +82,19 @@ static struct pcm_config config = {
      .stop_threshold = INT_MAX,
 };
 
-enum pcm_format agm_to_pcm_format(enum agm_pcm_format format)
+enum pcm_format agm_to_pcm_format(enum agm_media_format format)
 {
     switch (format) {
-    case AGM_PCM_FORMAT_S32_LE:
+    case AGM_FORMAT_PCM_S32_LE:
         return PCM_FORMAT_S32_LE;
-    case AGM_PCM_FORMAT_S8:
+    case AGM_FORMAT_PCM_S8:
         return PCM_FORMAT_S8;
-    case AGM_PCM_FORMAT_S24_3LE:
+    case AGM_FORMAT_PCM_S24_3LE:
         return PCM_FORMAT_S24_3LE;
-    case AGM_PCM_FORMAT_S24_LE:
+    case AGM_FORMAT_PCM_S24_LE:
         return PCM_FORMAT_S24_LE;
     default:
-    case AGM_PCM_FORMAT_S16_LE:
+    case AGM_FORMAT_PCM_S16_LE:
         return PCM_FORMAT_S16_LE;
     };
 }

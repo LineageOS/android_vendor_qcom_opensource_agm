@@ -53,8 +53,8 @@ class AgmService : public BnAgmService {
         virtual int ipc_agm_session_pause(struct session_obj *handle);
         virtual int ipc_agm_session_resume(struct session_obj *handle);
         virtual int ipc_agm_session_open(uint32_t session_id, struct session_obj **handle);
-        virtual int ipc_agm_session_read(struct session_obj *handle, void *buff, size_t count);
-        virtual int ipc_agm_session_write(struct session_obj *handle, void *buff, size_t count);
+        virtual int ipc_agm_session_read(struct session_obj *handle, void *buff, size_t *count);
+        virtual int ipc_agm_session_write(struct session_obj *handle, void *buff, size_t *count);
         virtual int ipc_agm_session_audio_inf_connect(uint32_t session_id, uint32_t audio_intf, bool state);
         virtual int ipc_agm_session_set_loopback(uint32_t capture_session_id, uint32_t playback_session_id, bool state);
         virtual size_t ipc_agm_get_hw_processed_buff_cnt(struct session_obj *handle, enum direction dir);
@@ -63,7 +63,6 @@ class AgmService : public BnAgmService {
         virtual int ipc_agm_session_aif_set_params(uint32_t session_id, uint32_t aif_id, void *payload, size_t size);
         virtual int ipc_agm_session_set_params(uint32_t session_id, void *payload, size_t size);
         virtual int ipc_agm_set_params_with_tag(uint32_t session_id, uint32_t aif_id, struct agm_tag_config *tag_config);
-
         virtual int ipc_agm_session_register_for_events(uint32_t session_id, struct agm_event_reg_cfg *evt_reg_cfg);
         virtual int ipc_agm_session_register_cb(uint32_t session_id, agm_event_cb cb, enum event_type event, void *client_data) ;
         virtual int ipc_agm_session_set_config(
@@ -76,6 +75,8 @@ class AgmService : public BnAgmService {
                                      uint32_t session_id,
                                      uint32_t audio_intf,
                                      struct agm_cal_config *cal_config);
+        virtual int ipc_agm_session_eos(struct session_obj *handle);
+        virtual int ipc_agm_get_session_time(struct session_obj *handle, uint64_t *timestamp);
 
         ~AgmService()
         {

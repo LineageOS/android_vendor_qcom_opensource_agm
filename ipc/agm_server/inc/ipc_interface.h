@@ -55,8 +55,8 @@ class IAgmService: public ::android::IInterface {
         virtual int ipc_agm_session_stop(struct session_obj *session_handle)= 0;
         virtual int ipc_agm_session_pause(struct session_obj *session_handle)= 0;
         virtual int ipc_agm_session_resume(struct session_obj *session_handle)= 0;
-        virtual int ipc_agm_session_read(struct session_obj *session_handle, void *buff, size_t count)= 0;
-        virtual int ipc_agm_session_write(struct session_obj *session_handle, void *buff, size_t count)= 0;
+        virtual int ipc_agm_session_read(struct session_obj *session_handle, void *buff, size_t *count)= 0;
+        virtual int ipc_agm_session_write(struct session_obj *session_handle, void *buff, size_t *count)= 0;
         virtual int ipc_agm_session_audio_inf_connect(uint32_t session_id, uint32_t audio_intf, bool state) = 0;
         virtual int ipc_agm_session_set_loopback(uint32_t capture_session_id, uint32_t playback_session_id, bool state) = 0;
         virtual size_t ipc_agm_get_hw_processed_buff_cnt(struct session_obj *handle, enum direction dir) = 0;
@@ -78,6 +78,8 @@ class IAgmService: public ::android::IInterface {
                                     uint32_t session_id,
                                     uint32_t audio_intf,
                                     struct agm_cal_config *cal_config) = 0;
+        virtual int ipc_agm_session_eos(struct session_obj *session_handle)= 0;
+        virtual int ipc_agm_get_session_time(struct session_obj *session_handle, uint64_t *timestamp)= 0;
 };
 
 class BnAgmService : public ::android::BnInterface<IAgmService> {

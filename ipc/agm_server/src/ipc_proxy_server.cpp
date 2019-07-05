@@ -101,6 +101,8 @@ enum {
     SET_PARAMS_WITH_TAG,
     SET_ECREF,
     SET_CALIBRATION,
+    EOS,
+    GET_SESSION_TIME,
 };
 
 class BpAgmService : public ::android::BpInterface<IAgmService> {
@@ -375,37 +377,39 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
 	}
 
-        virtual int ipc_agm_session_read(struct session_obj *session_handle, void *buff, size_t count)
+        virtual int ipc_agm_session_read(struct session_obj *session_handle, void *buff, size_t *count)
         {
             int rc = 0;
             android::Parcel data, reply;
             android::Parcel::ReadableBlob blob;
             data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
             data.writeInt64((long)session_handle);
-            data.writeUint32(count);
+            data.writeUint32(*count);
             remote()->transact(READ, data, &reply);
             rc = reply.readInt32();
             if (rc != 0) {
                 ALOGE("read failed error out %d\n", rc);
                 goto fail_read;
             }
-            reply.readBlob(count, &blob);
-            memset(buff, 0x0, count);
-            memcpy(buff, blob.data(), count);
+            *count = reply.readUint32();
+            reply.readBlob(*count, &blob);
+            memset(buff, 0x0, *count);
+            memcpy(buff, blob.data(), *count);
         fail_read:
             return rc;
         }
 
-        virtual int ipc_agm_session_write(struct session_obj *session_handle, void *buff, size_t count) {
+        virtual int ipc_agm_session_write(struct session_obj *session_handle, void *buff, size_t *count) {
             android::Parcel data, reply;
             android::Parcel::WritableBlob blob;
             data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
             data.writeInt64((long)session_handle);
-            data.writeUint32(count);
-            data.writeBlob(count, false, &blob);
-            memset(blob.data(), 0x0, count);
-            memcpy(blob.data(), buff, count);
+            data.writeUint32(*count);
+            data.writeBlob(*count, false, &blob);
+            memset(blob.data(), 0x0, *count);
+            memcpy(blob.data(), buff, *count);
             remote()->transact(WRITE, data, &reply);
+            *count = reply.readUint32();
             blob.release();
             return reply.readInt32();
         }
@@ -560,8 +564,30 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
         return  reply.readInt32();
     }
 
-    virtual int ipc_agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool state)
+    virtual int ipc_agm_session_eos(struct session_obj *handle)
     {
+        android::Parcel data, reply;
+        ALOGV("%s:%d\n", __func__, __LINE__);
+        data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
+        data.writeInt64((long)handle);
+        remote()->transact(EOS, data, &reply);
+        return reply.readInt32();
+    }
+
+    virtual int ipc_agm_get_session_time(struct session_obj *handle, uint64_t *timestamp)
+    {
+        android::Parcel data, reply;
+        ALOGV("%s:%d\n", __func__, __LINE__);
+        data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
+        data.writeInt64((long)handle);
+        data.writeUint64(*timestamp);
+        remote()->transact(GET_SESSION_TIME, data, &reply);
+        *timestamp = reply.readUint64();
+        return reply.readInt32();
+    }
+
+    virtual int ipc_agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool state)
+	{
         android::Parcel data, reply;
         ALOGV("%s:%d\n", __func__, __LINE__);
         data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
@@ -594,7 +620,6 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
         return reply.readInt32();
     }
 };
-
 
 void ipc_cb (uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data)
 {
@@ -885,12 +910,13 @@ fail_audio_set_meta:
             reply->writeInt32(rc);
             goto free_buff;
         }
-        rc = ipc_agm_session_read(handle, buf, byte_count);
+        rc = ipc_agm_session_read(handle, buf, &byte_count);
         reply->writeInt32(rc);
         if (rc != 0) {
             ALOGE("session_read failed %d\n", rc);
             goto free_buff;
         }
+        reply->writeUint32(byte_count);
         reply->writeBlob(byte_count, false, &blob);
         memset(blob.data(), 0x0, byte_count);
         memcpy(blob.data(), buf, byte_count);
@@ -915,7 +941,8 @@ free_buff:
         }
         data.readBlob(byte_count, &blob);
         memcpy(buf, blob.data(), byte_count);
-        rc = ipc_agm_session_write(handle, buf, byte_count);
+        rc = ipc_agm_session_write(handle, buf, &byte_count);
+        reply->writeUint32(byte_count);
         blob.release();
 fail_write:
         if (buf)
@@ -1163,6 +1190,19 @@ fail_ses_aud_set_cal_data:
         reply->writeInt32(rc);
         break; }
 
+    case EOS : {
+        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        rc = ipc_agm_session_eos(handle);
+        reply->writeInt32(rc);
+        break; }
+
+    case GET_SESSION_TIME : {
+        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        uint64_t ts = data.readUint64();
+        rc = ipc_agm_get_session_time(handle, &ts);
+        reply->writeUint64(ts);
+        reply->writeInt32(rc);
+        break; }
     default:
         return BBinder::onTransact(code, data, reply, flags);
     }

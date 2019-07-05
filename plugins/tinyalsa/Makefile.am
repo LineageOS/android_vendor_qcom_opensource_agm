@@ -12,6 +12,11 @@ libagm_pcm_plugin_la_SOURCES   = src/agm_pcm_plugin.c
 libagm_pcm_plugin_la_CFLAGS := $(AM_CFLAGS)
 libagm_pcm_plugin_la_LDFLAGS   = -ltinyalsa -lsndcardparser -lagmclient -avoid-version
 
+lib_LTLIBRARIES      += libagm_compress_plugin.la
+libagm_compress_plugin_la_SOURCES   = src/agm_compress_plugin.c
+libagm_compress_plugin_la_CFLAGS := $(AM_CFLAGS)
+libagm_compress_plugin_la_LDFLAGS   = -ltinyalsa -ltinycompress -lsndcardparser -lpthread  -lagmclient -avoid-version
+
 lib_LTLIBRARIES      += libagm_mixer_plugin.la
 libagm_mixer_plugin_la_SOURCES   = src/agm_mixer_plugin.c
 libagm_mixer_plugin_la_CFLAGS := $(AM_CFLAGS)

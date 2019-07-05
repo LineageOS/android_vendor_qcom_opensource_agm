@@ -116,8 +116,8 @@ int session_obj_stop(struct session_obj *sess_obj);
 int session_obj_close(struct session_obj *sess_obj);
 int session_obj_pause(struct session_obj *sess_obj);
 int session_obj_resume(struct session_obj *sess_obj);
-int session_obj_read(struct session_obj *sess_obj, void *buff, size_t count);
-int session_obj_write(struct session_obj *sess_obj, void *buff, size_t count);
+int session_obj_read(struct session_obj *sess_obj, void *buff, size_t *count);
+int session_obj_write(struct session_obj *sess_obj, void *buff, size_t *count);
 int session_obj_sess_aif_connect(struct session_obj *sess_obj,
 	uint32_t audio_intf, bool state);
 int session_obj_set_sess_metadata(struct session_obj *sess_obj, struct agm_meta_data *metadata);
@@ -141,4 +141,6 @@ int session_obj_set_ec_ref(struct session_obj *sess_obj, uint32_t aif_id, bool s
 int session_obj_register_cb(struct session_obj *sess_obj, agm_event_cb cb, enum event_type evt_type, void *client_data);
 int session_obj_register_for_events(struct session_obj *sess_obj, struct agm_event_reg_cfg *evt_reg_cfg);
 int session_obj_set_ec_ref(struct session_obj *sess_obj, uint32_t aif_id, bool state);
+int session_obj_eos(struct session_obj *sess_obj);
+int session_obj_get_timestamp(struct session_obj *sess_obj, uint64_t *timestamp);
 #endif

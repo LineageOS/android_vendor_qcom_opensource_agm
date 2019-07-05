@@ -124,35 +124,35 @@ static inline int snd_mask_val(const struct snd_mask *mask)
 static unsigned int agm_format_to_bits(enum agm_pcm_format format)
 {
     switch (format) {
-    case AGM_PCM_FORMAT_S32_LE:
-    case AGM_PCM_FORMAT_S24_LE:
+    case AGM_FORMAT_PCM_S32_LE:
+    case AGM_FORMAT_PCM_S24_LE:
         return 32;
-    case AGM_PCM_FORMAT_S24_3LE:
+    case AGM_FORMAT_PCM_S24_3LE:
         return 24;
     default:
-    case AGM_PCM_FORMAT_S16_LE:
+    case AGM_FORMAT_PCM_S16_LE:
         return 16;
     };
 }
 
-static enum agm_pcm_format alsa_to_agm_format(int format)
+static enum agm_media_format alsa_to_agm_format(int format)
 {
     switch (format) {
     case SNDRV_PCM_FORMAT_S32_LE:
-        return AGM_PCM_FORMAT_S32_LE;
+        return AGM_FORMAT_PCM_S32_LE;
     case SNDRV_PCM_FORMAT_S8:
-        return AGM_PCM_FORMAT_S8;
+        return AGM_FORMAT_PCM_S8;
     case SNDRV_PCM_FORMAT_S24_3LE:
-        return AGM_PCM_FORMAT_S24_3LE;
+        return AGM_FORMAT_PCM_S24_3LE;
     case SNDRV_PCM_FORMAT_S24_LE:
-        return AGM_PCM_FORMAT_S24_LE;
+        return AGM_FORMAT_PCM_S24_LE;
     default:
     case SNDRV_PCM_FORMAT_S16_LE:
-        return AGM_PCM_FORMAT_S16_LE;
+        return AGM_FORMAT_PCM_S16_LE;
     };
 }
 
-static enum agm_pcm_format param_get_mask_val(struct snd_pcm_hw_params *p, int n)
+static enum agm_media_format param_get_mask_val(struct snd_pcm_hw_params *p, int n)
 {
     if (param_is_mask(n)) {
         struct snd_mask *m = param_to_mask(p, n);
@@ -219,7 +219,6 @@ static int agm_pcm_sw_params(struct pcm_plugin *plugin,
     snd_card_def_get_int(plugin->node, "hostless", &is_hostless);
 
     session_config->dir = (plugin->mode == 0) ? RX : TX;
-    session_config->is_pcm = true;
     session_config->is_hostless = !!is_hostless;
     session_config->start_threshold = (uint32_t)sparams->start_threshold;
     session_config->stop_threshold = (uint32_t)sparams->stop_threshold;
@@ -262,7 +261,7 @@ static int agm_pcm_writei_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
     count = x->frames * (priv->media_config->channels *
             agm_format_to_bits(priv->media_config->format) / 8);
 
-    return agm_session_write(handle, buff, count);
+    return agm_session_write(handle, buff, &count);
 }
 
 static int agm_pcm_readi_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
@@ -281,7 +280,7 @@ static int agm_pcm_readi_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
     count = x->frames * (priv->media_config->channels *
             agm_format_to_bits(priv->media_config->format) / 8);
 
-    return agm_session_read(handle, buff, count);
+    return agm_session_read(handle, buff, &count);
 }
 
 static int agm_pcm_ttstamp(struct pcm_plugin *plugin, int *tstamp)

@@ -421,7 +421,7 @@ int agm_session_resume(struct session_obj *handle)
 	return session_obj_resume(handle);
 }
 
-int agm_session_write(struct session_obj *handle, void *buff, size_t count)
+int agm_session_write(struct session_obj *handle, void *buff, size_t *count)
 {
 	if (!handle) {
 		AGM_LOGE("%s Invalid handle\n", __func__);
@@ -431,7 +431,7 @@ int agm_session_write(struct session_obj *handle, void *buff, size_t count)
 	return session_obj_write(handle, buff, count);
 }
 
-int agm_session_read(struct session_obj *handle, void *buff, size_t count)
+int agm_session_read(struct session_obj *handle, void *buff, size_t *count)
 {
 	if (!handle) {
 		AGM_LOGE("%s Invalid handle\n", __func__);
@@ -494,3 +494,22 @@ done:
 	return ret;
 }
 
+int agm_session_eos(struct session_obj *handle)
+{
+	if (!handle) {
+		AGM_LOGE("%s Invalid handle\n", __func__);
+		return -EINVAL;
+	}
+
+	return session_obj_eos(handle);
+}
+
+int agm_get_session_time(struct session_obj *handle, uint64_t *timestamp)
+{
+	if (!handle || !timestamp) {
+		AGM_LOGE("%s Invalid handle or timestamp pointer\n", __func__);
+		return -EINVAL;
+	}
+
+	return session_obj_get_timestamp(handle, timestamp);
+}

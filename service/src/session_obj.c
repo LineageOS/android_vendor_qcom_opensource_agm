@@ -514,9 +514,16 @@ static void graph_event_cb(struct agm_event_cb_params *event_params,
 	pthread_mutex_lock(&sess_obj->lock);
 	list_for_each_safe(node, next, &sess_obj->cb_pool) {
 		sess_cb = node_to_item(node, struct session_cb, node);
-		if (sess_cb->cb) {
-			//TODO: Add support for filtering event types, once compress data path is supported.
-			sess_cb->cb(sess_obj->sess_id, (struct agm_event_cb_params *)event_params, sess_cb->client_data);
+		if (sess_cb && sess_cb->cb) {
+			/* Filter callbacks based on event_id and event_type */
+			if (event_params->event_id == AGM_EVENT_EOS_RENDERED ||
+				event_params->event_id == AGM_EVENT_READ_DONE ||
+				event_params->event_id == AGM_EVENT_WRITE_DONE) {
+				/* Call only for sessions registered with DATA EVENT types */
+				if (sess_cb->evt_type == AGM_EVENT_DATA_PATH)
+				    sess_cb->cb(sess_obj->sess_id, event_params, sess_cb->client_data);
+			} else
+				sess_cb->cb(sess_obj->sess_id, event_params, sess_cb->client_data);
 		}
 	}
 	pthread_mutex_unlock(&sess_obj->lock);
@@ -1599,7 +1606,7 @@ done:
 	return ret;
 }
 
-int session_obj_read(struct session_obj *sess_obj, void *buff, size_t count)
+int session_obj_read(struct session_obj *sess_obj, void *buff, size_t *count)
 {
 	int ret = 0;
 
@@ -1620,7 +1627,7 @@ done:
 	return ret;
 }
 
-int session_obj_write(struct session_obj *sess_obj, void *buff, size_t count)
+int session_obj_write(struct session_obj *sess_obj, void *buff, size_t *count)
 {
 	int ret = 0;
 
@@ -1748,6 +1755,49 @@ int session_obj_set_ec_ref(struct session_obj *sess_obj, uint32_t aif_id, bool s
 	}
 	sess_obj->ec_ref_aif_id = aif_id;
 	sess_obj->ec_ref_state = state;
+
+done:
+	pthread_mutex_unlock(&sess_obj->lock);
+	return ret;
+}
+
+int session_obj_eos(struct session_obj *sess_obj)
+{
+	int ret = 0;
+
+	pthread_mutex_lock(&sess_obj->lock);
+	if (sess_obj->state == SESSION_CLOSED) {
+		AGM_LOGE("%s Cannot issue EOS in state:%d\n", __func__, sess_obj->state);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	ret = graph_eos(sess_obj->graph);
+	if (ret) {
+		AGM_LOGE("%s Error:%d sending EOS cmd \n", __func__, ret);
+	}
+
+done:
+	pthread_mutex_unlock(&sess_obj->lock);
+	return ret;
+}
+
+
+int session_obj_get_timestamp(struct session_obj *sess_obj, uint64_t *timestamp)
+{
+	int ret = 0;
+
+	pthread_mutex_lock(&sess_obj->lock);
+	if (sess_obj->state == SESSION_CLOSED) {
+		AGM_LOGE("%s Cannot get timestamp in state:%d\n", __func__, sess_obj->state);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	ret = graph_get_session_time(sess_obj->graph, timestamp);
+	if (ret) {
+		AGM_LOGE("%s Error:%d for get_timestamp \n", __func__, ret);
+	}
 
 done:
 	pthread_mutex_unlock(&sess_obj->lock);

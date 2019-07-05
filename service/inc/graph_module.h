@@ -65,12 +65,14 @@ typedef enum module
     MODULE_PCM_DECODER,
     MODULE_PCM_CONVERTER,
     MODULE_SHARED_MEM,
+    MODULE_PLACEHOLDER_ENCODER,
+    MODULE_PLACEHOLDER_DECODER,
     /*
      *Ensure that whenever a new stream module is added it
      *is added in the end of stream module list and the end
      *is updated with the same entry.
      */
-    MODULE_STREAM_END = MODULE_SHARED_MEM,
+    MODULE_STREAM_END = MODULE_PLACEHOLDER_DECODER,
     MODULE_DEVICE_START = 0,
     MODULE_HW_EP_RX = MODULE_DEVICE_START,
     MODULE_HW_EP_TX,

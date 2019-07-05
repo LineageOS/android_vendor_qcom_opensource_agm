@@ -79,14 +79,133 @@ struct agm_meta_data {
 /**
  * Bit formats
  */
-enum agm_pcm_format {
-	AGM_PCM_FORMAT_INVALID,
-	AGM_PCM_FORMAT_S8,          /**< 8-bit signed */
-	AGM_PCM_FORMAT_S16_LE,      /**< 16-bit signed */
-	AGM_PCM_FORMAT_S24_LE,      /**< 24-bits in 4-bytes */
-	AGM_PCM_FORMAT_S24_3LE,     /**< 24-bits in 3-bytes */
-	AGM_PCM_FORMAT_S32_LE,      /**< 32-bit signed */
-	AGM_PCM_FORMAT_MAX,
+enum agm_media_format {
+	AGM_FORMAT_INVALID,
+	AGM_FORMAT_PCM_S8,          /**< 8-bit signed */
+	AGM_FORMAT_PCM_S16_LE,      /**< 16-bit signed */
+	AGM_FORMAT_PCM_S24_LE,      /**< 24-bits in 4-bytes */
+	AGM_FORMAT_PCM_S24_3LE,     /**< 24-bits in 3-bytes */
+	AGM_FORMAT_PCM_S32_LE,      /**< 32-bit signed */
+	AGM_FORMAT_MP3,             /**< MP3 codec */
+	AGM_FORMAT_AAC,             /**< AAC codec */
+	AGM_FORMAT_FLAC,            /**< FLAC codec */
+	AGM_FORMAT_ALAC,            /**< ALAC codec */
+	AGM_FORMAT_APE,             /**< APE codec */
+	AGM_FORMAT_WMASTD,          /**< WMA codec */
+	AGM_FORMAT_WMAPRO,          /**< WMA pro codec */
+	AGM_FORMAT_VORBIS,          /**< Vorbis codec */
+	AGM_FORMAT_MAX,
+};
+
+/**
+ * Compress codec format ID
+ */
+enum agm_data_mode {
+	AGM_DATA_INVALID,
+	AGM_DATA_BLOCKING,      /**< Blocking mode */
+	AGM_DATA_NON_BLOCKING,  /**< Non blocking mode */
+	AGM_DATA_MODE_MAX,
+};
+
+/**
+ * AAC decoder parameters
+ */
+struct agm_session_aac_dec {
+	uint16_t aac_fmt_flag;          /**< AAC format flag */
+	uint16_t audio_obj_type;        /**< AAC obj type */
+	uint16_t num_channels;          /**< AAC obj type */
+	uint16_t total_size_of_PCE_bits;/**< PCE bits size */
+	uint32_t sample_rate;           /**< Sample rate */
+};
+
+/**
+ * FLAC decoder parameters
+ */
+struct agm_session_flac_dec {
+	uint16_t num_channels;    /**< Number of channels */
+	uint16_t sample_size;     /**< Sample size */
+	uint16_t min_blk_size;    /**< Minimum block size */
+	uint16_t max_blk_size;    /**< Maximum block size */
+	uint32_t sample_rate;     /**< Sample rate */
+	uint32_t min_frame_size;  /**< Minimum frame size */
+	uint32_t max_frame_size;  /**< Maximum frame size */
+};
+
+/**
+ * ALAC decoder parameters
+ */
+struct agm_session_alac_dec {
+	uint32_t frame_length;        /**< Frame length */
+	uint8_t compatible_version;   /**< Version */
+	uint8_t bit_depth;            /**< bit depth */
+	uint8_t pb;                   /**< tuning parameters */
+	uint8_t mb;                   /**< tuning parameters */
+	uint8_t kb;                   /**< tuning parameters */
+	uint8_t num_channels;         /**< Number of channels */
+	uint16_t max_run;             /**< Max run */
+	uint32_t max_frame_bytes;     /**< Max Frame bytes */
+	uint32_t avg_bit_rate;        /**< avg bit rate */
+	uint32_t sample_rate;         /**< sample rate */
+	uint32_t channel_layout_tag;  /**< Channel layout tag */
+};
+
+/**
+ * APE decoder parameters
+ */
+struct agm_session_ape_dec {
+	uint16_t compatible_version;   /**< Version */
+	uint16_t compression_level;    /**< Compression Level */
+	uint32_t format_flags;         /**< Format flags */
+	uint32_t blocks_per_frame;     /**< Blocks per frame */
+	uint32_t final_frame_blocks;   /**< Final frame blocks */
+	uint32_t total_frames;         /**< Total frames */
+	uint16_t bit_width;            /**< Bit width */
+	uint16_t num_channels;         /**< Number of channels */
+	uint32_t sample_rate;          /**< Sample rate */
+	uint32_t seek_table_present;   /**< Seek table present */
+};
+
+/**
+ * WMA decoder parameters
+ */
+struct agm_session_wma_dec {
+	uint16_t fmt_tag;            /**< Format Tag */
+	uint16_t num_channels;       /**< Number of channels */
+	uint32_t sample_rate;        /**< Sample rate */
+	uint32_t avg_bytes_per_sec;  /**< Avg bytes per sec */
+	uint16_t blk_align;          /**< Block align */
+	uint16_t bits_per_sample;    /**< Bits per sample */
+	uint32_t channel_mask;       /**< Channel mask */
+	uint16_t enc_options;        /**< Encoder options */
+	uint16_t reserved;            /**< reserved */
+};
+
+/**
+ * WMA Pro decoder parameters
+ */
+struct agm_session_wmapro_dec {
+	uint16_t fmt_tag;            /**< Format Tag */
+	uint16_t num_channels;       /**< Number of channels */
+	uint32_t sample_rate;        /**< Sample rate */
+	uint32_t avg_bytes_per_sec;  /**< Avg bytes per sec */
+	uint16_t blk_align;          /**< Block align */
+	uint16_t bits_per_sample;    /**< Bits per sample */
+	uint32_t channel_mask;       /**< Channel mask */
+	uint16_t enc_options;        /**< Encoder options */
+	uint16_t advanced_enc_option; /**< Adv encoder options */
+	uint32_t advanced_enc_option2; /**< Adv encoder options2 */
+};
+
+/**
+ * Session encoder/decoder parameters
+ */
+union agm_session_codec {
+	struct agm_session_aac_dec aac_dec;        /**< AAC decoder config */
+	struct agm_session_flac_dec flac_dec;      /**< Flac decoder config */
+	struct agm_session_alac_dec alac_dec;      /**< Alac decoder config */
+	struct agm_session_ape_dec ape_dec;        /**< APE decoder config */
+	struct agm_session_wma_dec wma_dec;        /**< WMA decoder config */
+	struct agm_session_wmapro_dec wmapro_dec;  /**< WMAPro decoder config */
 };
 
 /**
@@ -95,7 +214,7 @@ enum agm_pcm_format {
 struct agm_media_config {
     uint32_t rate;                 /**< sample rate */
     uint32_t channels;             /**< number of channels */
-    enum agm_pcm_format format;    /**< format */
+    enum agm_media_format format;  /**< format */
 };
 
 /**
@@ -125,9 +244,10 @@ struct aif_info {
 struct agm_session_config {
     enum direction dir;        /**< TX or RX */
     bool is_hostless;          /**< no data exchange on this session, e.g loopback */
-    bool is_pcm;               /**< data stream is pcm or compressed */
     uint32_t start_threshold;  /**< start_threshold: number of buffers * buffer size */
     uint32_t stop_threshold;   /**< stop_th6reshold: number of buffers * buffer size */
+    union agm_session_codec codec; /**< codec configuration */
+    enum agm_data_mode data_mode; /**< compress format ID */
 };
 
 /**
@@ -215,6 +335,11 @@ struct agm_event_reg_cfg {
 
 /** Data Events that will be notified to client from AGM */
 enum agm_event_id {
+	/**
+	 * Indicates EOS rendered event
+	 */
+	AGM_EVENT_EOS_RENDERED = 0x0,
+
 	/**
 	 * Indicates buffer provided as part of read call has been filled.
 	 */
@@ -537,12 +662,13 @@ int agm_session_resume(struct session_obj *handle);
   * \param[in] handle: session handle returned from
   *  	 agm_session_open
   * \param[in,out] buff: buffer where data will be copied to
-  * \param[out] count: actual number of bytes filled into
-  * the buffer.
+  *  \param[in,out] count: number of bytes requested to fill into
+  *      the buffer. AGM will update the count with actual
+  *      number of bytes filled.
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_read(struct session_obj *handle, void *buff, size_t count);
+int agm_session_read(struct session_obj *handle, void *buff, size_t *count);
 
 /**
  * \brief Write data buffers.to session
@@ -550,11 +676,13 @@ int agm_session_read(struct session_obj *handle, void *buff, size_t count);
  * \param[in] handle: session handle returned from
  *  	 agm_session_open
  * \param[in] buff: buffer where data will be copied from
- * \param[in] count: actual number of bytes in the buffer.
+ * \param[in] count: actual number of bytes in the buffer. AGM
+ *       will update the count with number of bytes
+ *       consumed/written.
  *
  * \return 0 on success, error code otherwise
  */
-int agm_session_write(struct session_obj *handle, void *buff, size_t count);
+int agm_session_write(struct session_obj *handle, void *buff, size_t *count);
 
 /**
   * \brief Get count of Buffer processed by h/w
@@ -605,6 +733,27 @@ int agm_session_set_loopback(uint32_t capture_session_id, uint32_t playback_sess
   */
 int agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool state);
 
+/**
+  * \brief send eos of the session.
+  *
+  * \param[in] handle - Valid session handle obtained
+  *       from agm_session_open
+  *
+  * \return 0 on success, error code otherwise
+  */
+int agm_session_eos(struct session_obj *handle);
+
+/**
+  * \brief get timestamp of the session.
+  *
+  * \param[in] handle - Valid session handle obtained
+  *       from agm_session_open
+  * \param[out] timestamp - updated with valid timestamp if the
+  * 	  operation is successful.
+  *
+  * \return 0 on success, error code otherwise
+  */
+int agm_get_session_time(struct session_obj *handle, uint64_t *timestamp);
 
 #ifdef __cplusplus
 }  /* extern "C" */

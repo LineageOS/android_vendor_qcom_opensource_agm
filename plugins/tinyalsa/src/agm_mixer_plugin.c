@@ -164,25 +164,25 @@ struct mixer_plugin_event_data {
     struct listnode node;
 };
 
-static enum agm_pcm_format alsa_to_agm_fmt(int fmt)
+static enum agm_media_format alsa_to_agm_fmt(int fmt)
 {
-    enum agm_pcm_format agm_pcm_fmt = AGM_PCM_FORMAT_INVALID;
+    enum agm_media_format agm_pcm_fmt = AGM_FORMAT_INVALID;
 
     switch (fmt) {
     case SNDRV_PCM_FORMAT_S8:
-        agm_pcm_fmt = AGM_PCM_FORMAT_S8;
+        agm_pcm_fmt = AGM_FORMAT_PCM_S8;
         break;
     case SNDRV_PCM_FORMAT_S16_LE:
-        agm_pcm_fmt = AGM_PCM_FORMAT_S16_LE;
+        agm_pcm_fmt = AGM_FORMAT_PCM_S16_LE;
         break;
     case SNDRV_PCM_FORMAT_S24_LE:
-        agm_pcm_fmt = AGM_PCM_FORMAT_S24_LE;
+        agm_pcm_fmt = AGM_FORMAT_PCM_S24_LE;
         break;
     case SNDRV_PCM_FORMAT_S24_3LE:
-        agm_pcm_fmt = AGM_PCM_FORMAT_S24_3LE;
+        agm_pcm_fmt = AGM_FORMAT_PCM_S24_3LE;
         break;
     case SNDRV_PCM_FORMAT_S32_LE:
-        agm_pcm_fmt = AGM_PCM_FORMAT_S32_LE;
+        agm_pcm_fmt = AGM_FORMAT_PCM_S32_LE;
         break;
     }
 
@@ -448,41 +448,68 @@ static int amp_get_pcm_info(struct amp_priv *amp_priv)
     struct amp_dev_info *rx_adi = &amp_priv->rx_pcm_devs;
     struct amp_dev_info *tx_adi = &amp_priv->tx_pcm_devs;
     void **pcm_node_list = NULL;
-    int num_pcms, ret, val = 0, i;
+    int num_pcms = 0, num_compr = 0, total_pcms, ret, val = 0, i;
 
+    /* Get both pcm and compressed node count */
     num_pcms = snd_card_def_get_num_node(amp_priv->card_node,
                                          SND_NODE_TYPE_PCM);
-    if (num_pcms <= 0) {
-        printf("%s: no pcms found for card %u\n",
-               __func__, amp_priv->card);
+    num_compr = snd_card_def_get_num_node(amp_priv->card_node,
+                                          SND_NODE_TYPE_COMPR);
+    if (num_pcms <= 0 && num_compr <= 0) {
+        printf("%s: no pcms(%d)/compr(%d) nodes found for card %u\n",
+               __func__, num_pcms, num_compr, amp_priv->card);
         ret = -EINVAL;
         goto done;
     }
 
-    pcm_node_list = calloc(num_pcms, sizeof(*pcm_node_list));
+    /* It is valid that any card could have just PCMs or just comprs or both */
+    if (num_pcms < 0) {
+        total_pcms = num_compr;
+        num_pcms = 0;
+    } else if (num_compr < 0) {
+        total_pcms = num_pcms;
+        num_compr = 0;
+    }
+    total_pcms = num_pcms + num_compr;
+
+    pcm_node_list = calloc(total_pcms, sizeof(*pcm_node_list));
     if (!pcm_node_list) {
         printf("%s: alloc for pcm_node_list failed\n", __func__);
         return -ENOMEM;
     }
 
-    ret = snd_card_def_get_nodes_for_type(amp_priv->card_node,
-                                          SND_NODE_TYPE_PCM,
-                                          pcm_node_list, num_pcms);
-    if (ret) {
-        printf("%s: failed to get pcm node list, err %d\n",
-               __func__, ret);
-        goto done;
+    if (num_pcms > 0) {
+        ret = snd_card_def_get_nodes_for_type(amp_priv->card_node,
+                                              SND_NODE_TYPE_PCM,
+                                              pcm_node_list, num_pcms);
+        if (ret) {
+            printf("%s: failed to get pcm node list, err %d\n",
+                   __func__, ret);
+            goto done;
+        }
     }
 
-    /* count TX and RX PCMs */
-    for (i = 0; i < num_pcms; i++) {
+    if (num_compr > 0) {
+        ret = snd_card_def_get_nodes_for_type(amp_priv->card_node,
+                                              SND_NODE_TYPE_COMPR,
+                                              &pcm_node_list[num_pcms],
+                                              num_compr);
+        if (ret) {
+            printf("%s: failed to get compr node list, err %d\n",
+                   __func__, ret);
+            goto done;
+        }
+    }
+
+    /* count TX and RX PCMs + Comprs*/
+    for (i = 0; i < total_pcms; i++) {
         void *pcm_node = pcm_node_list[i];
         snd_card_def_get_int(pcm_node, "playback", &val);
         if (val == 1)
             rx_adi->count++;
     }
     val = 0;
-    for (i = 0; i < num_pcms; i++) {
+    for (i = 0; i < total_pcms; i++) {
         void *pcm_node = pcm_node_list[i];
         snd_card_def_get_int(pcm_node, "capture", &val);
         if (val == 1)
@@ -504,12 +531,12 @@ static int amp_get_pcm_info(struct amp_priv *amp_priv)
     
     /* Fill in RX properties */
     ret = amp_create_pcm_info_from_card(rx_adi, "playback",
-                                        num_pcms, pcm_node_list);
+                                        total_pcms, pcm_node_list);
     if (ret)
         goto err_alloc_rx_tx;
 
     ret = amp_create_pcm_info_from_card(tx_adi, "capture",
-                                        num_pcms, pcm_node_list);
+                                        total_pcms, pcm_node_list);
     if (ret)
         goto err_alloc_rx_tx;
 
