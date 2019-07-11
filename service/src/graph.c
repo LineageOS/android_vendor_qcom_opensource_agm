@@ -45,8 +45,9 @@
 #define DEVICE_TX 1
 #define MONO 1
 
-/*TODO: remove this and get it from kvh2xml */
-#define PAUSE 0x100001
+/* TODO: move this to gecko header file */
+#define PARAM_ID_SOFT_PAUSE_START 0x800102e
+#define PARAM_ID_SOFT_PAUSE_RESUME 0x800102f
 
 #define CONVX(x) #x
 #define CONV_TO_STRING(x) CONVX(x)
@@ -1215,6 +1216,11 @@ static module_info_t stream_module_list[] = {
      .tag = STREAM_INPUT_MEDIA_FORMAT,
      .configure = configure_shared_mem_ep,
  },
+ {
+     .module = MODULE_STREAM_PAUSE,
+     .tag = TAG_PAUSE,
+     .configure = NULL,
+ },
  };
 
 int configure_buffer_params(struct graph_obj *gph_obj,
@@ -1591,10 +1597,12 @@ int graph_prepare(struct graph_obj *graph_obj)
                goto done;
             }
         }
-        ret = mod->configure(mod, graph_obj);
-        if (ret != 0)
-            goto done;
-        mod->is_configured = true;
+        if (mod->configure) {
+            ret = mod->configure(mod, graph_obj);
+            if (ret != 0)
+                goto done;
+            mod->is_configured = true;
+        }
     }
 
     /*Configure buffers only if it is not a hostless session*/
@@ -1679,60 +1687,70 @@ done:
     return ret;
 }
 
-int graph_pause(struct graph_obj *graph_obj)
+int graph_pause_resume(struct graph_obj *graph_obj, bool pause)
 {
-     /**
-      *This is needed for compress decoder/encoders.For PCM client is
-      *suppose to do a set config as there is no Tinyalsa API
-
-      */
     int ret = 0;
-    struct gsl_key_vector tkv;
+    struct listnode *node = NULL;
+    module_info_t *mod;
+    struct apm_module_param_data_t *header;
+    size_t payload_size = 0;
+    uint8_t *payload = NULL;
 
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object");
         return -EINVAL;
     }
 
-    tkv.num_kvps = 1;
-    tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
-    tkv.kvp->key = PAUSE;
-    tkv.kvp->value = 1;
+    /* Pause module info is retrived and added to list in graph_open */
+    list_for_each(node, &graph_obj->tagged_mod_list) {
+        mod = node_to_item(node, module_info_t, list);
+        if (mod->tag == TAG_PAUSE) {
+            AGM_LOGD("Soft Pause module IID 0x%x, Pause: %d", mod->miid, pause);
 
-    ret = gsl_set_config(graph_obj->graph_handle, NULL, TAG_PAUSE, &tkv);
+            payload_size = sizeof(struct apm_module_param_data_t);
+            if (payload_size % 8 != 0)
+                payload_size = payload_size + (8 - payload_size % 8);
 
-    if (ret != 0) {
-        AGM_LOGE("RESUME set_config command failed with error %d", ret);
+            payload = calloc(1, (size_t)payload_size);
+            if (!payload) {
+                AGM_LOGE("No memory to allocate for payload");
+                ret = -ENOMEM;
+                goto done;
+            }
+
+            header = (struct apm_module_param_data_t*)payload;
+            header->module_instance_id = mod->miid;
+            if (pause)
+                header->param_id = PARAM_ID_SOFT_PAUSE_START;
+            else
+                header->param_id = PARAM_ID_SOFT_PAUSE_RESUME;
+
+            header->error_code = 0x0;
+            header->param_size = 0x0;
+
+            pthread_mutex_lock(&graph_obj->lock);
+            ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
+            if (ret !=0)
+                AGM_LOGE("graph_set_custom_config failed %d", ret);
+            pthread_mutex_unlock(&graph_obj->lock);
+            free(payload);
+            break;
+        }
     }
+
+done:
     return ret;
+}
+
+
+int graph_pause(struct graph_obj *graph_obj)
+{
+    return graph_pause_resume(graph_obj, true);
 }
 
 int graph_resume(struct graph_obj *graph_obj)
 {
-     /**
-      *This is needed for compress decoder/encoders.For PCM client is
-      *suppose to do a set config as there is no TinyAlsa API
-      */
-    int ret = 0;
-    struct gsl_key_vector tkv;
-
-    if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
-        return -EINVAL;
-    }
-
-    tkv.num_kvps = 1;
-    tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
-    tkv.kvp->key = PAUSE;
-    tkv.kvp->value = 0;
-
-    /*TODO: when to clean up memory */
-    ret = gsl_set_config(graph_obj->graph_handle, NULL, TAG_PAUSE, &tkv);
-
-    if (ret != 0) {
-        AGM_LOGE("RESUME set_config command failed with error %d", ret);
-    }
-    return ret;
+    return graph_pause_resume(graph_obj, false);
 }
 
 int graph_set_config(struct graph_obj *graph_obj, void *payload,
@@ -1979,10 +1997,12 @@ int graph_add(struct graph_obj *graph_obj,
         mod = node_to_item(node, module_info_t, list);
         if (mod->is_configured)
             continue;
-        ret = mod->configure(mod, graph_obj);
-        if (ret != 0)
-            goto done;
-        mod->is_configured = true;
+        if (mod->configure) {
+            ret = mod->configure(mod, graph_obj);
+            if (ret != 0)
+                goto done;
+            mod->is_configured = true;
+        }
     }
 done:
     pthread_mutex_unlock(&graph_obj->lock);
@@ -2124,10 +2144,12 @@ int graph_change(struct graph_obj *graph_obj,
     /*configure modules again*/
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
-        ret = mod->configure(mod, graph_obj);
-        if (ret != 0)
-            goto done;
-        mod->is_configured = true;
+        if (mod->configure) {
+            ret = mod->configure(mod, graph_obj);
+            if (ret != 0)
+                goto done;
+            mod->is_configured = true;
+        }
     }
 done:
     pthread_mutex_unlock(&graph_obj->lock);
