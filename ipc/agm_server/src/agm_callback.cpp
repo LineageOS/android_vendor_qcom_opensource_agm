@@ -63,39 +63,42 @@ const android::String16& ICallback::getInterfaceDescriptor() const {
 
 class BpCallback: public ::android:: BpInterface<ICallback> {
 public:
-    BpCallback(const sp<IBinder>& impl) :
-        BpInterface<ICallback>(impl) {
-    ALOGD("BpCallback::BpCallback()");
-        }
+    BpCallback(const sp<IBinder>& impl) :  BpInterface<ICallback>(impl)
+    {
+            ALOGD("BpCallback::BpCallback()");
+    }
 
-    int event_cb(uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data, agm_event_cb cb_func) {
-        ALOGV("%s %d", __func__,__LINE__);
+    int event_cb(uint32_t session_id, struct agm_event_cb_params *event_params,
+                                       void *client_data, agm_event_cb cb_func)
+    {
+        ALOGV("%s %d\n", __func__,__LINE__);
         android::Parcel data, reply;
-		data.writeInterfaceToken(ICallback::getInterfaceDescriptor());
+        data.writeInterfaceToken(ICallback::getInterfaceDescriptor());
         data.writeUint32(session_id);
-		data.writeUint32(event_params->source_module_id);
-		data.writeUint32(event_params->event_id);
-		data.writeUint32(event_params->event_payload_size);	
-		uint32_t param_size = event_params->event_payload_size;
+        data.writeUint32(event_params->source_module_id);
+        data.writeUint32(event_params->event_id);
+        data.writeUint32(event_params->event_payload_size);
+        uint32_t param_size = event_params->event_payload_size;
         android::Parcel::WritableBlob blob;
         data.writeBlob(param_size, false, &blob);
         memset(blob.data(), 0x0, param_size);
         memscpy(blob.data(), param_size, event_params->event_payload, param_size);
-        blob.release();		
-		data.writeInt64((long)client_data);
-		data.write(&cb_func, sizeof(agm_event_cb *));			
+        blob.release();
+        data.writeInt64((long)client_data);
+        data.write(&cb_func, sizeof(agm_event_cb *));
         return remote()->transact(event_params->event_id, data, &reply);
    }
 };
 
 android::sp<ICallback> ICallback::asInterface
-   (const android::sp<android::IBinder>& obj) {
+         (const android::sp<android::IBinder>& obj)
+{
    ALOGD("ICallback::asInterface()");
    android::sp<ICallback> intr;
    if (obj != NULL) {
        intr = static_cast<ICallback*>(obj->queryLocalInterface(ICallback::descriptor).get());
        ALOGD("ICallback::asInterface() interface %s",
-           ((intr == 0)?"zero":"non zero"));
+                 ((intr == 0)?"zero":"non zero"));
        if (intr == NULL)
            intr = new BpCallback(obj);
    }
@@ -107,44 +110,46 @@ ICallback::ICallback()
 ICallback::~ICallback()
     { ALOGD("ICallback::~ICallback()"); }
 
-
-
 int32_t BnCallback::onTransact(uint32_t code,
                                    const Parcel& data,
                                    Parcel* reply __unused,
-                                   uint32_t flags) {
-    ALOGD("BnCallback::onTransact(%i) %i", code, flags);
+                                   uint32_t flags)
+{
+    ALOGD("BnCallback::onTransact(%i) %i\n", code, flags);
     data.checkInterface(this);
-	uint32_t session_id;
-	uint32_t source_module_id;
-	uint32_t event_id;
-	uint32_t event_payload_size;
+    uint32_t session_id;
+    uint32_t source_module_id;
+    uint32_t event_id;
+    uint32_t event_payload_size;
     void *client_data;
-	agm_event_cb cb_func;
-	struct agm_event_cb_params *event_params = NULL;
+    agm_event_cb cb_func;
+    struct agm_event_cb_params *event_params = NULL;
     session_id = data.readUint32();
     source_module_id = data.readUint32();
     event_id = data.readUint32();
     event_payload_size = data.readUint32();
     event_params = (struct agm_event_cb_params *) calloc(1, (sizeof(agm_event_cb_params) + event_payload_size));
-	if (event_params == NULL) {
-        ALOGE("%s: Cannot allocate memory for struct agm_event_cb_params", __func__);
+    if (event_params == NULL) {
+        ALOGE("%s: Cannot allocate memory for struct agm_event_cb_params\n", __func__);
+        return -ENOMEM;
     }
     event_params->source_module_id = source_module_id;
     event_params->event_id = (agm_event_id) event_id;
     event_params->event_payload_size = event_payload_size;
-	android::Parcel::ReadableBlob blob;
+    android::Parcel::ReadableBlob blob;
     uint32_t blob_size = event_payload_size ;
     data.readBlob(blob_size, &blob);
     memset(event_params->event_payload, 0x0, event_params->event_payload_size);
     memscpy(event_params->event_payload, event_params->event_payload_size , blob.data(), blob_size);
     blob.release();	
-	client_data = (void *)data.readInt64();
+    client_data = (void *)data.readInt64();
     data.read(&cb_func, sizeof(agm_event_cb *));
     return event_cb(session_id, event_params, client_data, cb_func);
 }
 
-int BnCallback::event_cb(uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data, agm_event_cb cb_func) {
-    ALOGD("Calling Client Registered Callback(%p)", cb_func);
+int BnCallback::event_cb(uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data, agm_event_cb cb_func)
+{
+    ALOGD("Calling Client Registered Callback(%x)\n", cb_func);
     cb_func(session_id, event_params, client_data);
+    return 0;
 }

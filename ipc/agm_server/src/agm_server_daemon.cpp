@@ -39,7 +39,8 @@ int main() {
     ALOGE("AgmService initialized\n");
     android::defaultServiceManager()->addService(android::String16("AgmService"), new AgmService());
     android::ProcessState::self()->startThreadPool();
-    ALOGE("AGM service is now ready");
+    ALOGE("AGM service is now ready\n");
     android::IPCThreadState::self()->joinThreadPool();
-    ALOGE("AGM service thread joined");
+    ALOGE("AGM service thread joined\n");
+    return 0;
 }
