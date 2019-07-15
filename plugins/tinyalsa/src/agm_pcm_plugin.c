@@ -121,7 +121,7 @@ static inline int snd_mask_val(const struct snd_mask *mask)
 	return 0;
 }
 
-static unsigned int agm_format_to_bits(enum pcm_format format)
+static unsigned int agm_format_to_bits(enum agm_pcm_format format)
 {
     switch (format) {
     case AGM_PCM_FORMAT_S32_LE:
@@ -144,7 +144,7 @@ static enum agm_pcm_format alsa_to_agm_format(int format)
         return AGM_PCM_FORMAT_S8;
     case SNDRV_PCM_FORMAT_S24_3LE:
         return AGM_PCM_FORMAT_S24_3LE;
-    case SNDRV_PCM_FORMAT_S24_LE: 
+    case SNDRV_PCM_FORMAT_S24_LE:
         return AGM_PCM_FORMAT_S24_LE;
     default:
     case SNDRV_PCM_FORMAT_S16_LE:
@@ -221,8 +221,8 @@ static int agm_pcm_sw_params(struct pcm_plugin *plugin,
     session_config->dir = (plugin->mode == 0) ? RX : TX;
     session_config->is_pcm = true;
     session_config->is_hostless = !!is_hostless;
-    session_config->start_threshold = sparams->start_threshold;
-    session_config->stop_threshold = sparams->stop_threshold;
+    session_config->start_threshold = (uint32_t)sparams->start_threshold;
+    session_config->stop_threshold = (uint32_t)sparams->stop_threshold;
 
     ret = agm_session_set_config(priv->handle, session_config,
                                  priv->media_config, priv->buffer_config);
@@ -259,7 +259,7 @@ static int agm_pcm_writei_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
         return ret;
 
     buff = x->buf;
-    count = x->frames * (priv->media_config->channels * 
+    count = x->frames * (priv->media_config->channels *
             agm_format_to_bits(priv->media_config->format) / 8);
 
     return agm_session_write(handle, buff, count);
@@ -393,19 +393,19 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
         goto err_plugin_free;
     }
 
-    media_config = calloc(1, sizeof(struct agm_media_config)); 
+    media_config = calloc(1, sizeof(struct agm_media_config));
     if (!media_config) {
         ret = -ENOMEM;
         goto err_priv_free;
     }
 
-    buffer_config = calloc(1, sizeof(struct agm_buffer_config)); 
+    buffer_config = calloc(1, sizeof(struct agm_buffer_config));
     if (!buffer_config) {
         ret = -ENOMEM;
         goto err_media_free;
     }
 
-    session_config = calloc(1, sizeof(struct agm_session_config)); 
+    session_config = calloc(1, sizeof(struct agm_session_config));
     if (!session_config) {
         ret = -ENOMEM;
         goto err_buf_free;

@@ -300,17 +300,17 @@ void amp_event_cb(uint32_t session_id, struct agm_event_cb_params *event_params,
        to pcm device or compress device.
      */
     event.type = SNDRV_CTL_EVENT_ELEM;
-    ctl_len = strlen(stream) + 4 + strlen(ctl_name) + 1;
+    ctl_len = (int)(strlen(stream) + 4 + strlen(ctl_name) + 1);
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str)
         return;
 
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, session_id, ctl_name);
-    strncpy(event.data.elem.id.name, mixer_str, sizeof(event.data.elem.id.name));
+    strlcpy(event.data.elem.id.name, mixer_str, sizeof(event.data.elem.id.name));
 
     data = calloc(1, sizeof(struct mixer_plugin_event_data));
     if (!data)
-        return;
+        goto done;
 
     data->ev = event;
     list_add_tail(&amp_priv->events_list, &data->node);
@@ -318,6 +318,7 @@ void amp_event_cb(uint32_t session_id, struct agm_event_cb_params *event_params,
     if (amp_priv->event_cb)
         amp_priv->event_cb(plugin);
 
+done:
     free(mixer_str);
 }
 
@@ -557,7 +558,7 @@ static int amp_get_be_ctl_count(struct amp_priv *amp_priv)
     struct amp_dev_info *tx_adi = &amp_priv->tx_be_devs;
     int count, ctl_per_be;
 
-    ctl_per_be = ARRAY_SIZE(amp_be_ctl_name_extn);
+    ctl_per_be = (int)ARRAY_SIZE(amp_be_ctl_name_extn);
 
     count = 0;
 
@@ -577,16 +578,16 @@ static int amp_get_pcm_ctl_count(struct amp_priv *amp_priv)
     count = 0;
 
     /* Count common ctls applicable for both RX and TX pcms */
-    ctl_per_pcm = ARRAY_SIZE(amp_pcm_ctl_name_extn);
+    ctl_per_pcm = (int)ARRAY_SIZE(amp_pcm_ctl_name_extn);
     count += (rx_adi->count - 1) * ctl_per_pcm;
     count += (tx_adi->count - 1) * ctl_per_pcm;
 
     /* Count only TX pcm specific controls */
-    ctl_per_pcm = ARRAY_SIZE(amp_pcm_tx_ctl_names);
+    ctl_per_pcm = (int)ARRAY_SIZE(amp_pcm_tx_ctl_names);
     count += (tx_adi->count -1) * ctl_per_pcm;
 
     /* Count only RX pcm specific controls */
-    ctl_per_pcm = ARRAY_SIZE(amp_pcm_rx_ctl_names);
+    ctl_per_pcm = (int)ARRAY_SIZE(amp_pcm_rx_ctl_names);
     count += (rx_adi->count - 1) * ctl_per_pcm;
 
     return count;
@@ -628,8 +629,8 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
     int ret = 0;
 
     printf ("%s: enter\n", __func__);
-    amp_priv->media_fmt.rate = ev->value.integer.value[0];
-    amp_priv->media_fmt.channels = ev->value.integer.value[1];
+    amp_priv->media_fmt.rate = (uint32_t)ev->value.integer.value[0];
+    amp_priv->media_fmt.channels = (uint32_t)ev->value.integer.value[1];
     amp_priv->media_fmt.format = alsa_to_agm_fmt(ev->value.integer.value[2]);
 
     ret = agm_aif_set_media_config(audio_intf_id,
@@ -639,7 +640,7 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
 
     if (ret)
         printf("%s: set_media_config failed, err %d, aif_id %u rate %u channels %u fmt %u\n",
-               __func__, ret, audio_intf_id, amp_priv->media_fmt.rate, 
+               __func__, ret, audio_intf_id, amp_priv->media_fmt.rate,
                amp_priv->media_fmt.channels, amp_priv->media_fmt.format);
     return ret;
 }
@@ -693,7 +694,7 @@ static int amp_pcm_aif_connect_put(struct mixer_plugin *plugin,
 
     printf ("%s: enter\n", __func__);
     be_adi = amp_get_be_adi(amp_priv, pcm_adi->dir);
-    if (!be_adi) 
+    if (!be_adi)
         return -EINVAL;
 
     val = ev->value.enumerated.item[0];
@@ -828,8 +829,8 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
             printf("%s: set_session_metadata failed err %d for %s\n",
                    __func__, ret, ctl->name);
         return ret;
-    } 
-    
+    }
+
     /* pcm control is not 0, set the (session + be) metadata */
     be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
     be_idx = be_adi->idx_arr[pcm_control];
@@ -884,8 +885,8 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
             printf("%s: session_set_params failed err %d for %s\n",
                    __func__, ret, ctl->name);
         return ret;
-    } 
-    
+    }
+
     /* control is not 0, set the (session + be) set_param */
     be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
     be_idx = be_adi->idx_arr[pcm_control];
@@ -924,7 +925,7 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
                 __func__);
         return -EINVAL;
     }
-    
+
     /* control is not 0, get the (session + be) get_tag_info */
     payload = &tlv->tlv[0];
     tlv_size = tlv->length;
@@ -1018,7 +1019,7 @@ static int amp_pcm_echoref_put(struct mixer_plugin *plugin,
 
     printf ("%s: enter\n", __func__);
     be_adi = amp_get_be_adi(amp_priv, RX);
-    if (!be_adi) 
+    if (!be_adi)
         return -EINVAL;
 
     val = ev->value.enumerated.item[0];
@@ -1068,7 +1069,7 @@ static struct snd_value_tlv_bytes pcm_setparamtag_bytes =
 static struct snd_value_tlv_bytes pcm_setparam_bytes =
     SND_VALUE_TLV_BYTES(64 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 
-static struct snd_value_int media_fmt_int = 
+static struct snd_value_int media_fmt_int =
     SND_VALUE_INTEGER(3, 0, 384000, 1);
 
 /* PCM related mixer controls here */
