@@ -36,7 +36,9 @@
 
 static void metadata_print(struct agm_meta_data_gsl* meta_data)
 {
-	int i, size = meta_data->gkv.num_kvs;
+	int i;
+	size_t size  = meta_data->gkv.num_kvs;
+
 	AGM_LOGE("GKV size:%d\n", size);
 	for (i = 0; i < size; i++) {
 		AGM_LOGE("key:0x%x, value:0x%x ", meta_data->gkv.kv[i].key, meta_data->gkv.kv[i].value);
@@ -53,7 +55,8 @@ static void metadata_print(struct agm_meta_data_gsl* meta_data)
 static void metadata_remove_dup(
 		struct agm_meta_data_gsl* meta_data) {
 
-	int i, j, k, size;
+	int i, j, k;
+	size_t  size;
 
 	//sort gkvs
 	size = meta_data->gkv.num_kvs;
