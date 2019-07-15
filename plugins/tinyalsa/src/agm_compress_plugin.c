@@ -188,7 +188,7 @@ int agm_compress_write(struct compress_plugin *plugin, void *buff, size_t count)
         printf("%s: err: bytes_avail = %ld", __func__, priv->bytes_avail);
         return -EINVAL;
     }
-    printf("%s: count = %ld, priv->bytes_avail: %ld\n", __func__, count, priv->bytes_avail);
+    //printf("%s: count = %ld, priv->bytes_avail: %ld\n", __func__, count, priv->bytes_avail);
     priv->bytes_copied += size;
 
     pthread_mutex_unlock(&priv->lock);
@@ -240,18 +240,18 @@ int agm_compress_tstamp(struct compress_plugin *plugin, struct snd_compr_tstamp 
     int ret = 0;
     uint64_t timestamp = 0;
 
-    /* TODO: Add NULL checks for input params */
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
         return ret;
 
     tstamp->sampling_rate = priv->media_config.rate;
     tstamp->copied_total = priv->bytes_copied;
-    /*TODO: get session time */
-    /*ret = agm_get_session_time(&handle, &timestamp);
+
+    ret = agm_get_session_time(handle, &timestamp);
+    printf("%s: after timestamp = %ld, ret %d\n", __func__, timestamp, ret);
     if (ret)
-        return ret;*/
-    printf("%s: timestamp = %ld\n", __func__, timestamp);
+        return ret;
+
     //tstamp->pcm_io_frames = (snd_pcm_uframes_t)div64_u64(timestamp, 1000000);
 
     return 0;
@@ -270,12 +270,13 @@ int agm_compress_avail(struct compress_plugin *plugin, size_t *avail)
     if (ret)
         return ret;
     memset(&tstamp, 0x0, sizeof(struct snd_compr_tstamp));
+    agm_compress_tstamp(plugin, &tstamp);
 
     pthread_mutex_lock(&priv->lock);
 
-    //agm_compress_tstamp(plugin, &tstamp);
     /* Avail size is always in multiples of fragment size */
     *avail = priv->bytes_avail;
+    //printf("%s: *avail = %ld, priv->bytes_avail: %ld\n", __func__, *avail, priv->bytes_avail);
     pthread_mutex_unlock(&priv->lock);
 
     return ret;

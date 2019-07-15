@@ -45,9 +45,22 @@
 #define DEVICE_TX 1
 #define MONO 1
 
-/* TODO: move this to gecko header file */
+/* TODO: remove this later after including in gecko header files */
 #define PARAM_ID_SOFT_PAUSE_START 0x800102e
 #define PARAM_ID_SOFT_PAUSE_RESUME 0x800102f
+#define PARAM_ID_SPR_SESSION_TIME 0x0800113D
+struct param_id_spr_session_time_t {
+    uint64_t session_time;
+    uint64_t absolute_time;
+    uint64_t timestamp;
+    uint32_t flags;
+};
+#define PARAM_ID_SPR_DELAY_PATH_END 0x080010C4
+struct spr_delay_path_end_t {
+    uint32_t module_instance_id;
+};
+
+#define TAG_STREAM_SPR 0xC0000013
 
 #define CONVX(x) #x
 #define CONV_TO_STRING(x) CONVX(x)
@@ -78,6 +91,7 @@ struct graph_obj {
     event_cb cb;
     void *client_data;
     struct session_obj *sess_obj;
+    uint32_t spr_miid;
 };
 
 static int get_acdb_files_from_directory(const char* acdb_files_path,
@@ -1177,6 +1191,53 @@ int configure_shared_mem_ep(struct module_info *mod,
     return 0;
 }
 
+int configure_spr(struct module_info *spr_mod,
+                            struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+    struct listnode *node = NULL;
+    struct module_info *mod;
+    struct apm_module_param_data_t *header;
+    struct spr_delay_path_end_t *spr_hwep_delay;
+    uint8_t *payload = NULL;
+    size_t payload_size = 0;
+
+    AGM_LOGD("SPR module IID %d", spr_mod->miid);
+    graph_obj->spr_miid = spr_mod->miid;
+    payload_size = sizeof(struct apm_module_param_data_t) +
+                    sizeof(struct spr_delay_path_end_t);
+    if (payload_size % 8 != 0)
+        payload_size = payload_size + (8 - payload_size % 8);
+
+    payload = calloc(1, (size_t)payload_size);
+    if (!payload) {
+        AGM_LOGE("No memory to allocate for payload");
+        ret = -ENOMEM;
+        goto done;
+    }
+    header = (struct apm_module_param_data_t*)payload;
+    spr_hwep_delay = (struct spr_delay_path_end_t *)(payload
+                          + sizeof(struct apm_module_param_data_t));
+    header->module_instance_id = spr_mod->miid;
+    header->param_id = PARAM_ID_SPR_DELAY_PATH_END;
+    header->error_code = 0x0;
+    header->param_size = payload_size;
+
+    list_for_each(node, &graph_obj->tagged_mod_list) {
+        mod = node_to_item(node, module_info_t, list);
+        if (mod->tag == DEVICE_HW_ENDPOINT_RX) {
+            AGM_LOGD("HW EP module IID %d", mod->miid);
+            spr_hwep_delay->module_instance_id = mod->miid;
+            ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
+            if (ret !=0)
+                AGM_LOGE("graph_set_custom_config failed %d", ret);
+        }
+    }
+done:
+    return ret;
+}
+
 static module_info_t hw_ep_module[] = {
    {
        .module = MODULE_HW_EP_RX,
@@ -1220,6 +1281,11 @@ static module_info_t stream_module_list[] = {
      .module = MODULE_STREAM_PAUSE,
      .tag = TAG_PAUSE,
      .configure = NULL,
+ },
+ {
+     .module = MODULE_STREAM_SPR,
+     .tag = TAG_STREAM_SPR,
+     .configure = configure_spr,
  },
  };
 
@@ -1411,7 +1477,6 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     }
 
     if (dev_obj != NULL) {
-
 
         int count = sizeof(hw_ep_module)/sizeof(struct module_info);
 
@@ -1822,6 +1887,7 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
     int ret = 0;
     struct gsl_buff gsl_buff;
     uint32_t size_written = 0;
+
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object");
         return -EINVAL;
@@ -1849,6 +1915,7 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
     *size = size_written;
 done:
     pthread_mutex_unlock(&graph_obj->lock);
+
     return ret;
 }
 
@@ -2295,11 +2362,13 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
     int ret = 0;
     uint8_t *payload = NULL;
     struct apm_module_param_data_t *header;
+    struct param_id_spr_session_time_t *sess_time;
     size_t payload_size = 0;
 
+    AGM_LOGE("enter %d", graph_obj->spr_miid);
 
-    /* TODO: udpate size properly */
-    payload_size = 100; //GET_SPR_MODULE_FORMAT_SIZE;
+    payload_size = sizeof(struct apm_module_param_data_t) +
+        sizeof(struct param_id_spr_session_time_t);
     /*ensure that the payloadsize is byte multiple */
     if (payload_size % 8 != 0)
         payload_size = payload_size + (8 - payload_size % 8);
@@ -2307,15 +2376,20 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
     payload = malloc((size_t)payload_size);
 
     header = (struct apm_module_param_data_t*)payload;
+    sess_time = (struct param_id_spr_session_time_t *)
+                     (payload + sizeof(struct apm_module_param_data_t));
 
-    ret = gsl_get_custom_config(graph_obj->graph_handle, payload, &payload_size);
+    header->module_instance_id = graph_obj->spr_miid;
+    header->param_id = PARAM_ID_SPR_SESSION_TIME;
+    header->error_code = 0x0;
+    header->param_size = payload_size;
 
+    ret = gsl_get_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
         AGM_LOGE("set_config command failed with error %d", ret);
         ret = 0;
     }
-
-    /*TODO: update payload timestamp properly */
-    *tstamp = 100; //payload->timestamp;
+    AGM_LOGE("session_time: %ld, at: %ld, ts: %ld", sess_time->session_time, sess_time->absolute_time, sess_time->timestamp);
+    *tstamp = sess_time->timestamp;
     return ret;
 }
