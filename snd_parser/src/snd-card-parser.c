@@ -248,7 +248,7 @@ static void snd_parse_card_properties(struct xml_userdata *data, const XML_Char 
         if (!card_def->name)
             return;
 
-        strncpy(card_def->name, data->data_buf, strlen(data->data_buf) + 1);
+        strlcpy(card_def->name, data->data_buf, strlen(data->data_buf) + 1);
     }
 }
 
@@ -265,7 +265,7 @@ static void snd_parse_plugin_properties(struct xml_userdata *data, const XML_Cha
         if (!dev_def->so_name)
             return;
 
-        strncpy(dev_def->so_name, data->data_buf, strlen(data->data_buf) + 1);
+        strlcpy(dev_def->so_name, data->data_buf, strlen(data->data_buf) + 1);
     }
 }
 
@@ -287,7 +287,7 @@ static void snd_parse_device_properties(struct xml_userdata *data, const XML_Cha
         if (!dev_def->name)
             return;
 
-        strncpy(dev_def->name, data->data_buf, strlen(data->data_buf) + 1);
+        strlcpy(dev_def->name, data->data_buf, strlen(data->data_buf) + 1);
     }
 }
 
@@ -316,14 +316,14 @@ static void snd_parse_device_custom_properties(struct xml_userdata *data, const 
         free(pv_pair);
         return;
     }
-    strncpy(pv_pair->prop, tag_name, strlen(tag_name) + 1);
+    strlcpy(pv_pair->prop, tag_name, strlen(tag_name) + 1);
     pv_pair->val = calloc(1, strlen(data->data_buf) + 1);
     if (!pv_pair->val) {
         free(pv_pair->prop);
         free(pv_pair);
         return;
     }
-    strncpy(pv_pair->val, data->data_buf, strlen(data->data_buf) + 1);
+    strlcpy(pv_pair->val, data->data_buf, strlen(data->data_buf) + 1);
     list_add_tail(&dev_def->prop_val_list, &pv_pair->list_node);
 }
 
