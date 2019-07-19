@@ -76,6 +76,12 @@ class AgmService : public BnAgmService {
                                      uint32_t session_id,
                                      uint32_t audio_intf,
                                      struct agm_cal_config *cal_config);
+
+        ~AgmService()
+        {
+            ALOGE("AGMService destructor");
+            agm_deinit();
+        }
     private:
          bool agm_initialized = false;
 };

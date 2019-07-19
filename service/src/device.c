@@ -527,6 +527,7 @@ int device_init()
         ret = populate_device_hw_ep_info(dev_obj);
         if (ret) {
             ALOGE("%s: ERROR. %d hw_ep_info population failed", __func__, ret);
+            free(dev_obj);
             goto free_device;
         }
 
@@ -534,6 +535,7 @@ int device_init()
         pthread_cond_init(&dev_obj->device_prepared, NULL);
         device_list[count] = dev_obj;
         count++;
+        dev_obj = NULL;
     }
 
     num_audio_intfs = count;
@@ -541,7 +543,7 @@ int device_init()
 
 free_device:
     for (i = 0; i < count; i++)
-        free(device_list[count]);
+        free(device_list[i]);
     free(device_list);
 close_file:
     fclose(fp);
@@ -550,6 +552,12 @@ close_file:
 
 void device_deinit()
 {
+    unsigned int list_count = 0;
     AGM_LOGE("%s:device deinit called\n", __func__);
-    free(device_list); 
+    for (list_count = 0; list_count < num_audio_intfs; list_count++) {
+        metadata_free(&device_list[list_count]->metadata);
+        free(device_list[list_count]);
+    }
+    free(device_list);
+    device_list = NULL;
 }

@@ -241,6 +241,7 @@ static void session_pool_free()
 		sess_obj_free(sess_obj);
 	}
 	pthread_mutex_unlock(&sess_pool->lock);
+	free(sess_pool);
 }
 
 static struct session_obj* session_obj_create(int session_id)
