@@ -675,7 +675,7 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
 }
 
 static int amp_be_metadata_get(struct mixer_plugin *plugin,
-                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
 {
     /* AGM should provide a get */
     printf ("%s: enter\n", __func__);
@@ -683,15 +683,17 @@ static int amp_be_metadata_get(struct mixer_plugin *plugin,
 }
 
 static int amp_be_metadata_put(struct mixer_plugin *plugin,
-                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
 {
     uint32_t audio_intf_id = ctl->private_value;
-    struct agm_meta_data *metadata;
+    void *payload;
+    uint32_t tlv_size;
     int ret;
 
-    metadata = (struct agm_meta_data *) ev->value.bytes.data;
+    payload = &tlv->tlv[0];
+    tlv_size = tlv->length;
     printf ("%s: enter\n", __func__);
-    ret = agm_aif_set_metadata(audio_intf_id, metadata);
+    ret = agm_aif_set_metadata(audio_intf_id, tlv_size, payload);
 
     if (ret == -EALREADY)
         ret = 0;
@@ -826,7 +828,7 @@ static int amp_pcm_event_put(struct mixer_plugin *plugin,
 }
 
 static int amp_pcm_metadata_get(struct mixer_plugin *plugin,
-                struct snd_control *Ctl, struct snd_ctl_elem_value *ev)
+                struct snd_control *Ctl, struct snd_ctl_tlv *tlv)
 {
     /* TODO: AGM needs to provide this in a API */
     printf ("%s: enter\n", __func__);
@@ -834,12 +836,13 @@ static int amp_pcm_metadata_get(struct mixer_plugin *plugin,
 }
 
 static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
-                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
 {
     struct amp_dev_info *pcm_adi = ctl->private_data;
     struct amp_dev_info *be_adi;
     int pcm_idx = ctl->private_value;
     int pcm_control, be_idx, ret;
+    uint32_t tlv_size;
     void *payload;
 
     printf("%s: enter\n", __func__);
@@ -848,9 +851,10 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
     if (pcm_control < 0)
         return pcm_control;
 
-    payload = &ev->value.bytes.data[0];
+    payload = &tlv->tlv[0];
+    tlv_size = tlv->length;
     if (pcm_control == 0) {
-        ret = agm_session_set_metadata(pcm_idx, payload);
+        ret = agm_session_set_metadata(pcm_idx, tlv_size, payload);
         if (ret == -EALREADY)
             ret = 0;
 
@@ -863,7 +867,7 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
     /* pcm control is not 0, set the (session + be) metadata */
     be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
     be_idx = be_adi->idx_arr[pcm_control];
-    ret = agm_session_aif_set_metadata(pcm_idx, be_idx, payload);
+    ret = agm_session_aif_set_metadata(pcm_idx, be_idx, tlv_size, payload);
     if (ret == -EALREADY)
         ret = 0;
 
@@ -1122,14 +1126,14 @@ static int amp_pcm_sidetone_put(struct mixer_plugin *plugin,
 }
 
 /* 512 max bytes for non-tlv controls, reserving 16 for future use */
-static struct snd_value_bytes be_metadata_bytes =
-    SND_VALUE_BYTES(512 - 16);
-static struct snd_value_bytes pcm_metadata_bytes =
-    SND_VALUE_BYTES(512 - 16);
 static struct snd_value_bytes pcm_event_bytes =
     SND_VALUE_BYTES(512 - 16);
 static struct snd_value_bytes pcm_calibration_bytes =
     SND_VALUE_BYTES(512 - 16);
+static struct snd_value_tlv_bytes be_metadata_bytes =
+    SND_VALUE_TLV_BYTES(1024, amp_be_metadata_get, amp_be_metadata_put);
+static struct snd_value_tlv_bytes pcm_metadata_bytes =
+    SND_VALUE_TLV_BYTES(1024, amp_pcm_metadata_get, amp_pcm_metadata_put);
 static struct snd_value_tlv_bytes pcm_taginfo_bytes =
     SND_VALUE_TLV_BYTES(1024, amp_pcm_tag_info_get, amp_pcm_tag_info_put);
 static struct snd_value_tlv_bytes pcm_setparamtag_bytes =
@@ -1204,8 +1208,7 @@ static void amp_create_pcm_metadata_ctl(struct amp_priv *amp_priv,
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
              name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_METADATA]);
 
-    INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_pcm_metadata_get,
-                    amp_pcm_metadata_put, pcm_metadata_bytes,
+    INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_metadata_bytes,
                     pval, pdata);
 }
 
@@ -1309,8 +1312,7 @@ static void amp_create_metadata_ctl(struct amp_priv *amp_priv,
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
              be_name, amp_be_ctl_name_extn[BE_CTL_NAME_METADATA]);
 
-    INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_be_metadata_get,
-                    amp_be_metadata_put, be_metadata_bytes,
+    INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, be_metadata_bytes,
                     pval, pdata);
 }
 
@@ -1526,7 +1528,6 @@ static void amp_close(struct mixer_plugin **plugin)
     amp_free_ctls(amp_priv);
     free(amp_priv);
     free(*plugin);
-
     plugin = NULL;
 }
 

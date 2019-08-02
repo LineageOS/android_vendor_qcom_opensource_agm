@@ -255,10 +255,14 @@ int graph_remove(struct graph_obj *gph_obj,
 /**
  *\brief Issue stop to the associated graph
  *\param [in] graph_obj: associated graph obj
+ *\param [in] gkv: graph key vector
+ *        which describes part of graph(subgraph) to be removed
+ *        from the current graph
  *
  * return CASA_EOK on success or error code otherwise.
  */
-int graph_stop(struct graph_obj *gph_obj);
+int graph_stop(struct graph_obj *gph_obj,
+               struct agm_meta_data_gsl *meta_data);
 
 /**
  *\brief close the graph, clears the graph object related

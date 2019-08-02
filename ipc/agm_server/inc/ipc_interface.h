@@ -45,9 +45,9 @@ class IAgmService: public ::android::IInterface {
         DECLARE_META_INTERFACE(AgmService);
 
         virtual int ipc_agm_init()= 0;
-        virtual int ipc_agm_audio_intf_set_metadata(uint32_t audio_intf, struct agm_meta_data *metadata)= 0;
-        virtual int ipc_agm_session_set_metadata(uint32_t session_id, struct agm_meta_data *metadata)= 0;
-        virtual int ipc_agm_session_audio_inf_set_metadata(uint32_t session_id, uint32_t audio_intf, struct agm_meta_data *metadata)= 0;
+        virtual int ipc_agm_audio_intf_set_metadata(uint32_t audio_intf, uint32_t size, uint8_t *metadata)= 0;
+        virtual int ipc_agm_session_set_metadata(uint32_t session_id, uint32_t size, uint8_t *metadata)= 0;
+        virtual int ipc_agm_session_audio_inf_set_metadata(uint32_t session_id, uint32_t audio_intf, uint32_t size, uint8_t *metadata)= 0;
         virtual int ipc_agm_session_close(struct session_obj *handle)= 0;
         virtual int ipc_agm_audio_intf_set_media_config(uint32_t audio_intf, struct agm_media_config *media_config)= 0;
         virtual int ipc_agm_session_prepare(struct session_obj *session_handle)= 0;

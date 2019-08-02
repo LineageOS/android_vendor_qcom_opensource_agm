@@ -32,6 +32,8 @@
 #include "session_obj.h"
 #include "utils.h"
 
+#define GSL_EVENT_SRC_MODULE_ID_GSL 0x2001 // DO NOT CHANGE
+
 //forward declarations
 static int session_close(struct session_obj *sess_obj);
 static int session_set_loopback(struct session_obj *sess_obj, uint32_t session_id, bool enable);
@@ -334,12 +336,12 @@ static int session_set_loopback(struct session_obj *sess_obj, uint32_t pb_id, bo
 	struct agm_meta_data_gsl *playback_metadata = NULL;
 	struct agm_meta_data_gsl *merged_metadata = NULL;
 
-	//TODO:
 	/*
 	 * 1. merged metadata of pb session + cap session
 	 * 2. call graph_add
 	 * 3. call start (prepare doesnt achieve anything so skip)
-	 * 4. Expectation for loopback is that its establishing an edge b/w TX and RX session.
+	 * 4. Expectation for loopback is that its establishing an edge b/w TX and RX session
+	 *    and no new subgraphs are added and hence no gsl_start/prepare.
 	 *    So no new modules/subgraphs which require configuration is expected and hence
 	 *    no separate setparams() for loopback for now.
 	 */
@@ -396,7 +398,7 @@ done:
 		free(merged_metadata);
 	}
 	return ret;
-	}
+}
 
 static int session_set_ec_ref(struct session_obj *sess_obj, uint32_t aif_id, bool enable)
 {
@@ -454,20 +456,35 @@ static int session_disconnect_aif(struct session_obj *sess_obj, struct aif *aif_
 {
 	int ret = 0;
 	struct agm_meta_data_gsl *merged_metadata = NULL;
+	struct agm_meta_data_gsl *merged_meta_sess_aif = NULL;
+	struct agm_meta_data_gsl temp = {0};
 	struct graph_obj *graph = sess_obj->graph;
 
-	// merge metadata
 	merged_metadata = metadata_merge(3, &sess_obj->sess_meta, &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
 	if (!merged_metadata) {
+		AGM_LOGE("%s: No memory to create merged_metadata session_id: %d, audio interface id:%d \n",
+						__func__, sess_obj->sess_id, aif_obj->aif_id);
 		ret = -ENOMEM;
-		goto done;
+		return ret;
 	}
 
 	if (opened_count == 1) {
-		//TODO: use new stop prime here
-		ret = graph_stop(graph);
+		//this is SSSD condition, hence stop just the stream/stream-device, merged only sess-aif, aif
+		merged_meta_sess_aif = metadata_merge(2, &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
+		if (!merged_meta_sess_aif) {
+			AGM_LOGE("%s: No memory to create merged_metadata session_id: %d, audio interface id:%d \n",
+							__func__, sess_obj->sess_id, aif_obj->aif_id);
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		temp.gkv = merged_metadata->gkv;
+		temp.ckv = merged_metadata->ckv;
+		temp.sg_props = merged_meta_sess_aif->sg_props;
+
+		ret = graph_stop(graph, &temp);
 		if (ret) {
-			AGM_LOGE("%s: Error:%d graph close failed session_id: %d, audio interface id:%d \n",
+			AGM_LOGE("%s: Error:%d graph stop failed session_id: %d, audio interface id:%d \n",
 				__func__, ret, sess_obj->sess_id, aif_obj->aif_id);
 		}
 	} else {
@@ -484,10 +501,7 @@ static int session_disconnect_aif(struct session_obj *sess_obj, struct aif *aif_
 			__func__, ret, aif_obj->aif_id);
 	}
 
-	free(merged_metadata->ckv.kv);
-	free(merged_metadata->gkv.kv);
-	free(merged_metadata);
-done:
+	metadata_free(merged_metadata);
 	return ret;
 }
 
@@ -511,22 +525,22 @@ static void graph_event_cb(struct agm_event_cb_params *event_params,
 		return;
 	}
 
-	pthread_mutex_lock(&sess_obj->lock);
 	list_for_each_safe(node, next, &sess_obj->cb_pool) {
 		sess_cb = node_to_item(node, struct session_cb, node);
 		if (sess_cb && sess_cb->cb) {
 			/* Filter callbacks based on event_id and event_type */
-			if (event_params->event_id == AGM_EVENT_EOS_RENDERED ||
+			if (sess_cb->evt_type == AGM_EVENT_DATA_PATH &&
+				event_params->source_module_id == GSL_EVENT_SRC_MODULE_ID_GSL &&
+				(event_params->event_id == AGM_EVENT_EOS_RENDERED ||
 				event_params->event_id == AGM_EVENT_READ_DONE ||
-				event_params->event_id == AGM_EVENT_WRITE_DONE) {
-				/* Call only for sessions registered with DATA EVENT types */
-				if (sess_cb->evt_type == AGM_EVENT_DATA_PATH)
-				    sess_cb->cb(sess_obj->sess_id, event_params, sess_cb->client_data);
-			} else
-				sess_cb->cb(sess_obj->sess_id, event_params, sess_cb->client_data);
+				event_params->event_id == AGM_EVENT_WRITE_DONE)) {
+				    sess_cb->cb(sess_obj->sess_id, (struct agm_event_cb_params *)event_params, sess_cb->client_data);
+			} else if (sess_cb->evt_type == AGM_EVENT_MODULE &&
+					   event_params->source_module_id != GSL_EVENT_SRC_MODULE_ID_GSL) {
+				sess_cb->cb(sess_obj->sess_id, (struct agm_event_cb_params *)event_params, sess_cb->client_data);
+			}
 		}
 	}
-	pthread_mutex_unlock(&sess_obj->lock);
 }
 
 static int session_connect_aif(struct session_obj *sess_obj, struct aif *aif_obj, uint32_t opened_count)
@@ -535,7 +549,6 @@ static int session_connect_aif(struct session_obj *sess_obj, struct aif *aif_obj
 	struct agm_meta_data_gsl *merged_metadata = NULL;
 	struct graph_obj *graph = sess_obj->graph;
 
-        AGM_LOGE("entry sess id %d aif id %d", sess_obj->sess_id, aif_obj->aif_id);
 	//step 2.a  merge metadata
 	merged_metadata = metadata_merge(3, &sess_obj->sess_meta, &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
 	if (!merged_metadata) {
@@ -857,7 +870,7 @@ static int session_start(struct session_obj *sess_obj)
 unwind:
 
 	if (dir == TX)
-		graph_stop(sess_obj->graph);
+		graph_stop(sess_obj->graph, NULL);
 
 	list_for_each(node, &sess_obj->aif_pool) {
 		aif_obj = node_to_item(node, struct aif, node);
@@ -885,7 +898,7 @@ static int session_stop(struct session_obj *sess_obj)
 	}
 
 	if (dir == RX) {
-		ret = graph_stop(sess_obj->graph);
+		ret = graph_stop(sess_obj->graph, NULL);
 		if (ret) {
 			AGM_LOGE("%s Error:%d starting graph\n", __func__, ret);
 			goto done;
@@ -910,7 +923,7 @@ static int session_stop(struct session_obj *sess_obj)
 	}
 
 	if (dir == TX) {
-		ret = graph_stop(sess_obj->graph);
+		ret = graph_stop(sess_obj->graph, NULL);
 		if (ret) {
 			AGM_LOGE("%s Error:%d stopping graph\n", __func__, ret);
 		}
@@ -933,7 +946,14 @@ static int session_close(struct session_obj *sess_obj)
 		AGM_LOGE("%s session already in CLOSED state\n", __func__);
 		return -EALREADY;
 	}
-        AGM_LOGE("entry sess_id %d", sess_obj->sess_id);
+
+	if (sess_obj->state == SESSION_STARTED) {
+		ret = graph_stop (sess_obj->graph, NULL);
+        if (ret) {
+		   AGM_LOGE("%s Error:%d closing graph\n", __func__, ret);
+	    }
+	}
+
 	ret = graph_close(sess_obj->graph);
 	if (ret) {
 		AGM_LOGE("%s Error:%d closing graph\n", __func__, ret);
@@ -1004,13 +1024,13 @@ done:
 	return ret;
 }
 
-int session_obj_set_sess_metadata(struct session_obj *sess_obj, struct agm_meta_data *metadata)
+int session_obj_set_sess_metadata(struct session_obj *sess_obj, uint32_t size, uint8_t *metadata)
 {
 
 	int ret = 0;
 
 	pthread_mutex_lock(&sess_obj->lock);
-	ret = metadata_copy(&(sess_obj->sess_meta), metadata);
+	ret = metadata_copy(&(sess_obj->sess_meta), size, metadata);
 	pthread_mutex_unlock(&sess_obj->lock);
 
 	return ret;
@@ -1213,7 +1233,7 @@ done:
 
 
 int session_obj_set_sess_aif_metadata(struct session_obj *sess_obj,
-	uint32_t aif_id, struct agm_meta_data *metadata)
+	uint32_t aif_id,  uint32_t size, uint8_t *metadata)
 {
 
 	int ret = 0;
@@ -1227,7 +1247,7 @@ int session_obj_set_sess_aif_metadata(struct session_obj *sess_obj,
 		goto done;
 	}
 
-	ret = metadata_copy(&(aif_obj->sess_aif_meta), metadata);
+	ret = metadata_copy(&(aif_obj->sess_aif_meta), size, metadata);
 	if (ret) {
 		AGM_LOGE("%s: Error copying session audio interface metadata sess_id:%d, aif_id:%d \n",
 			 __func__, sess_obj->sess_id, aif_obj->aif_id);
@@ -1454,7 +1474,6 @@ int session_obj_open(uint32_t session_id, struct session_obj **session)
 		ret = -EALREADY;
 		goto done;
 	}
-        AGM_LOGE("entry sess_id %d", session_id);
 
 /*
 	1. get first device obj from the list for the session

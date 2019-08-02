@@ -56,24 +56,10 @@ struct agm_key_value {
     uint32_t value; /**< value */
 };
 
-/**
- * Metadata Key Vectors
- */
-struct agm_meta_data {
-    /**
-      * number of GKVs
-      */
-	uint32_t num_gkvs;
-
-    /**
-      * number of CKVs
-      */
-	uint32_t num_ckvs;
-
-	/**
-	  * key values containing GKV followed by CKVs.
-	  */
-	struct agm_key_value kv[];
+struct prop_data {
+	uint32_t prop_id;
+	uint32_t num_values;
+	uint32_t values[];
 };
 
 /**
@@ -410,8 +396,9 @@ int agm_aif_set_media_config(uint32_t aif_id,
   * \brief Set metadata for an audio interface.
   *
   * \param[in] aif_id - Valid audio interface id
+  * \param[in] size -  size of metadata in bytes
   * \param[in] metadata - valid metadata for the audio
-  *       interafce.
+  *       interface.
   *
   *  \return 0 on success, error code on failure.
   *       If the audio interface is already in use and the
@@ -419,12 +406,13 @@ int agm_aif_set_media_config(uint32_t aif_id,
   *       failure.
   */
 int agm_aif_set_metadata(uint32_t aif_id,
-                                struct agm_meta_data *metadata);
+                         uint32_t size, uint8_t *metadata);
 
- /**
+/**
   * \brief Set metadata for the session.
   *
   * \param[in] session_id - Valid audio session id
+  * \param[in] size -  size of metadata in bytes
   * \param[in] metadata - valid metadata for the session.
   *
   *  \return 0 on success, error code on failure.
@@ -432,13 +420,14 @@ int agm_aif_set_metadata(uint32_t aif_id,
   *       meta data is set, api will return failure.
   */
 int agm_session_set_metadata(uint32_t session_id,
-                                struct agm_meta_data *metadata);
+                             uint32_t size, uint8_t *metadata);
 
  /**
   * \brief Set metadata for the session, audio intf pair.
   *
   * \param[in] session_id - Valid session id
   * \param[in] aif_id - Valid audio interface id
+  * \param[in] size -  size of metadata in bytes
   * \param[in] metadata - valid metadata for the session and
   *            audio_intf.
   *
@@ -447,8 +436,8 @@ int agm_session_set_metadata(uint32_t session_id,
   *       meta data is set, api will return failure.
   */
 int agm_session_aif_set_metadata(uint32_t session_id,
-                                           uint32_t aif_id,
-                                           struct agm_meta_data *metadata);
+                                 uint32_t aif_id,
+                                 uint32_t size, uint8_t *metadata);
 
 /**
  * \brief Set metadata for the session, audio intf pair.

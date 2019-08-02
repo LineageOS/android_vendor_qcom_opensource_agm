@@ -58,6 +58,7 @@ struct agm_compress_priv {
     struct agm_session_config session_config;
     struct snd_compr_caps compr_cap;
     struct session_obj *handle;
+    bool prepared;
     uint64_t bytes_copied; /* Copied to DSP buffer */
     uint64_t total_buf_size; /* Total buffer size */
 
@@ -125,6 +126,7 @@ void agm_compress_event_cb(uint32_t session_id,
         if (priv->bytes_avail > priv->total_buf_size) {
             printf("%s: Error: bytes_avail %ld, total size = %ld\n",
                    __func__, priv->bytes_avail, priv->total_buf_size);
+            pthread_mutex_unlock(&priv->lock);
             return;
         }
 
@@ -156,7 +158,7 @@ void agm_compress_event_cb(uint32_t session_id,
     pthread_mutex_unlock(&priv->poll_lock);
 }
 
-int agm_compress_write(struct compress_plugin *plugin, void *buff, size_t count)
+int agm_compress_write(struct compress_plugin *plugin, const void *buff, size_t count)
 {
     struct agm_compress_priv *priv = plugin->priv;
     struct session_obj *handle;
@@ -172,11 +174,19 @@ int agm_compress_write(struct compress_plugin *plugin, void *buff, size_t count)
                __func__, count, priv->total_buf_size);
         return -EINVAL;
     }
-    /* TODO: resulting into deadlock if lock accquired before write so moving to below */
-    ret = agm_session_write(handle, buff, &size);
-    if (ret)
-        return ret;
+
+    /* Call prepare in the first write as write() will be called before start() */
+    if (!priv->prepared) {
+        ret = agm_session_prepare(handle);
+        if (ret)
+            return ret;
+        priv->prepared = true;
+    }
+
     pthread_mutex_lock(&priv->lock);
+    ret = agm_session_write(handle, (void *)buff, &size);
+    if (ret)
+        goto err;
 
     buf_cnt = size / priv->buffer_config.size;
     if (size % priv->buffer_config.size != 0)
@@ -186,14 +196,16 @@ int agm_compress_write(struct compress_plugin *plugin, void *buff, size_t count)
     priv->bytes_avail -= (buf_cnt * priv->buffer_config.size);
     if (priv->bytes_avail < 0) {
         printf("%s: err: bytes_avail = %ld", __func__, priv->bytes_avail);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto err;
     }
     //printf("%s: count = %ld, priv->bytes_avail: %ld\n", __func__, count, priv->bytes_avail);
     priv->bytes_copied += size;
-
+    ret = size;
+err:
     pthread_mutex_unlock(&priv->lock);
 
-    return size;
+    return ret;
 }
 
 int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
@@ -248,20 +260,19 @@ int agm_compress_tstamp(struct compress_plugin *plugin, struct snd_compr_tstamp 
     tstamp->copied_total = priv->bytes_copied;
 
     ret = agm_get_session_time(handle, &timestamp);
-    printf("%s: after timestamp = %ld, ret %d\n", __func__, timestamp, ret);
     if (ret)
         return ret;
 
-    //tstamp->pcm_io_frames = (snd_pcm_uframes_t)div64_u64(timestamp, 1000000);
+    timestamp *= tstamp->sampling_rate;
+    tstamp->pcm_io_frames = timestamp/1000000;
 
     return 0;
 }
 
-int agm_compress_avail(struct compress_plugin *plugin, size_t *avail)
+int agm_compress_avail(struct compress_plugin *plugin, struct snd_compr_avail *avail)
 {
     struct agm_compress_priv *priv = plugin->priv;
     struct session_obj *handle;
-    struct snd_compr_tstamp tstamp;
     void *buff;
     size_t count;
     int ret = 0;
@@ -269,14 +280,15 @@ int agm_compress_avail(struct compress_plugin *plugin, size_t *avail)
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
         return ret;
-    memset(&tstamp, 0x0, sizeof(struct snd_compr_tstamp));
-    agm_compress_tstamp(plugin, &tstamp);
+
+    agm_compress_tstamp(plugin, &avail->tstamp);
 
     pthread_mutex_lock(&priv->lock);
-
     /* Avail size is always in multiples of fragment size */
-    *avail = priv->bytes_avail;
-    //printf("%s: *avail = %ld, priv->bytes_avail: %ld\n", __func__, *avail, priv->bytes_avail);
+    avail->avail = priv->bytes_avail;
+    printf("%s: size = %d, *avail = %d, pcm_io_frames: %d sampling_rate: %d\n", __func__,
+           sizeof(struct snd_compr_avail), avail->avail, avail->tstamp.pcm_io_frames,
+           avail->tstamp.sampling_rate);
     pthread_mutex_unlock(&priv->lock);
 
     return ret;
@@ -314,7 +326,7 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
     copt = &params->codec.options;
 
     media_cfg->rate =  params->codec.sample_rate;
-    media_cfg->channels = params->codec.ch_in;
+    media_cfg->channels = params->codec.ch_out;
 
     switch(params->codec.id){
     case SND_AUDIOCODEC_MP3:
@@ -328,14 +340,14 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
             sess_cfg->codec.aac_dec.aac_fmt_flag = 0x02;
         else
             sess_cfg->codec.aac_dec.aac_fmt_flag = 0x00;
-        sess_cfg->codec.aac_dec.num_channels = media_cfg->channels;
+        sess_cfg->codec.aac_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.aac_dec.sample_rate = media_cfg->rate;
         sess_cfg->codec.aac_dec.audio_obj_type = copt->aac_dec.audio_obj_type;
         sess_cfg->codec.aac_dec.total_size_of_PCE_bits = copt->aac_dec.pce_bits_size;
         break;
     case SND_AUDIOCODEC_FLAC:
         media_cfg->format = AGM_FORMAT_FLAC;
-        sess_cfg->codec.flac_dec.num_channels = media_cfg->channels;
+        sess_cfg->codec.flac_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.flac_dec.sample_rate = media_cfg->rate;
         sess_cfg->codec.flac_dec.sample_size = copt->flac_dec.sample_size;
         sess_cfg->codec.flac_dec.min_blk_size = copt->flac_dec.min_blk_size;
@@ -345,7 +357,7 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
         break;
     case SND_AUDIOCODEC_ALAC:
         media_cfg->format = AGM_FORMAT_ALAC;
-        sess_cfg->codec.alac_dec.num_channels = media_cfg->channels;
+        sess_cfg->codec.alac_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.alac_dec.sample_rate = media_cfg->rate;
         sess_cfg->codec.alac_dec.frame_length = copt->alac_dec.frame_length;
         sess_cfg->codec.alac_dec.compatible_version = copt->alac_dec.compatible_version;
@@ -360,7 +372,7 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
         break;
     case SND_AUDIOCODEC_APE:
         media_cfg->format = AGM_FORMAT_APE;
-        sess_cfg->codec.ape_dec.num_channels = media_cfg->channels;
+        sess_cfg->codec.ape_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.ape_dec.sample_rate = media_cfg->rate;
         sess_cfg->codec.ape_dec.bit_width = copt->ape_dec.bits_per_sample;
         sess_cfg->codec.ape_dec.compatible_version = copt->ape_dec.compatible_version;
@@ -374,7 +386,7 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
     case SND_AUDIOCODEC_WMA:
         media_cfg->format = AGM_FORMAT_WMASTD;
         sess_cfg->codec.wma_dec.fmt_tag = params->codec.format;
-        sess_cfg->codec.wma_dec.num_channels = media_cfg->channels;
+        sess_cfg->codec.wma_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.wma_dec.sample_rate = media_cfg->rate;
         sess_cfg->codec.wma_dec.avg_bytes_per_sec = copt->wma_dec.avg_bit_rate/8;
         sess_cfg->codec.wma_dec.blk_align = copt->wma_dec.super_block_align;
@@ -385,7 +397,7 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
     case SND_AUDIOCODEC_WMA_PRO:
         media_cfg->format = AGM_FORMAT_WMAPRO;
         sess_cfg->codec.wmapro_dec.fmt_tag = params->codec.format;
-        sess_cfg->codec.wmapro_dec.num_channels = media_cfg->channels;
+        sess_cfg->codec.wmapro_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.wmapro_dec.sample_rate = media_cfg->rate;
         sess_cfg->codec.wmapro_dec.avg_bytes_per_sec = copt->wma_dec.avg_bit_rate/8;
         sess_cfg->codec.wmapro_dec.blk_align = copt->wma_dec.super_block_align;
@@ -401,7 +413,7 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
     default:
         break;
     }
-    printf("%s: format = %d rate = %ld, channels = %d\n", __func__,
+    printf("%s: format = %d rate = %d, channels = %d\n", __func__,
            media_cfg->format, media_cfg->rate, media_cfg->channels);
     return 0;
 }
@@ -442,11 +454,6 @@ int agm_compress_set_params(struct compress_plugin *plugin, struct snd_compr_par
     if (ret)
         return ret;
 
-    /* There is no prepare() in compress fwk so agm prepare is called here */
-    ret = agm_session_prepare(handle);
-    if (ret)
-        return ret;
-
     printf("%s: exit fragments cnt = %d size = %ld\n", __func__,
            buf_cfg->count, buf_cfg->size);
     return ret;
@@ -475,12 +482,23 @@ static int agm_compress_stop(struct compress_plugin *plugin)
     if (ret)
         return ret;
 
+    /* Unlock drain if its waiting for EOS rendered */
+    pthread_mutex_lock(&priv->eos_lock);
+    if (priv->eos) {
+        pthread_cond_signal(&priv->eos_cond);
+        priv->eos = false;
+    }
+    pthread_mutex_unlock(&priv->eos_lock);
+
     ret = agm_session_stop(handle);
     if (ret)
         return ret;
 
     /* stop will reset all the buffers and it called during seek also */
     /*TODO: reset bytes_avial and other local variables */
+    priv->bytes_avail = priv->total_buf_size;
+    priv->bytes_copied = 0;
+
     return ret;
 }
 
@@ -522,17 +540,10 @@ static int agm_compress_drain(struct compress_plugin *plugin)
 
     printf("%s: priv->bytes_avail = %ld,  priv->total_buf_size = %ld\n",
            __func__, priv->bytes_avail, priv->total_buf_size);
-    /* Wait till all the buffers are consumed and issue EOS command */
+    /* No need to wait for all buffers to be consumed to issue EOS as
+     * write and EOS cmds are sequential
+     */
     /* TODO: how to handle wake up in SSR scenario */
-    pthread_mutex_lock(&priv->drain_lock);
-    if (priv->bytes_avail < priv->total_buf_size) {
-        priv->start_drain = true;
-        pthread_cond_wait(&priv->drain_cond, &priv->drain_lock);
-    }
-    pthread_mutex_unlock(&priv->drain_lock);
-
-    printf("%s: out of drain wait\n", __func__);
-    /* TODO: need to send EOS command and wait for EOS done during close() */
     pthread_mutex_lock(&priv->eos_lock);
     priv->eos = true;
     ret = agm_session_eos(handle);
@@ -578,7 +589,7 @@ static int agm_compress_next_track(struct compress_plugin *plugin)
 
 static int agm_compress_poll(struct compress_plugin *plugin,
                              struct pollfd *fds, nfds_t nfds,
-                             uint64_t timeout)
+                             int timeout)
 {
     struct agm_compress_priv *priv = plugin->priv;
     struct session_obj *handle;
@@ -608,7 +619,7 @@ static int agm_compress_poll(struct compress_plugin *plugin,
     return ret;
 }
 
-static int agm_compress_free(struct compress_plugin *plugin)
+void agm_compress_close(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
     struct session_obj *handle;
@@ -617,7 +628,7 @@ static int agm_compress_free(struct compress_plugin *plugin)
     printf("%s: free \n", __func__);
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
-        return ret;
+        return;
 
     ret = agm_session_close(handle);
     if (ret)
@@ -635,11 +646,11 @@ static int agm_compress_free(struct compress_plugin *plugin)
     free(plugin->priv);
     free(plugin);
 
-    return ret;
+    return;
 }
 
 struct compress_plugin_ops agm_compress_ops = {
-    .close = agm_compress_free,
+    .close = agm_compress_close,
     .get_caps = agm_compress_get_caps,
     .set_params = agm_compress_set_params,
     .avail = agm_compress_avail,

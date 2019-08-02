@@ -42,9 +42,9 @@ class AgmService : public BnAgmService {
           agm_initialized = agm_init();
         }
         virtual int ipc_agm_init();
-        virtual int ipc_agm_audio_intf_set_metadata(uint32_t audio_intf, struct agm_meta_data *metadata);
-        virtual int ipc_agm_session_set_metadata(uint32_t session_id, struct agm_meta_data *metadata);
-        virtual int ipc_agm_session_audio_inf_set_metadata(uint32_t session_id, uint32_t audio_intf, struct agm_meta_data *metadata);
+        virtual int ipc_agm_audio_intf_set_metadata(uint32_t audio_intf, uint32_t size, uint8_t *metadata);
+        virtual int ipc_agm_session_set_metadata(uint32_t session_id, uint32_t size, uint8_t *metadata);
+        virtual int ipc_agm_session_audio_inf_set_metadata(uint32_t session_id, uint32_t audio_intf, uint32_t size, uint8_t *metadata);
         virtual int ipc_agm_session_close(struct session_obj *handle);
         virtual int ipc_agm_audio_intf_set_media_config(uint32_t audio_intf, struct agm_media_config *media_config);
         virtual int ipc_agm_session_prepare(struct session_obj *handle);

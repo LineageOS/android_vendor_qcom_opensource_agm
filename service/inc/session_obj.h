@@ -120,9 +120,9 @@ int session_obj_read(struct session_obj *sess_obj, void *buff, size_t *count);
 int session_obj_write(struct session_obj *sess_obj, void *buff, size_t *count);
 int session_obj_sess_aif_connect(struct session_obj *sess_obj,
 	uint32_t audio_intf, bool state);
-int session_obj_set_sess_metadata(struct session_obj *sess_obj, struct agm_meta_data *metadata);
+int session_obj_set_sess_metadata(struct session_obj *sess_obj, uint32_t size, uint8_t *metadata);
 int session_obj_set_sess_aif_metadata(struct session_obj *sess_obj,
-	uint32_t audio_intf, struct agm_meta_data *metadata);
+	uint32_t audio_intf, uint32_t size, uint8_t *metadata);
 int session_obj_set_sess_params(struct session_obj *sess_obj,
 	void* payload, size_t size);
 int session_obj_set_sess_aif_params(struct session_obj *sess_obj,

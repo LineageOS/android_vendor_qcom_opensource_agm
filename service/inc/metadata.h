@@ -34,8 +34,9 @@
 #include "agm_priv.h"
 
 struct agm_meta_data_gsl* metadata_merge(int num, ...);
-int metadata_copy(struct agm_meta_data_gsl *dest, struct agm_meta_data *src);
+int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size, uint8_t *payload);
 void metadata_free(struct agm_meta_data_gsl *metadata);
 void metadata_update_cal(struct agm_meta_data_gsl *meta_data, struct agm_key_vector_gsl *ckv);
+void metadata_print(struct agm_meta_data_gsl* metadata);
 
 #endif //METADATA_H

@@ -48,18 +48,6 @@
 /* TODO: remove this later after including in gecko header files */
 #define PARAM_ID_SOFT_PAUSE_START 0x800102e
 #define PARAM_ID_SOFT_PAUSE_RESUME 0x800102f
-#define PARAM_ID_SPR_SESSION_TIME 0x0800113D
-struct param_id_spr_session_time_t {
-    uint64_t session_time;
-    uint64_t absolute_time;
-    uint64_t timestamp;
-    uint32_t flags;
-};
-#define PARAM_ID_SPR_DELAY_PATH_END 0x080010C4
-struct spr_delay_path_end_t {
-    uint32_t module_instance_id;
-};
-
 #define TAG_STREAM_SPR 0xC0000013
 
 #define CONVX(x) #x
@@ -710,7 +698,7 @@ int configure_hw_ep(struct module_info *mod,
  *PCM DECODER/ENCODER and PCM CONVERTER are configured with the
  *same PCM_FORMAT_CFG hence reuse the implementation
 */
-int configure_pcm_enc_dec_conv(struct module_info *mod,
+int configure_output_media_format(struct module_info *mod,
                                struct graph_obj *graph_obj)
 {
     struct session_obj *sess_obj = graph_obj->sess_obj;
@@ -982,10 +970,10 @@ int set_media_format_payload(enum agm_media_format fmt_id,
 }
 
 /**
- *Configure placeholder decoder/encoder with real dec/enc ID
+ *Configure placeholder decoder
 */
-int configure_placeholder_enc_dec(struct module_info *mod,
-                               struct graph_obj *graph_obj)
+int configure_placeholder_dec(struct module_info *mod,
+                              struct graph_obj *graph_obj)
 {
     int ret = 0;
     struct gsl_key_vector tkv;
@@ -999,6 +987,7 @@ int configure_placeholder_enc_dec(struct module_info *mod,
         return -EINVAL;
     }
 
+    /* 1. Configure placeholder decoder with Real ID */
     ret = get_media_fmt_id_and_size(sess_obj->media_config.format,
                                     &payload_size, &real_fmt_id);
     if (ret) {
@@ -1017,12 +1006,17 @@ int configure_placeholder_enc_dec(struct module_info *mod,
 
     AGM_LOGD("Placeholder mod TKV key:%0x value: %0x", tkv.kvp->key,
              tkv.kvp->value);
-    ret = gsl_set_config(graph_obj->graph_handle, NULL,
+    ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)mod->gkv,
                          TAG_STREAM_PLACEHOLDER_DECODER, &tkv);
     if (ret != 0) {
         AGM_LOGE("set_config command failed with error: %d", ret);
         return ret;
     }
+
+    /* 2. Set output media format cfg for placeholder decoder */
+    ret = configure_output_media_format(mod, graph_obj);
+    if (ret != 0)
+        AGM_LOGE("output_media_format cfg failed: %d", ret);
 
     return ret;
 }
@@ -1199,14 +1193,14 @@ int configure_spr(struct module_info *spr_mod,
     struct listnode *node = NULL;
     struct module_info *mod;
     struct apm_module_param_data_t *header;
-    struct spr_delay_path_end_t *spr_hwep_delay;
+    struct param_id_spr_delay_path_end_t *spr_hwep_delay;
     uint8_t *payload = NULL;
     size_t payload_size = 0;
 
-    AGM_LOGD("SPR module IID %d", spr_mod->miid);
+    AGM_LOGD("SPR module IID %x", spr_mod->miid);
     graph_obj->spr_miid = spr_mod->miid;
     payload_size = sizeof(struct apm_module_param_data_t) +
-                    sizeof(struct spr_delay_path_end_t);
+                    sizeof(struct param_id_spr_delay_path_end_t);
     if (payload_size % 8 != 0)
         payload_size = payload_size + (8 - payload_size % 8);
 
@@ -1217,7 +1211,7 @@ int configure_spr(struct module_info *spr_mod,
         goto done;
     }
     header = (struct apm_module_param_data_t*)payload;
-    spr_hwep_delay = (struct spr_delay_path_end_t *)(payload
+    spr_hwep_delay = (struct param_id_spr_delay_path_end_t *)(payload
                           + sizeof(struct apm_module_param_data_t));
     header->module_instance_id = spr_mod->miid;
     header->param_id = PARAM_ID_SPR_DELAY_PATH_END;
@@ -1227,7 +1221,7 @@ int configure_spr(struct module_info *spr_mod,
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
         if (mod->tag == DEVICE_HW_ENDPOINT_RX) {
-            AGM_LOGD("HW EP module IID %d", mod->miid);
+            AGM_LOGD("HW EP module IID %x", mod->miid);
             spr_hwep_delay->module_instance_id = mod->miid;
             ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
             if (ret !=0)
@@ -1255,22 +1249,22 @@ static module_info_t stream_module_list[] = {
  {
      .module = MODULE_PCM_ENCODER,
      .tag = STREAM_PCM_ENCODER,
-     .configure = configure_pcm_enc_dec_conv,
+     .configure = configure_output_media_format,
  },
  {
      .module = MODULE_PCM_DECODER,
      .tag = STREAM_PCM_DECODER,
-     .configure = configure_pcm_enc_dec_conv,
+     .configure = configure_output_media_format,
  },
  {
      .module = MODULE_PLACEHOLDER_DECODER,
      .tag = TAG_STREAM_PLACEHOLDER_DECODER,
-     .configure = configure_placeholder_enc_dec,
+     .configure = configure_placeholder_dec,
  },
  {
      .module = MODULE_PCM_CONVERTER,
      .tag = STREAM_PCM_CONVERTER,
-     .configure = configure_pcm_enc_dec_conv,
+     .configure = configure_output_media_format,
  },
  {
      .module = MODULE_SHARED_MEM,
@@ -1619,13 +1613,6 @@ int graph_prepare(struct graph_obj *graph_obj)
 
     AGM_LOGD("entry graph_handle %x", graph_obj->graph_handle);
     pthread_mutex_lock(&graph_obj->lock);
-    if (!(graph_obj->state & (OPENED || STOPPED))) {
-       AGM_LOGE("graph object not in correct state, current state %d",
-                    graph_obj->state);
-       ret = -EINVAL;
-       goto done;
-    }
-
     /**
      *Iterate over mod list to configure each module
      *present in the graph. Also validate if the module list
@@ -1722,9 +1709,11 @@ done:
     return ret;
 }
 
-int graph_stop(struct graph_obj *graph_obj)
+int graph_stop(struct graph_obj *graph_obj,
+               struct agm_meta_data_gsl *meta_data)
 {
     int ret = 0;
+    struct gsl_cmd_properties gsl_cmd_prop = {0};
 
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object");
@@ -1739,7 +1728,19 @@ int graph_stop(struct graph_obj *graph_obj)
        ret = -EINVAL;
        goto done;
     }
-    ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP, NULL, 0); 
+
+    if (meta_data) {
+        memcpy (&(gsl_cmd_prop.gkv), &(meta_data->gkv),
+                                       sizeof(struct gsl_key_vector));
+        gsl_cmd_prop.property_id = meta_data->sg_props.prop_id;
+        gsl_cmd_prop.num_property_values = meta_data->sg_props.num_values;
+        gsl_cmd_prop.property_values = meta_data->sg_props.values;
+
+        ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP,
+                        &gsl_cmd_prop, sizeof(struct gsl_cmd_properties));
+    } else {
+        ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP, NULL, 0);
+    }
     if (ret !=0) {
         AGM_LOGE("graph stop failed %d", ret);
     } else {
@@ -2062,7 +2063,8 @@ int graph_add(struct graph_obj *graph_obj,
     /*configure the newly added modules*/
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
-        if (mod->is_configured)
+        /* Need to configure SPR module again for the new device */
+        if (mod->is_configured && !(mod->tag == TAG_STREAM_SPR))
             continue;
         if (mod->configure) {
             ret = mod->configure(mod, graph_obj);
@@ -2364,8 +2366,26 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
     struct apm_module_param_data_t *header;
     struct param_id_spr_session_time_t *sess_time;
     size_t payload_size = 0;
+    uint64_t timestamp;
 
-    AGM_LOGE("enter %d", graph_obj->spr_miid);
+    if (graph_obj == NULL || tstamp == NULL) {
+        AGM_LOGE("Invalid Input Params");
+        return -EINVAL;
+    }
+
+    pthread_mutex_lock(&graph_obj->lock);
+    AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
+    if (!(graph_obj->state & (STARTED))) {
+       AGM_LOGE("graph object is not in correct state, current state %d",
+                    graph_obj->state);
+       ret = -EINVAL;
+       goto done;
+    }
+    if (graph_obj->spr_miid == 0) {
+        AGM_LOGE("Invalid SPR module IID to query timestamp");
+        goto done;
+    }
+    AGM_LOGV("SPR module IID: %x", graph_obj->spr_miid);
 
     payload_size = sizeof(struct apm_module_param_data_t) +
         sizeof(struct param_id_spr_session_time_t);
@@ -2373,7 +2393,9 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
     if (payload_size % 8 != 0)
         payload_size = payload_size + (8 - payload_size % 8);
 
-    payload = malloc((size_t)payload_size);
+    payload = calloc(1, (size_t)payload_size);
+    if (!payload)
+        goto done;
 
     header = (struct apm_module_param_data_t*)payload;
     sess_time = (struct param_id_spr_session_time_t *)
@@ -2386,10 +2408,24 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
 
     ret = gsl_get_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
-        AGM_LOGE("set_config command failed with error %d", ret);
-        ret = 0;
+        AGM_LOGE("gsl_get_custom_config command failed with error %d", ret);
+        goto get_fail;
     }
-    AGM_LOGE("session_time: %ld, at: %ld, ts: %ld", sess_time->session_time, sess_time->absolute_time, sess_time->timestamp);
-    *tstamp = sess_time->timestamp;
+    AGM_LOGV("session_time: msw[%ld], lsw[%ld], at: msw[%ld], lsw[%ld] ts: msw[%ld], lsw[%ld]\n",
+              sess_time->session_time.value_msw,
+              sess_time->session_time.value_lsw,
+              sess_time->absolute_time.value_msw,
+              sess_time->absolute_time.value_lsw,
+              sess_time->timestamp.value_msw,
+              sess_time->timestamp.value_lsw);
+
+    timestamp = (uint64_t)sess_time->session_time.value_msw;
+    timestamp = timestamp  << 32 | sess_time->session_time.value_lsw;
+    *tstamp = timestamp;
+
+get_fail:
+    free(payload);
+done:
+    pthread_mutex_unlock(&graph_obj->lock);
     return ret;
 }

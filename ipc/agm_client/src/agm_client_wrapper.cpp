@@ -117,32 +117,31 @@ int agm_deinit(){
       return 0;
 }
 
-int agm_aif_set_metadata(uint32_t audio_intf, struct agm_meta_data *metadata)
-{
-    if (!agm_server_died) {
+int agm_aif_set_metadata(uint32_t audio_intf, uint32_t size, uint8_t *metadata){
+    if(!agm_server_died)
+    {
         android::sp<IAgmService> agm_client = get_agm_server();
-        return agm_client->ipc_agm_audio_intf_set_metadata(audio_intf, metadata);
+        return agm_client->ipc_agm_audio_intf_set_metadata(audio_intf, size, metadata);
     }
     ALOGE("%s: agm service is not running\n", __func__);
     return -EAGAIN;
 }
 
-int agm_session_set_metadata(uint32_t session_id, struct agm_meta_data *metadata)
-{
-    if (!agm_server_died) {
+int agm_session_set_metadata(uint32_t session_id, uint32_t size, uint8_t *metadata){
+    if(!agm_server_died)
+    {
         android::sp<IAgmService> agm_client = get_agm_server();
-        return agm_client->ipc_agm_session_set_metadata(session_id, metadata);
+        return agm_client->ipc_agm_session_set_metadata(session_id, size, metadata);
     }
     ALOGE("%s: agm service is not running\n", __func__);
     return -EAGAIN;
 }
 
-int agm_session_aif_set_metadata(uint32_t session_id, uint32_t audio_intf,
-                                         struct agm_meta_data *metadata)
-{
-    if (!agm_server_died) {
+int agm_session_aif_set_metadata(uint32_t session_id, uint32_t audio_intf, uint32_t size, uint8_t *metadata){
+    if(!agm_server_died)
+    {
         android::sp<IAgmService> agm_client = get_agm_server();
-        return agm_client->ipc_agm_session_audio_inf_set_metadata(session_id, audio_intf, metadata);
+        return agm_client->ipc_agm_session_audio_inf_set_metadata(session_id, audio_intf, size, metadata);
     }
     ALOGE("%s: agm service is not running\n", __func__);
     return -EAGAIN;

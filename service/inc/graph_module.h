@@ -46,6 +46,7 @@
 #include "i2s_api.h"
 #include "pcm_tdm_api.h"
 #include "slimbus_api.h"
+#include "spr_api.h"
 
 /*
  *Internal enum to identify different modules

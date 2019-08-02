@@ -39,20 +39,29 @@ struct agm_key_vector_gsl {
     size_t num_kvs;                 /**< number of key value pairs */
     struct agm_key_value *kv;       /**< array of key value pairs */
 };
+struct sg_prop {
+	uint32_t prop_id;
+	uint32_t num_values;
+	uint32_t *values;
+};
 
 /**
- * Metadata Key Vectors
- */
+  * Metadata Key Vectors
+  */
 struct agm_meta_data_gsl {
     /**
-    * Used to lookup the calibration data
-    */
+     * Used to lookup the calibration data
+     */
     struct agm_key_vector_gsl gkv;
 
     /**
     * Used to lookup the calibration data
     */
      struct agm_key_vector_gsl ckv;
+     /**
+     * Used to lookup the property ids
+     */
+     struct sg_prop sg_props;
 };
 
 struct agm_tag_config_gsl {

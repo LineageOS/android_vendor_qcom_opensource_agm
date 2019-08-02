@@ -469,9 +469,9 @@ int device_set_media_config(struct device_obj *dev_obj, struct agm_media_config 
    return 0;
 }
 
-int device_set_metadata(struct device_obj *dev_obj, struct agm_meta_data *metadata)
+int device_set_metadata(struct device_obj *dev_obj, uint32_t size, uint8_t *metadata)
 {
-   return metadata_copy(&(dev_obj->metadata), metadata);
+   return metadata_copy(&(dev_obj->metadata), size, metadata);
 }
 
 

@@ -57,8 +57,7 @@ int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info)
 	return device_get_aif_info_list(aif_list, num_aif_info);
 }
 
-int agm_aif_set_metadata(uint32_t aif_id,
-	struct agm_meta_data *metadata)
+int agm_aif_set_metadata(uint32_t aif_id, uint32_t size, uint8_t *metadata)
 {
 	struct device_obj *obj = NULL;
 	int32_t ret = 0;
@@ -69,7 +68,7 @@ int agm_aif_set_metadata(uint32_t aif_id,
 		goto done;
 	}
 
-	ret = device_set_metadata(obj, metadata);
+	ret = device_set_metadata(obj, size, metadata);
 	if (ret) {
 		AGM_LOGE("%s: Error:%d setting metadata device obj with audio_intf id=%d\n", __func__, ret, aif_id);
 		goto done;
@@ -102,7 +101,7 @@ done:
 }
 
 int agm_session_set_metadata(uint32_t session_id,
-	struct agm_meta_data *metadata)
+		uint32_t size, uint8_t *metadata)
 {
 
 	struct session_obj *obj = NULL;
@@ -114,7 +113,7 @@ int agm_session_set_metadata(uint32_t session_id,
 		goto done;
 	}
 
-	ret = session_obj_set_sess_metadata(obj, metadata);
+	ret = session_obj_set_sess_metadata(obj, size, metadata);
 	if (ret) {
 		AGM_LOGE("%s: Error:%d setting metadata for session obj with session id=%d\n", __func__, ret, session_id);
 		goto done;
@@ -126,7 +125,7 @@ done:
 
 int agm_session_aif_set_metadata(uint32_t session_id,
 	uint32_t aif_id,
-	struct agm_meta_data *metadata)
+	uint32_t size, uint8_t *metadata)
 {
 
 	struct session_obj *obj = NULL;
@@ -138,7 +137,7 @@ int agm_session_aif_set_metadata(uint32_t session_id,
 		goto done;
 	}
 
-	ret = session_obj_set_sess_aif_metadata(obj, aif_id, metadata);
+	ret = session_obj_set_sess_aif_metadata(obj, aif_id, size, metadata);
 	if (ret) {
 		AGM_LOGE("%s: Error:%d setting metadata for session obj with session id=%d, aif_id=%d\n",
 				__func__, ret, session_id, aif_id);

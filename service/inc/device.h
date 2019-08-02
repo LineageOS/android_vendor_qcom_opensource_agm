@@ -125,5 +125,5 @@ enum device_state device_current_state(struct device_obj *obj);
 /* api to set device media config */
 int device_set_media_config(struct device_obj *obj, struct agm_media_config *device_media_config);
 /* api to set device meta graph keys + cal keys */
-int device_set_metadata(struct device_obj *obj, struct agm_meta_data *device_meta);
+int device_set_metadata(struct device_obj *obj, uint32_t size, uint8_t *payload);
 #endif
