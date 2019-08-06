@@ -54,6 +54,8 @@ static struct pcm_config config;
 #define DEFAULT_SAMPLING_RATE        48000
 #define DEFAULT_PERIOD_SIZE          960
 #define DEFAULT_PERIOD_COUNT         2
+#define DEV_ARG_SIZE                 20
+#define DEV_VALUE_SIZE               60
 
 #define CODEC_RX0 1
 #define CODEC_TX0 1
@@ -141,7 +143,7 @@ static void *device_prepare_thread(void *obj)
 
     if (dev_obj == NULL) {
        AGM_LOGE("%s: Invalid device object\n",__func__);
-        goto done;
+       return NULL;
     }
 
     if (dev_obj->state == DEV_PREPARED) {
@@ -195,10 +197,12 @@ int device_prepare(struct device_obj *dev_obj)
         AGM_LOGE("%s: PCM device %u prepare thread creation failed\n",
               __func__, dev_obj->pcm_id);
         dev_obj->prepare_thread_created = FALSE;
+        pthread_attr_destroy(&tattr);
         pthread_mutex_unlock(&dev_obj->lock);
         return ret;
     }
     dev_obj->prepare_thread_created = TRUE;
+    pthread_attr_destroy(&tattr);
     pthread_mutex_unlock(&dev_obj->lock);
     return ret;
 }
@@ -227,11 +231,11 @@ int device_start(struct device_obj *dev_obj)
 
     AGM_LOGD("%s: PCM device %u prepare thread completed\n", __func__, dev_obj->pcm_id);
 
-
     if (dev_obj->state < DEV_PREPARED) {
             AGM_LOGE("%s: PCM device %u not yet prepared, exiting\n",
                   __func__, dev_obj->pcm_id);
-            return -1;
+            ret =  -1;
+            goto done;
     }
 
     if (dev_obj->refcnt.start) {
@@ -241,19 +245,12 @@ int device_start(struct device_obj *dev_obj)
         goto done;
     }
 
-  //  ret = pcm_start(dev_obj->pcm);
-    if (ret) {
-        AGM_LOGE("PCM device %u start failed, ret = %d %s\n",
-              dev_obj->pcm_id, ret, pcm_get_error(dev_obj->pcm));
-        goto done;
-    }
     dev_obj->state = DEV_STARTED;
     dev_obj->refcnt.start++;
 
 done:
     pthread_mutex_unlock(&dev_obj->lock);
     return ret;
- 
 }
 
 int device_stop(struct device_obj *dev_obj)
@@ -361,9 +358,10 @@ int device_get_hw_ep_info(struct device_obj *dev_obj, struct hw_ep_info *hw_ep_i
 
 int populate_device_hw_ep_info(struct device_obj *dev_obj)
 {
-    char lpaif_type[20], intf[20], intf_idx[20], dir[20];
-    char arg[100] = {0};
-    char value[100] = {0};
+    char lpaif_type[DEV_ARG_SIZE], intf[DEV_ARG_SIZE];
+    char intf_idx[DEV_ARG_SIZE], dir[DEV_ARG_SIZE];
+    char arg[DEV_ARG_SIZE] = {0};
+    char value[DEV_VALUE_SIZE] = {0};
 
     if (dev_obj == NULL) {
         AGM_LOGE("%s: Invalid device object\n",__func__);
@@ -371,13 +369,13 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj)
     }
 
     if (dev_obj->name) {
-        sscanf(dev_obj->name, "%[^-]-%s", arg, value);
+        sscanf(dev_obj->name, "%20[^-]-%60s", arg, value);
         strlcpy(intf, arg, strlen(arg)+1);
-        sscanf(value, "%[^-]-%s", arg, value);
+        sscanf(value, "%20[^-]-%60s", arg, value);
         strlcpy(lpaif_type, arg, strlen(arg)+1);
-        sscanf(value, "%[^-]-%s", arg, value);
+        sscanf(value, "%20[^-]-%60s", arg, value);
         strlcpy(dir, arg, strlen(arg)+1);
-        sscanf(value, "%[^-]-%s", arg, value);
+        sscanf(value, "%20[^-]-%60s", arg, value);
         strlcpy(intf_idx, arg, strlen(arg)+1);
     } else {
         AGM_LOGE("%s: dev_obj_name doesn't exist\n",__func__);
@@ -517,7 +515,7 @@ int device_init()
          * <card_num>-<pcm_device_id>: <pcm->idname> : <pcm->name> : <playback/capture> 1
          * Here, pcm->idname is in the form of "<dai_link->stream_name> <codec_name>-<num_codecs>"
          */
-        sscanf(buffer, "%02d-%02d: %s", &dev_obj->card_id, &dev_obj->pcm_id, dev_obj->name);
+        sscanf(buffer, "%02u-%02u: %80s", &dev_obj->card_id, &dev_obj->pcm_id, dev_obj->name);
 
 	      ALOGE("%d:%d:%s\n", dev_obj->card_id, dev_obj->pcm_id, dev_obj->name);
         if (strstr(buffer, "playback"))
@@ -550,7 +548,7 @@ close_file:
     return ret;
 }
 
-int device_deinit()
+void device_deinit()
 {
     AGM_LOGE("%s:device deinit called\n", __func__);
     free(device_list); 

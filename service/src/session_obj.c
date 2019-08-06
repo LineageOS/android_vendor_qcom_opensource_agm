@@ -133,7 +133,10 @@ static struct agm_meta_data_gsl* session_get_merged_metadata(struct session_obj 
 	list_for_each(node, &sess_obj->aif_pool) {
 		aif_node = node_to_item(node, struct aif, node);
 		merged = metadata_merge(4, temp, &sess_obj->sess_meta, &aif_node->sess_aif_meta, &aif_node->dev_obj->metadata);
-		metadata_free(temp);
+		if (temp) {
+			metadata_free(temp);
+			free(temp);
+		}
 		temp = merged;
 	}
 
@@ -150,7 +153,10 @@ static struct agm_meta_data_gsl* session_get_merged_metadata_without_aif(struct 
 	list_for_each(node, &sess_obj->aif_pool) {
 		aif_node = node_to_item(node, struct aif, node);
 		merged = metadata_merge(3, temp, &sess_obj->sess_meta, &aif_node->sess_aif_meta);
-		metadata_free(temp);
+		if (temp) {
+			metadata_free(temp);
+			free(temp);
+		}
 		temp = merged;
 	}
 
@@ -187,11 +193,8 @@ static void aif_pool_free(struct session_obj *sess_obj)
 
 	list_for_each_safe(node, next, &sess_obj->aif_pool) {
 		aif_obj = node_to_item(node, struct aif, node);
-		if (aif_obj) {
-			list_remove(&aif_obj->node);
-			aif_free(aif_obj);
-
-		}
+		list_remove(&aif_obj->node);
+		aif_free(aif_obj);
 	}
 }
 
@@ -202,10 +205,8 @@ static void session_cb_pool_free(struct session_obj *sess_obj)
 
 	list_for_each_safe(node, next, &sess_obj->cb_pool) {
 		sess_cb = node_to_item(node, struct session_cb, node);
-		if (sess_cb) {
-			list_remove(&sess_cb->node);
-			free(sess_cb);
-		}
+		list_remove(&sess_cb->node);
+		free(sess_cb);
 	}
 
 }
@@ -228,18 +229,16 @@ static void session_pool_free()
 	pthread_mutex_lock(&sess_pool->lock);
 	list_for_each_safe(node, next, &sess_pool->session_list) {
 		sess_obj = node_to_item(node, struct session_obj, node);
-		if (sess_obj) {
-			pthread_mutex_lock(&sess_obj->lock);
-			ret = session_close(sess_obj);
-			if (ret) {
-				AGM_LOGE("%s, Error:%d closing session with session id:%d\n", __func__, ret, sess_obj->sess_id);
-			}
-			pthread_mutex_unlock(&sess_obj->lock);
-
-			//cleanup aif pool from session_object
-			list_remove(&sess_obj->node);
-			sess_obj_free(sess_obj);
+		pthread_mutex_lock(&sess_obj->lock);
+		ret = session_close(sess_obj);
+		if (ret) {
+			AGM_LOGE("%s, Error:%d closing session with session id:%d\n", __func__, ret, sess_obj->sess_id);
 		}
+		pthread_mutex_unlock(&sess_obj->lock);
+
+		//cleanup aif pool from session_object
+		list_remove(&sess_obj->node);
+		sess_obj_free(sess_obj);
 	}
 	pthread_mutex_unlock(&sess_pool->lock);
 }
@@ -383,9 +382,18 @@ static int session_set_loopback(struct session_obj *sess_obj, uint32_t pb_id, bo
 	}
 
 done:
-	metadata_free(capture_metadata);
-	metadata_free(playback_metadata);
-	metadata_free(merged_metadata);
+	if (capture_metadata) {
+		metadata_free(capture_metadata);
+		free(capture_metadata);
+	}
+	if (playback_metadata) {
+		metadata_free(playback_metadata);
+		free(playback_metadata);
+	}
+	if (merged_metadata) {
+		metadata_free(merged_metadata);
+		free(merged_metadata);
+	}
 	return ret;
 	}
 
@@ -430,8 +438,14 @@ static int session_set_ec_ref(struct session_obj *sess_obj, uint32_t aif_id, boo
 	}
 
 done:
-	metadata_free(capture_metadata);
-	metadata_free(merged_metadata);
+	if (capture_metadata) {
+		metadata_free(capture_metadata);
+		free(capture_metadata);
+	}
+	if (merged_metadata) {
+		metadata_free(merged_metadata);
+		free(merged_metadata);
+	}
 	return ret;
 }
 
@@ -443,6 +457,10 @@ static int session_disconnect_aif(struct session_obj *sess_obj, struct aif *aif_
 
 	// merge metadata
 	merged_metadata = metadata_merge(3, &sess_obj->sess_meta, &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
+	if (!merged_metadata) {
+		ret = -ENOMEM;
+		goto done;
+	}
 
 	if (opened_count == 1) {
 		//TODO: use new stop prime here
@@ -468,6 +486,7 @@ static int session_disconnect_aif(struct session_obj *sess_obj, struct aif *aif_
 	free(merged_metadata->ckv.kv);
 	free(merged_metadata->gkv.kv);
 	free(merged_metadata);
+done:
 	return ret;
 }
 
@@ -494,7 +513,7 @@ static void graph_event_cb(struct agm_event_cb_params *event_params,
 	pthread_mutex_lock(&sess_obj->lock);
 	list_for_each_safe(node, next, &sess_obj->cb_pool) {
 		sess_cb = node_to_item(node, struct session_cb, node);
-		if (sess_cb && sess_cb->cb) {
+		if (sess_cb->cb) {
 			//TODO: Add support for filtering event types, once compress data path is supported.
 			sess_cb->cb(sess_obj->sess_id, (struct agm_event_cb_params *)event_params, sess_cb->client_data);
 		}
@@ -592,8 +611,10 @@ close_device:
 	device_close(aif_obj->dev_obj);
 
 done:
-	if (merged_metadata)
+	if (merged_metadata) {
 		metadata_free(merged_metadata);
+		free(merged_metadata);
+	}
 
 	return ret;
 }
@@ -701,7 +722,7 @@ static int session_prepare(struct session_obj *sess_obj)
 			goto done;
 		}
 	}
-	
+
 	list_for_each(node, &sess_obj->aif_pool) {
 		aif_obj = node_to_item(node, struct aif, node);
 		if (!aif_obj) {
@@ -718,7 +739,7 @@ static int session_prepare(struct session_obj *sess_obj)
 			}
 			aif_obj->state = AIF_PREPARED;
 		}
-	} 
+	}
 
 	if (dir == RX) {
 		ret = graph_prepare(sess_obj->graph);
@@ -1117,8 +1138,10 @@ int session_obj_set_sess_aif_params_with_tag(struct session_obj *sess_obj,
 	}
 
 done:
-	if (merged_metadata)
+	if (merged_metadata) {
 		metadata_free(merged_metadata);
+		free(merged_metadata);
+	}
 
 	pthread_mutex_unlock(&sess_obj->lock);
 
@@ -1170,8 +1193,10 @@ int session_obj_set_sess_aif_cal(struct session_obj *sess_obj,
 	}
 
 done:
-	if (merged_metadata)
+	if (merged_metadata) {
 		metadata_free(merged_metadata);
+		free(merged_metadata);
+	}
 
 	pthread_mutex_unlock(&sess_obj->lock);
 
@@ -1235,8 +1260,10 @@ int session_obj_get_tag_with_module_info(struct session_obj *sess_obj, uint32_t 
 	}
 
 done:
-	if (merged_metadata)
+	if (merged_metadata) {
 		metadata_free(merged_metadata);
+		free(merged_metadata);
+	}
 
 	pthread_mutex_unlock(&sess_obj->lock);
 	return ret;
@@ -1624,7 +1651,7 @@ size_t session_obj_hw_processed_buff_cnt(struct session_obj *sess_obj, enum dire
 		goto done;
 	}
 
-	ret = graph_get_hw_processed_buff_cnt(sess_obj->graph, dir);
+	ret = (int)graph_get_hw_processed_buff_cnt(sess_obj->graph, dir);
 
 
 done:

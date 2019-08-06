@@ -108,7 +108,7 @@ struct device_obj {
 
 /* Initializes device_obj, enumerate and fill device related information */
 int device_init();
-int device_deinit();
+void device_deinit();
 /* Returns list of supported devices */
 int device_get_aif_info_list(struct aif_info *aif_list, size_t *audio_intfs);
 /* returns device_obj associated with device_id */
