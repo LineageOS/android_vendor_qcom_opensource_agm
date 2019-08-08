@@ -7,9 +7,13 @@ AUTOMAKE_OPTIONS = subdir-objects
 h_sources  = inc/snd-card-def.h
 
 lib_include_HEADERS = $(h_sources)
-lib_includedir = $(includedir)/
+lib_includedir = $(includedir)/sndparser/
 
+if BUILDSYSTEM_OPENWRT
+AM_CFLAGS := -I ./inc
+else
 AM_CFLAGS := -I $(top_srcdir)/inc
+endif
 AM_CFLAGS += -Wno-unused-parameter
 AM_CFLAGS += -DCARD_DEF_FILE=\"/etc/card-defs.xml\"
 

@@ -30,7 +30,7 @@
 #define LOG_TAG "AGM: device"
 
 #include <hw_intf_cmn_api.h>
-#include <log/log.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>

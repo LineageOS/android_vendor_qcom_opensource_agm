@@ -36,8 +36,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-
-#include <cutils/list.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <limits.h>
@@ -50,6 +48,8 @@
 
 #include <agm/agm_api.h>
 #include <snd-card-def.h>
+
+#include <agm/agm_list.h>
 #include "utils.h"
 
 #ifdef DYNAMIC_LOG_ENABLED

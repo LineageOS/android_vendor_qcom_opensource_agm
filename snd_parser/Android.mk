@@ -12,7 +12,7 @@ LOCAL_USE_VNDK := true
 #----------------------------------------------------------------------------
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/inc
-
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 
 LOCAL_CFLAGS := -Wno-unused-parameter
 LOCAL_CFLAGS += -DCARD_DEF_FILE=\"/vendor/etc/card-defs.xml\"

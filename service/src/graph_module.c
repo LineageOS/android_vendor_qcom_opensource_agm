@@ -27,7 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define LOGTAG "AGM: graph_module"
+#define LOG_TAG "AGM: graph_module"
 
 #include <errno.h>
 #include <pthread.h>

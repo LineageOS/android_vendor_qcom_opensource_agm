@@ -101,16 +101,21 @@ int agm_deinit()
     AGM_LOGD("Deinitializing QTS...");
     qts_deinit();
     session_obj_deinit();
+    agm_initialized = 0;
 
     return 0;
 }
 
 int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info)
 {
+    if (!agm_initialized)
+        agm_init();
+
     if (!num_aif_info || ((*num_aif_info != 0) && !aif_list)) {
         AGM_LOGE("%s: Error Invalid params\n", __func__);
         return -EINVAL;
     }
+
     return device_get_aif_info_list(aif_list, num_aif_info);
 }
 

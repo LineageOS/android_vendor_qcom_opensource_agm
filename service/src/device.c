@@ -30,9 +30,9 @@
 #define LOG_TAG "AGM: device"
 
 #include <errno.h>
-#include <log/log.h>
 #include <pthread.h>
 #include <sched.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -144,7 +144,7 @@ static void *device_prepare_thread(void *obj)
     if (dev_obj->state == DEV_PREPARED) {
         AGM_LOGE("%s: device prepared already \n", __func__);
     }
-      
+
     pthread_mutex_lock(&dev_obj->lock);
     ret = pcm_prepare(dev_obj->pcm);
     if (ret) {
