@@ -1,3 +1,4 @@
+ifeq ($(call is-board-platform-in-list, sdm845),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
@@ -37,3 +38,4 @@ LOCAL_SHARED_LIBRARIES := \
 	libagmproxy
 
 include $(BUILD_EXECUTABLE)
+endif

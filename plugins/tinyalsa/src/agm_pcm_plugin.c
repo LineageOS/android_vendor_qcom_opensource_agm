@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <linux/ioctl.h>
+#include <sys/time.h>
 #include <sound/asound.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -55,6 +56,7 @@ struct agm_pcm_priv {
     pthread_cond_t eos_cond;
     pthread_mutex_t eos_lock;
     bool eos_cmd_sent;
+    int session_id;
 };
 
 struct pcm_plugin_hw_constraints agm_pcm_constrs = {
@@ -414,6 +416,8 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
         return ret;
 
     agm_pcm_eos(plugin, handle);
+    ret = agm_session_register_cb(priv->session_id, NULL,
+                                  AGM_EVENT_DATA_PATH, plugin);
     ret = agm_session_close(handle);
 
     snd_card_def_put_card(priv->card_node);
@@ -501,6 +505,7 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
     priv->buffer_config = buffer_config;
     priv->session_config = session_config;
     priv->card_node = card_node;
+    priv->session_id = session_id;
 
     ret = agm_session_open(session_id, &handle);
     if (ret)

@@ -260,6 +260,7 @@ static struct session_obj* session_obj_create(int session_id)
 	list_init(&obj->aif_pool);
 	list_init(&obj->cb_pool);
 	pthread_mutex_init(&obj->lock, (const pthread_mutexattr_t *) NULL);
+	pthread_mutex_init(&obj->cb_pool_lock, (const pthread_mutexattr_t *) NULL);
 
 	return obj;
 }
@@ -525,6 +526,7 @@ static void graph_event_cb(struct agm_event_cb_params *event_params,
 		return;
 	}
 
+	pthread_mutex_lock(&sess_obj->cb_pool_lock);
 	list_for_each_safe(node, next, &sess_obj->cb_pool) {
 		sess_cb = node_to_item(node, struct session_cb, node);
 		if (sess_cb && sess_cb->cb) {
@@ -541,6 +543,7 @@ static void graph_event_cb(struct agm_event_cb_params *event_params,
 			}
 		}
 	}
+	pthread_mutex_unlock(&sess_obj->cb_pool_lock);
 }
 
 static int session_connect_aif(struct session_obj *sess_obj, struct aif *aif_obj, uint32_t opened_count)
@@ -1321,23 +1324,35 @@ int session_obj_register_cb(struct session_obj *sess_obj, agm_event_cb cb, enum 
 	int ret = 0;
 	struct session_cb *sess_cb = NULL;
 
-	pthread_mutex_lock(&sess_obj->lock);
 
+	pthread_mutex_lock(&sess_obj->cb_pool_lock);
 	sess_cb = calloc(1, sizeof(struct session_cb));
-	if(!sess_cb) {
-		AGM_LOGE("%s: Error creating session_cb object with sess_id:%d\n",__func__, sess_obj->sess_id);
+	if (!sess_cb) {
+		AGM_LOGV("%s: Error creating session_cb object with sess_id:%d\n",__func__, sess_obj->sess_id);
 		ret = -ENOMEM;
 		goto done;
 	}
-
-	sess_cb->cb = cb;
-	sess_cb->client_data = client_data;
-	sess_cb->evt_type = evt_type;
-
-	list_add_tail(&sess_obj->cb_pool, &sess_cb->node);
-
+        if (cb != NULL) {
+	    sess_cb->cb = cb;
+	    sess_cb->client_data = client_data;
+	    sess_cb->evt_type = evt_type;
+		AGM_LOGV("sess_cb %p client_data %p evt_type %d", sess_cb, client_data, evt_type);
+        list_add_tail(&sess_obj->cb_pool, &sess_cb->node);
+        } else {
+            struct session_cb *sess_cb;
+            struct listnode *node, *next;
+            list_for_each_safe(node, next, &sess_obj->cb_pool) {
+                sess_cb = node_to_item(node, struct session_cb, node);
+                if (sess_cb->evt_type == evt_type &&
+                     sess_cb->client_data == client_data) {
+                    AGM_LOGV("remove sess_cb %p client_data %p evt_type %d", sess_cb, sess_cb->client_data, sess_cb->evt_type);
+                    list_remove(&sess_cb->node);
+                    free(sess_cb);
+                }
+            }
+       }
 done:
-	pthread_mutex_unlock(&sess_obj->lock);
+	pthread_mutex_unlock(&sess_obj->cb_pool_lock);
 	return ret;
 }
 

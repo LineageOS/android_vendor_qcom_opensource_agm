@@ -93,6 +93,7 @@ struct session_obj {
 	uint32_t ec_ref_aif_id;
 	bool ec_ref_state;
 	pthread_mutex_t lock;
+	pthread_mutex_t cb_pool_lock;
 };
 
 struct session_pool {

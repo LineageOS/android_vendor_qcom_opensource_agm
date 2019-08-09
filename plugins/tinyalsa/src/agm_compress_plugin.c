@@ -71,6 +71,7 @@ struct agm_compress_priv {
 
     void *client_data;
     void *card_node;
+    int session_id;
     pthread_cond_t drain_cond;
     pthread_mutex_t drain_lock;
     pthread_cond_t eos_cond;
@@ -636,6 +637,9 @@ void agm_compress_close(struct compress_plugin *plugin)
     if (ret)
         return;
 
+    ret = agm_session_register_cb(priv->session_id, NULL,
+                                  AGM_EVENT_DATA_PATH, plugin);
+
     ret = agm_session_close(handle);
     if (ret)
         printf("%s: agm_session_close failed \n", __func__);
@@ -748,6 +752,7 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
 
     priv->session_config.is_hostless = !!is_hostless;
     priv->session_config.dir = (flags & COMPRESS_IN) ? RX : TX;
+    priv->session_id = session_id;
 
     if ((priv->session_config.dir == RX) && !is_playback) {
         printf("%s: Playback is supported for device %d \n", __func__, device);
