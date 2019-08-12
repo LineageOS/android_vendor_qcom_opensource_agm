@@ -13,6 +13,7 @@ library_includedir = $(includedir)/agm
 
 agm_sources = ${top_srcdir}/src/graph.c \
               ${top_srcdir}/src/device.c \
+              ${top_srcdir}/src/device_hw_ep.c \
               ${top_srcdir}/src/metadata.c \
               ${top_srcdir}/src/session_obj.c \
               ${top_srcdir}/src/agm.c
