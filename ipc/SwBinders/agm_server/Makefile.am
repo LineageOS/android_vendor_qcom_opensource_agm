@@ -23,7 +23,7 @@ libagmserverwrapper_la_LIBADD = -lagm -laudio_log_utils
 libagmserverwrapper_la_LDFLAGS   = -lcutils -llog -ldl -lbinder -shared -avoid-version -lutils -lpthread
 
 lib_LTLIBRARIES += libagmproxy.la
-libagmproxy_la_SOURCES   = ${top_srcdir}/src/ipc_proxy_server.cpp 
+libagmproxy_la_SOURCES   = ${top_srcdir}/src/ipc_proxy_server.cpp
 libagmproxy_la_CPPFLAGS := $(AM_CPPFLAGS)
 libagmproxy_la_LIBADD = libagmserverwrapper.la
 libagmproxy_la_LDFLAGS   = -lcutils -llog -ldl -lbinder -shared -avoid-version -lutils -lpthread
