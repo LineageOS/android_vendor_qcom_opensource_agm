@@ -150,7 +150,7 @@ int connect_play_pcm_to_cap_pcm(struct mixer *mixer, unsigned int p_device, unsi
     if (p_device < 0) {
         val = "ZERO";
     } else {
-        val_len = strlen(pcm) + 2;
+        val_len = strlen(pcm) + 4;
         val = calloc(1, val_len);
         snprintf(val, val_len, "%s%d", pcm, p_device);
     }
@@ -233,35 +233,60 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir d
     char *control = "metadata";
     struct mixer_ctl *ctl;
     char *mixer_str;
-    struct agm_meta_data *metadata;
-    size_t num_gkv = 1, num_ckv = 2;
-    uint32_t gkv_size, ckv_size, ckv_index;
-    int ctl_len = 0;
+    struct agm_key_value *gkv = NULL, *ckv = NULL;
+    struct prop_data *prop = NULL;
+    uint8_t *metadata = NULL;
+    uint32_t num_gkv = 1, num_ckv = 2, num_props = 0;
+    uint32_t gkv_size, ckv_size, prop_size, ckv_index = 0;
+    int ctl_len = 0, offset = 0;
     int ret = 0;
 
     gkv_size = num_gkv * sizeof(struct agm_key_value);
     ckv_size = num_ckv * sizeof(struct agm_key_value);
-    metadata = calloc(1, sizeof(struct agm_meta_data) + gkv_size + ckv_size);
+    prop_size = sizeof(struct prop_data) + (num_props * sizeof(uint32_t));
+
+    metadata = calloc(1, sizeof(num_gkv) + sizeof(num_ckv) + gkv_size + ckv_size + prop_size);
     if (!metadata)
         return -ENOMEM;
 
-    metadata->num_gkvs = num_gkv;
-    metadata->num_ckvs = num_ckv;
+    gkv = calloc(num_gkv, sizeof(struct agm_key_value));
+    ckv = calloc(num_ckv, sizeof(struct agm_key_value));
+    prop = calloc(1, prop_size);
+    if (!gkv || !ckv || !prop) {
+        if (ckv)
+            free(ckv);
+        if (gkv)
+            free(gkv);
+        free(metadata);
+        return -ENOMEM;
+    }
 
     if (d == PLAYBACK) {
-        metadata->kv[0].key = DEVICERX;
-        metadata->kv[0].value = SPEAKER;
+        gkv[0].key = DEVICERX;
+        gkv[0].value = SPEAKER;
     } else {
-        metadata->kv[0].key = DEVICETX;
-        metadata->kv[0].value = HANDSETMIC;
+        gkv[0].key = DEVICETX;
+        gkv[0].value = HANDSETMIC;
     }
-    ckv_index = num_gkv;
-    metadata->kv[ckv_index].key = SAMPLINGRATE;
-    metadata->kv[ckv_index].value = rate;
+    ckv[ckv_index].key = SAMPLINGRATE;
+    ckv[ckv_index].value = rate;
 
     ckv_index++;
-    metadata->kv[ckv_index].key = BITWIDTH;
-    metadata->kv[ckv_index].value = bitwidth;
+    ckv[ckv_index].key = BITWIDTH;
+    ckv[ckv_index].value = bitwidth;
+
+    prop->prop_id = 0;  //Update prop_id here
+    prop->num_values = num_props;
+
+    memcpy(metadata, &num_gkv, sizeof(num_gkv));
+    offset += sizeof(num_gkv);
+    memcpy(metadata + offset, gkv, gkv_size);
+    offset += gkv_size;
+    memcpy(metadata + offset, &num_ckv, sizeof(num_ckv));
+    offset += sizeof(num_ckv);
+    memcpy(metadata + offset, ckv, ckv_size);
+    offset += ckv_size;
+    memcpy(metadata + offset, prop, prop_size);
 
     ctl_len = strlen(intf_name) + 1 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
@@ -275,13 +300,19 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir d
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
+        free(gkv);
+        free(ckv);
+        free(prop);
         free(metadata);
         free(mixer_str);
         return ENOENT;
     }
 
-    ret = mixer_ctl_set_array(ctl, metadata, sizeof(struct agm_meta_data) + gkv_size + ckv_size);
-   
+    ret = mixer_ctl_set_array(ctl, metadata, sizeof(num_gkv) + sizeof(num_ckv) + gkv_size + ckv_size + prop_size);
+
+    free(gkv);
+    free(ckv);
+    free(prop);
     free(metadata);
     free(mixer_str);
     return ret;
@@ -321,11 +352,12 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     char *control = "metadata";
     char *mixer_str;
     struct mixer_ctl *ctl;
-    struct agm_meta_data *metadata;
-    struct agm_key_value *kvpair;
-    size_t num_gkv = 1, num_ckv = 1;
-    uint32_t gkv_size, ckv_size, ckv_index;
-    int ctl_len = 0,ret = 0;
+    uint8_t *metadata = NULL;
+    struct agm_key_value *gkv = NULL, *ckv = NULL;
+    struct prop_data *prop = NULL;
+    uint32_t num_gkv = 1, num_ckv = 1, num_props = 0;
+    uint32_t gkv_size, ckv_size, prop_size, index = 0;
+    int ctl_len = 0, ret = 0, offset = 0;
     char *type = "ZERO";
 
     if (intf_name)
@@ -340,7 +372,7 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     if (stype == STREAM_COMPRESS)
         stream = "COMPRESS";
 
-    if (val == PCM_LL_PLAYBACK)
+    if (val == PCM_LL_PLAYBACK || val == COMPRESS_PLAYBACK)
         num_gkv = 2;
 
     if (val == VOICE_UI && intf_name)
@@ -348,29 +380,55 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
 
     gkv_size = num_gkv * sizeof(struct agm_key_value);
     ckv_size = num_ckv * sizeof(struct agm_key_value);
-    metadata = calloc(1, sizeof(struct agm_meta_data) + gkv_size + ckv_size);
+    prop_size = sizeof(struct prop_data) + (num_props * sizeof(uint32_t));
+
+    metadata = calloc(1, sizeof(num_gkv) + sizeof(num_ckv) + gkv_size + ckv_size + prop_size);
     if (!metadata)
         return -ENOMEM;
 
-    metadata->num_gkvs = num_gkv;
-    metadata->num_ckvs = num_ckv;
+    gkv = calloc(num_gkv, sizeof(struct agm_key_value));
+    ckv = calloc(num_ckv, sizeof(struct agm_key_value));
+    prop = calloc(1, prop_size);
+    if (!gkv || !ckv || !prop) {
+        if (ckv)
+            free(ckv);
+        if (gkv)
+            free(gkv);
+        free(metadata);
+        return -ENOMEM;
+    }
 
-    metadata->kv[0].key = STREAM_TYPE;
-    metadata->kv[0].value = val;
+    gkv[index].key = STREAM_TYPE;
+    gkv[index].value = val;
 
-    if (val == PCM_LL_PLAYBACK) {
-        metadata->kv[1].key = INSTANCE;
-        metadata->kv[1].value = INSTANCE_1;
+    index++;
+    if (val == PCM_LL_PLAYBACK || val == COMPRESS_PLAYBACK) {
+        gkv[index].key = INSTANCE;
+        gkv[index].value = INSTANCE_1;
     }
 
     if (val == VOICE_UI && intf_name) {
-        metadata->kv[1].key = DEVICEPP_TX;
-        metadata->kv[1].value = VOICE_FLUENCE_FFECNS;
+        gkv[index].key = DEVICEPP_TX;
+        gkv[index].value = VOICE_FLUENCE_FFECNS;
     }
 
-    ckv_index = num_gkv;
-    metadata->kv[ckv_index].key = STREAM_TYPE;
-    metadata->kv[ckv_index].value = val;
+    index = 0;
+    ckv[index].key = STREAM_TYPE;
+    ckv[index].value = val;
+
+    prop->prop_id = 0;  //Update prop_id here
+    prop->num_values = num_props;
+
+    memcpy(metadata, &num_gkv, sizeof(num_gkv));
+    offset += sizeof(num_gkv);
+    memcpy(metadata + offset, gkv, gkv_size);
+    offset += gkv_size;
+    memcpy(metadata + offset, &num_ckv, sizeof(num_ckv));
+
+    offset += sizeof(num_ckv);
+    memcpy(metadata + offset, ckv, ckv_size);
+    offset += ckv_size;
+    memcpy(metadata + offset, prop, prop_size);
 
     ctl_len = strlen(stream) + 4 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
@@ -384,12 +442,19 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
+        free(gkv);
+        free(ckv);
+        free(prop);
         free(metadata);
         free(mixer_str);
         return ENOENT;
     }
 
-    ret = mixer_ctl_set_array(ctl, metadata, sizeof(struct agm_meta_data) + gkv_size + ckv_size);
+    ret = mixer_ctl_set_array(ctl, metadata, sizeof(num_gkv) + sizeof(num_ckv) + gkv_size + ckv_size + prop_size);
+
+    free(gkv);
+    free(ckv);
+    free(prop);
     free(metadata);
     free(mixer_str);
     return ret;
@@ -412,7 +477,7 @@ int agm_mixer_register_event(struct mixer *mixer, int device, enum stream_type s
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str)
         return -ENOMEM;
- 
+
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
     printf("%s - mixer -%s-\n", __func__, mixer_str);
@@ -430,7 +495,7 @@ int agm_mixer_register_event(struct mixer *mixer, int device, enum stream_type s
         return -ENOMEM;
     }
 
-    event_cfg->module_instance_id = miid; 
+    event_cfg->module_instance_id = miid;
     event_cfg->event_id = EVENT_ID_DETECTION_ENGINE_GENERIC_INFO;
     event_cfg->event_config_payload_size = payload_size;
     event_cfg->is_register = !!is_register;
@@ -465,7 +530,7 @@ int agm_mixer_get_miid(struct mixer *mixer, int device, char *intf_name,
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str)
         return -ENOMEM;
- 
+
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
     printf("%s - mixer -%s-\n", __func__, mixer_str);
@@ -560,7 +625,6 @@ int agm_mixer_set_param_with_file(struct mixer *mixer, int device,
     FILE *fp;
     int size, bytes_read;
     void *payload;
-    char *buf;
     char *stream = "PCM";
     char *control = "setParam";
     char *mixer_str;

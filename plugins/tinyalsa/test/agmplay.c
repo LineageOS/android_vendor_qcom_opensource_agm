@@ -65,16 +65,14 @@ struct chunk_fmt {
 };
 
 char *audio_interface_name[] = {
-    "CODEC_DMA-LPAIF_VA-TX-0",
-    "CODEC_DMA-LPAIF_VA-TX-1",
     "CODEC_DMA-LPAIF_WSA-RX-0",
     "CODEC_DMA-LPAIF_WSA-RX-1",
     "MI2S-LPAIF_AXI-RX-PRIMARY",
-    "MI2S-LPAIF_AXI-TX-PRIMARY",
     "TDM-LPAIF_AXI-RX-PRIMARY",
-    "TDM-LPAIF_AXI-TX-PRIMARY",
     "AUXPCM-LPAIF_AXI-RX-PRIMARY",
-    "AUXPCM-LPAIF_AXI-TX-PRIMARY",
+    "SLIM-DEV1-RX-0",
+    "DISPLAY_PORT-RX",
+    "USB_AUDIO-RX",
 };
 
 static int close = 0;
@@ -106,18 +104,7 @@ int main(int argc, char **argv)
 
     if (argc < 2) {
         printf("Usage: %s file.wav [-D card] [-d device] [-p period_size]"
-                " [-n n_periods] [-o audio_intf_id]\n"
-                " valid audio_intf_id :\n"
-                "0 : WSA_CDC_DMA_RX_0\n"
-                "1 : RX_CDC_DMA_RX_0\n"
-                "2 : SLIM_0_RX\n"
-                "3 : DISPLAY_PORT_RX\n"
-                "4 : PRI_TDM_RX_0\n"
-                "5 : SEC_TDM_RX_0\n"
-                "6 : AUXPCM_RX\n"
-                "7 : SEC_AUXPCM_RX\n"
-                "8 : PRI_MI2S_RX\n"
-                "9 : SEC_MI2S_RX\n", argv[0]);
+                " [-n n_periods] [-o audio_intf_id]\n", argv[0]);
         return 1;
     }
 
@@ -307,11 +294,7 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
         printf("Failed to connect pcm to audio interface\n");
         goto err_close_mixer;
     }
-/*
-    if (!sample_is_playable(card, device, channels, rate, bits, period_size, period_count)) {
-        return;
-    }
-*/
+
     pcm = pcm_open(card, device, PCM_OUT, &config);
     if (!pcm || !pcm_is_ready(pcm)) {
         printf("Unable to open PCM device %u (%s)\n",

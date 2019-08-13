@@ -88,7 +88,7 @@ static void read_event_data(struct mixer *mixer, char *mixer_str)
     printf("%s params.event_payload_size %x\n", __func__, params->event_payload_size);
 }
 
-static void *event_wait_thread_loop(void *context)
+static void event_wait_thread_loop(void *context)
 {
     struct mixer *mixer = (struct mixer *)context;
     int ret = 0;
@@ -111,7 +111,7 @@ static void *event_wait_thread_loop(void *context)
         }
         done = 1;
     }
-   
+
     mixer_subscribe_events(mixer, 0);
 }
 
@@ -298,7 +298,7 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
         goto err_close_mixer;
     }
 
-    param_buf = merge_payload(5, &param_size, "/etc/sound_model", "/etc/wakeup_config", "/etc/event_config", 
+    param_buf = merge_payload(5, &param_size, "/etc/sound_model", "/etc/wakeup_config", "/etc/event_config",
                                  "/etc/buffer_config", "/etc/stream_setup_duration");
 
     if (agm_mixer_set_param(mixer, device, STREAM_PCM, param_buf, param_size)) {

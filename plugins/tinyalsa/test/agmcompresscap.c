@@ -138,12 +138,11 @@ static const struct wave_header blank_wave_header = {
 char *audio_interface_name[] = {
     "CODEC_DMA-LPAIF_VA-TX-0",
     "CODEC_DMA-LPAIF_VA-TX-1",
-    "MI2S-LPAIF_AXI-RX-PRIMARY",
     "MI2S-LPAIF_AXI-TX-PRIMARY",
-    "TDM-LPAIF_AXI-RX-PRIMARY",
     "TDM-LPAIF_AXI-TX-PRIMARY",
-    "AUXPCM-LPAIF_AXI-RX-PRIMARY",
     "AUXPCM-LPAIF_AXI-TX-PRIMARY",
+    "SLIM-DEV1-TX-0",
+    "USB_AUDIO-TX",
 };
 
 static void init_wave_header(struct wave_header *header, uint16_t channels,

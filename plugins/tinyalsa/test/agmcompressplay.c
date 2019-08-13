@@ -70,21 +70,61 @@
 #define __user
 #include <sound/compress_params.h>
 #include <tinycompress/tinycompress.h>
-#include <tinycompress/tinymp3.h>
 
 #include "agmmixer.h"
+
+
+#define MP3_SYNC 0xe0ff
+
+const int mp3_sample_rates[3][3] = {
+	{44100, 48000, 32000},        /* MPEG-1 */
+	{22050, 24000, 16000},        /* MPEG-2 */
+	{11025, 12000,  8000},        /* MPEG-2.5 */
+};
+
+const int mp3_bit_rates[3][3][15] = {
+	{
+		/* MPEG-1 */
+		{  0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448}, /* Layer 1 */
+		{  0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384}, /* Layer 2 */
+		{  0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320}, /* Layer 3 */
+	},
+	{
+		/* MPEG-2 */
+		{  0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256}, /* Layer 1 */
+		{  0,  8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160}, /* Layer 2 */
+		{  0,  8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160}, /* Layer 3 */
+	},
+	{
+		/* MPEG-2.5 */
+		{  0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256}, /* Layer 1 */
+		{  0,  8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160}, /* Layer 2 */
+		{  0,  8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160}, /* Layer 3 */
+	},
+};
+
+enum mpeg_version {
+	MPEG1  = 0,
+	MPEG2  = 1,
+	MPEG25 = 2
+};
+
+enum mp3_stereo_mode {
+	STEREO = 0x00,
+	JOINT = 0x01,
+	DUAL = 0x02,
+	MONO = 0x03
+};
 
 static int verbose;
 
 char *audio_interface_name[] = {
-    "CODEC_DMA-LPAIF_VA-TX-0",
-    "CODEC_DMA-LPAIF_VA-TX-1",
+    "CODEC_DMA-LPAIF_WSA-RX-0",
+    "CODEC_DMA-LPAIF_WSA-RX-1",
     "MI2S-LPAIF_AXI-RX-PRIMARY",
-    "MI2S-LPAIF_AXI-TX-PRIMARY",
     "TDM-LPAIF_AXI-RX-PRIMARY",
-    "TDM-LPAIF_AXI-TX-PRIMARY",
     "AUXPCM-LPAIF_AXI-RX-PRIMARY",
-    "AUXPCM-LPAIF_AXI-TX-PRIMARY",
+    "SLIM-DEV1-RX-0",
 };
 
 static void usage(void)
@@ -95,34 +135,65 @@ static void usage(void)
 		"-b\tbuffer size\n"
 		"-f\tfragments\n\n"
                 "-i\taudio_intf_id\n"
-                "\tvalid audio_intf_id :\n"
-                "0 : WSA_CDC_DMA_RX_0\n"
-                "1 : RX_CDC_DMA_RX_0\n"
-                "2 : SLIM_0_RX\n"
-                "3 : DISPLAY_PORT_RX\n"
-                "4 : PRI_TDM_RX_0\n"
-                "5 : SEC_TDM_RX_0\n"
-                "6 : AUXPCM_RX\n"
-                "7 : SEC_AUXPCM_RX\n"
-                "8 : PRI_MI2S_RX\n"
-                "9 : SEC_MI2S_RX\n"
 		"-v\tverbose mode\n"
 		"-h\tPrints this help list\n\n"
+		"-t\tcodec type\n\n"
+			"1 : mp3"
+			"2 : aac"
+		"-p\tpause/resume with 2 secs sleep\n\n"
 		"Example:\n"
-		"\tcplay -c 1 -d 2 test.mp3\n"
-		"\tcplay -f 5 test.mp3\n");
+		"\tagmcompressplay -c 1 -d 2 test.mp3\n"
+		"\tagmcompressplay -f 5 test.mp3\n");
 
 	exit(EXIT_FAILURE);
 }
 
 void play_samples(char *name, unsigned int card, unsigned int device,
-		unsigned long buffer_size, unsigned int frag, unsigned int audio_intf);
+		unsigned long buffer_size, unsigned int frag, unsigned int audio_intf, unsigned int audio_format, int pause);
 
 struct mp3_header {
 	uint16_t sync;
 	uint8_t format1;
 	uint8_t format2;
 };
+
+#define ADTS_SYNC 0xF0FF
+#define MP3_FORMAT 1
+#define AAC_ADTS_FORMAT 2
+
+struct adts_header {
+	uint32_t sync;
+	uint8_t format1;
+	uint8_t format2;
+	uint8_t format3;
+};
+
+uint aac_sample_rates[] = {96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350, 48000, 48000, 48000};
+
+int parse_aac_header(struct adts_header *header, unsigned int *num_channels,
+		unsigned int *sample_rate, unsigned int *protection_absent)
+{
+	int profile, sample_rate_idx, channel_idx;
+
+	/* check sync bits */
+	if ((header->sync & 0xF0FF) != ADTS_SYNC) {
+		fprintf(stderr, "Error: Can't find sync word: 0x%X\n", header->sync);
+		return -1;
+	}
+	*protection_absent = (header->sync >> 8) & 0x01;
+	profile = ((header->sync >> 22) & 0x03) - 1;
+	sample_rate_idx = ((header->sync >> 18) & 0x0F);
+//	channel_idx = ((header->format1 >> 7) & 0x07);
+//	frame_length  = ((header->format1 >> 14) & 0x1FFF);
+
+	*num_channels = 2;
+	*sample_rate = aac_sample_rates[sample_rate_idx];
+//	 *size = frame_length - ((protection_absent == 1)? 7: 9));
+
+	if (verbose)
+		printf("%s: exit sr %d\n", __func__, *sample_rate);
+	return 0;
+}
 
 int parse_mp3_header(struct mp3_header *header, unsigned int *num_channels,
 		unsigned int *sample_rate, unsigned int *bit_rate)
@@ -172,7 +243,7 @@ static int print_time(struct compress *compress)
 		fprintf(stderr, "ERR: %s\n", compress_get_error(compress));
 		return -1;
 	} else
-		fprintf(stderr, "DSP played %jd.%jd\n", (intmax_t)tstamp.tv_sec, (intmax_t)tstamp.tv_nsec*1000);
+		fprintf(stderr, "DSP played %d.%d\n", tstamp.tv_sec, tstamp.tv_nsec*1000);
 	return 0;
 }
 
@@ -182,67 +253,70 @@ int main(int argc, char **argv)
 	unsigned long buffer_size = 0;
 	int c;
         unsigned int audio_intf = 0;
-	unsigned int card = 0, device = 0, frag = 0;
+	unsigned int card = 0, device = 0, frag = 0, audio_format = 0, pause = 0;
 
 
 	if (argc < 2)
 		usage();
 
-	verbose = 0;
-	while ((c = getopt(argc, argv, "hvb:f:c:d:o:")) != -1) {
-		switch (c) {
-		case 'h':
-			usage();
-			break;
-		case 'b':
-			buffer_size = strtol(optarg, NULL, 0);
-			break;
-		case 'f':
-			frag = strtol(optarg, NULL, 10);
-			break;
-		case 'c':
-			card = strtol(optarg, NULL, 10);
-			break;
-		case 'd':
-			device = strtol(optarg, NULL, 10);
-			break;
-                case 'o':
-                        audio_intf = strtol(optarg, NULL, 10);
-		case 'v':
-			verbose = 1;
-			break;
-		default:
-			exit(EXIT_FAILURE);
+	file = argv[1];
+	/* parse command line arguments */
+        argv += 2;
+	while (*argv) {
+		if (strcmp(*argv, "-d") == 0) {
+			argv++;
+			if (*argv)
+				device = atoi(*argv);
 		}
+		if (strcmp(*argv, "-t") == 0) {
+			argv++;
+			if (*argv)
+				audio_format = atoi(*argv);
+		}
+		if (strcmp(*argv, "-c") == 0) {
+			argv++;
+			if (*argv)
+				card = atoi(*argv);
+		}
+		if (strcmp(*argv, "-p") == 0) {
+			argv++;
+			if (*argv)
+				pause = atoi(*argv);
+		}
+		if (strcmp(*argv, "-o") == 0) {
+			argv++;
+			if (*argv)
+				audio_intf = atoi(*argv);
+		}
+		if (*argv)
+			argv++;
 	}
-	if (optind >= argc)
-		usage();
 
-	file = argv[optind];
+	if (audio_intf >= sizeof(audio_interface_name)/sizeof(char *)) {
+		printf("Invalid audio interface index denoted by -i\n");
+		fclose(file);
+		return 1;
+	}
 
-        if (audio_intf >= sizeof(audio_interface_name)/sizeof(char *)) {
-                printf("Invalid audio interface index denoted by -i\n");
-                return 1;
-        }
-
-	play_samples(file, card, device, buffer_size, frag, audio_intf);
+	play_samples(file, card, device, buffer_size, frag, audio_intf, audio_format, pause);
 
 	fprintf(stderr, "Finish Playing.... Close Normally\n");
 	exit(EXIT_SUCCESS);
 }
 
 void play_samples(char *name, unsigned int card, unsigned int device,
-		unsigned long buffer_size, unsigned int frag, unsigned int intf)
+		unsigned long buffer_size, unsigned int frag, unsigned int intf, unsigned int format, int pause)
 {
 	struct compr_config config;
 	struct snd_codec codec;
 	struct compress *compress;
 	struct mp3_header header;
+	struct adts_header adts_header;
 	struct mixer *mixer;
 	FILE *file;
 	char *buffer;
 	int size, num_read, wrote;
-	unsigned int channels, rate, bits;
+	unsigned int channels, rate, bits = 0;
         char *intf_name = audio_interface_name[intf];
 
 	if (verbose)
@@ -253,14 +327,33 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 		exit(EXIT_FAILURE);
 	}
 
-	fread(&header, sizeof(header), 1, file);
+	if (format == MP3_FORMAT) {
+		fread(&header, sizeof(header), 1, file);
 
-	if (parse_mp3_header(&header, &channels, &rate, &bits) == -1) {
-		fclose(file);
-		exit(EXIT_FAILURE);
+		if (parse_mp3_header(&header, &channels, &rate, &bits) == -1) {
+			fclose(file);
+			exit(EXIT_FAILURE);
+		}
+
+		codec.id = SND_AUDIOCODEC_MP3;
+	} else if (format == AAC_ADTS_FORMAT) {
+		uint16_t protection_absent, crc;
+		fread(&adts_header, sizeof(adts_header), 1, file);
+		if (parse_aac_header(&adts_header, &channels, &rate, &protection_absent) == -1) {
+			fclose(file);
+			exit(EXIT_FAILURE);
+		}
+		if (!protection_absent) {
+			fread(&crc, 2, 1, file);
+		}
+		codec.id = SND_AUDIOCODEC_AAC;
+		codec.format = SND_AUDIOSTREAMFORMAT_MP4ADTS;
+		bits = 16;
+		codec.options.aac_dec.audio_obj_type = 29;
+		codec.options.aac_dec.pce_bits_size = 0;
+	} else {
+		printf("unknown format");
 	}
-
-	codec.id = SND_AUDIOCODEC_MP3;
 	codec.ch_in = channels;
 	codec.ch_out = channels;
 	codec.sample_rate = rate;
@@ -292,19 +385,19 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 	}
 
 	/* set device/audio_intf media config mixer control */
-	if (set_agm_device_media_config(mixer, channels, rate, bits, intf_name)) {
+	if (set_agm_device_media_config(mixer, channels, 48000, bits, intf_name)) {
 		printf("Failed to set device media config\n");
 		goto MIXER_EXIT;
 	}
 
 	/* set audio interface metadata mixer control */
-	if (set_agm_audio_intf_metadata(mixer, intf_name, PLAYBACK, rate, bits)) {
+	if (set_agm_audio_intf_metadata(mixer, intf_name, PLAYBACK, 48000, bits)) {
 		printf("Failed to set device metadata\n");
 		goto MIXER_EXIT;
 	}
 
 	/* set audio interface metadata mixer control */
-	if (set_agm_stream_metadata(mixer, device, PCM_LL_PLAYBACK, STREAM_COMPRESS, NULL)) {
+	if (set_agm_stream_metadata(mixer, device, COMPRESS_PLAYBACK, STREAM_COMPRESS, NULL)) {
 		printf("Failed to set stream metadata\n");
 		goto MIXER_EXIT;
 	}
@@ -374,6 +467,13 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 			if (verbose) {
 				print_time(compress);
 				printf("%s: wrote %d\n", __func__, wrote);
+			}
+			if (pause) {
+				printf("%s: pause \n", __func__);
+				compress_pause(compress);
+				sleep(2);
+				printf("%s: resume \n", __func__);
+				compress_resume(compress);
 			}
 		}
 	} while (num_read > 0);
