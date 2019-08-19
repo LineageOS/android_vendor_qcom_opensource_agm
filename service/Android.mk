@@ -41,7 +41,8 @@ LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS          := optional
 
 LOCAL_HEADER_LIBRARIES := libgecko-headers \
-                          libcasa-acdbdata
+                          libcasa-acdbdata \
+                          libutils_headers
 LOCAL_SHARED_LIBRARIES := \
 	libcasa-gsl\
 	liblog\
@@ -51,6 +52,7 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_COPY_HEADERS_TO   := mm-audio/agm
 LOCAL_COPY_HEADERS      := inc/agm_api.h
+LOCAL_COPY_HEADERS      := inc/utils.h
 
 LOCAL_VENDOR_MODULE := true
 

@@ -44,6 +44,7 @@
 #include <signal.h>
 #include "ipc_interface.h"
 #include "agm_death_notifier.h"
+#include "utils.h"
 
 using namespace android;
 
@@ -54,7 +55,7 @@ bool g_client_list_init = false;
 
 client_death_notifier::client_death_notifier(void)
 {
-    ALOGV("%s:%d\n", __func__, __LINE__);
+    AGM_LOGV("%s:%d\n", __func__, __LINE__);
     sp<ProcessState> proc(ProcessState::self());
     proc->startThreadPool();
 }
@@ -69,7 +70,7 @@ client_info *get_client_handle_from_list(pid_t pid)
     list_for_each(node, &g_client_list) {
         handle = node_to_item(node, client_info, list);
         if (handle->pid == pid) {
-            ALOGV("%s: Found handle 0x%x\n", __func__, handle);
+            AGM_LOGV("%s: Found handle 0x%x\n", __func__, handle);
             pthread_mutex_unlock(&g_client_list_lock);
             return handle;
         }
@@ -82,18 +83,22 @@ void agm_register_client(sp<IBinder> binder)
 {
     client_info *client_handle = NULL;
     pid_t pid = IPCThreadState::self()->getCallingPid();
-    android::sp<IAGMClient> client_binder = android::interface_cast<IAGMClient>(binder);
+    android::sp<IAGMClient> client_binder =
+                                  android::interface_cast<IAGMClient>(binder);
     Client_death_notifier = new client_death_notifier();
     IInterface::asBinder(client_binder)->linkToDeath(Client_death_notifier);
-    ALOGE("%s: Client registered and death notifier linked to AGM\n", __func__);
+    AGM_LOGD("%s: Client registered and death notifier linked to AGM\n",
+                                                              __func__);
     if (g_client_list_init == false) {
-        pthread_mutex_init(&g_client_list_lock, (const pthread_mutexattr_t *) NULL);
+        pthread_mutex_init(&g_client_list_lock,
+                                           (const pthread_mutexattr_t *) NULL);
         list_init(&g_client_list);
         g_client_list_init = true;
     }
     client_handle = (client_info *)calloc(1, sizeof(client_info));
     if (client_handle == NULL) {
-        ALOGE("%s: Cannot allocate memory for client handle\n", __func__);
+        AGM_LOGE("%s: Cannot allocate memory for client handle\n",
+                                                        __func__);
         return;
     }
     pthread_mutex_lock(&g_client_list_lock);
@@ -111,16 +116,19 @@ void agm_add_session_obj_handle(uint64_t handle)
     client_info *client_handle = NULL;
     agm_client_session_handle *hndl = NULL;
 
-    client_handle = get_client_handle_from_list(IPCThreadState::self()->getCallingPid());
+    client_handle =
+          get_client_handle_from_list(IPCThreadState::self()->getCallingPid());
     if (client_handle == NULL) {
-        ALOGE("%s: Could not find client handle\n", __func__);
+        AGM_LOGE("%s: Could not find client handle\n", __func__);
         goto exit;
     }
 
     pthread_mutex_lock(&g_client_list_lock);
-    hndl = (agm_client_session_handle *)calloc(1, sizeof(agm_client_session_handle));
+    hndl = (agm_client_session_handle *)calloc(1,
+                                            sizeof(agm_client_session_handle));
     if (hndl == NULL) {
-        ALOGE("%s: Cannot allocate memory to store agm session handle\n", __func__);
+        AGM_LOGE("%s: Cannot allocate memory to store agm session handle\n",
+                                                                  __func__);
         goto exit;
     }
     hndl->handle = handle;
@@ -137,9 +145,10 @@ void agm_remove_session_obj_handle(uint64_t handle)
     agm_client_session_handle *hndl = NULL;
     struct listnode *tempnode = NULL;
 
-    client_handle = get_client_handle_from_list(IPCThreadState::self()->getCallingPid());
+    client_handle =
+          get_client_handle_from_list(IPCThreadState::self()->getCallingPid());
     if (client_handle == NULL) {
-        ALOGE("%s: Could not find client handle\n", __func__);
+        AGM_LOGE("%s: Could not find client handle\n", __func__);
         return;
     }
 
@@ -147,7 +156,7 @@ void agm_remove_session_obj_handle(uint64_t handle)
     list_for_each_safe(node, tempnode, &client_handle->agm_client_hndl_list) {
         hndl = node_to_item(node, agm_client_session_handle, list);
         if (hndl->handle == handle) {
-            ALOGV("%s: Removed handle 0x%x\n", __func__, handle);
+            AGM_LOGV("%s: Removed handle 0x%x\n", __func__, handle);
             list_remove(node);
             free(hndl);
             break;
@@ -158,12 +167,13 @@ void agm_remove_session_obj_handle(uint64_t handle)
 
 void agm_unregister_client(sp<IBinder> binder)
 {
-    android::sp<IAGMClient> client_binder = android::interface_cast<IAGMClient>(binder);
+    android::sp<IAGMClient> client_binder =
+                                   android::interface_cast<IAGMClient>(binder);
     client_info *handle = NULL;
     struct listnode *tempnode = NULL;
     struct listnode *node = NULL;
 
-    ALOGV("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     pthread_mutex_lock(&g_client_list_lock);
     list_for_each_safe(node, tempnode, &g_client_list) {
         handle = node_to_item(node, client_info, list);
@@ -171,13 +181,13 @@ void agm_unregister_client(sp<IBinder> binder)
             if (handle->Client_death_notifier != NULL) {
                 IInterface::asBinder(client_binder)->unlinkToDeath(handle->Client_death_notifier);
                 handle->Client_death_notifier.clear();
-                ALOGV("%s: unlink to death %d\n", __func__, handle->pid);
+                AGM_LOGV("%s: unlink to death %d\n", __func__, handle->pid);
             }
             list_remove(node);
             free(handle);
         }
     }
-    ALOGV("%s: exit\n", __func__);
+    AGM_LOGV("%s: exit\n", __func__);
     pthread_mutex_unlock(&g_client_list_lock);
 }
 
@@ -194,7 +204,8 @@ void client_death_notifier::binderDied(const wp<IBinder>& who)
     list_for_each_safe(node, tempnode, &g_client_list) {
         handle = node_to_item(node, client_info, list);
         if (IInterface::asBinder(handle->binder).get() == who.unsafe_get()) {
-            list_for_each_safe(sess_node, sess_tempnode, &handle->agm_client_hndl_list) {
+            list_for_each_safe(sess_node, sess_tempnode,
+                                             &handle->agm_client_hndl_list) {
                 hndl = node_to_item(sess_node, agm_client_session_handle, list);
                    if (hndl->handle != NULL) {
                        agm_session_close(hndl->handle);
@@ -207,7 +218,7 @@ void client_death_notifier::binderDied(const wp<IBinder>& who)
         }
     }
     pthread_mutex_unlock(&g_client_list_lock);
-    ALOGD("%s: exit\n", __func__);
+    AGM_LOGD("%s: exit\n", __func__);
 }
 
 const android::String16 IAGMClient::descriptor("IAGMClient");
@@ -219,27 +230,27 @@ class BpClient: public ::android:: BpInterface<IAGMClient>
 {
 public:
     BpClient(const sp<IBinder>& impl) : BpInterface<IAGMClient>(impl) {
-        ALOGD("BpClient::BpClient()");
+        AGM_LOGD("BpClient::BpClient()\n");
     }
 };
 
 android::sp<IAGMClient> IAGMClient::asInterface
     (const android::sp<android::IBinder>& obj)
 {
-    ALOGV("IAGMClient::asInterface()");
+    AGM_LOGV("IAGMClient::asInterface()\n");
     android::sp<IAGMClient> intr;
     if (obj != NULL) {
         intr = static_cast<IAGMClient*>(obj->queryLocalInterface
                         (IAGMClient::descriptor).get());
-        ALOGD("IAGMClient::asInterface() interface %s\n",
+        AGM_LOGD("IAGMClient::asInterface() interface %s\n",
             ((intr == 0)?"zero":"non zero"));
         if (intr == NULL)
             intr = new BpClient(obj);
     }
     return intr;
 }
-IAGMClient :: IAGMClient() { ALOGE("IAGMClient::IAGMClient()"); }
-IAGMClient :: ~IAGMClient() { ALOGE("IAGMClient::~IAGMClient()"); }
+IAGMClient :: IAGMClient() { AGM_LOGD("IAGMClient::IAGMClient()"); }
+IAGMClient :: ~IAGMClient() { AGM_LOGD("IAGMClient::~IAGMClient()"); }
 
 int32_t DummyBnClient::onTransact(uint32_t code,
                                    const Parcel& data,
@@ -247,7 +258,7 @@ int32_t DummyBnClient::onTransact(uint32_t code,
                                    uint32_t flags)
 {
     int status = 0;
-    ALOGV("DummyBnClient::onTransact(%i) %i\n", code, flags);
+    AGM_LOGV("DummyBnClient::onTransact(%i) %i\n", code, flags);
     //data.checkInterface(this); //Alternate option to check interface
     CHECK_INTERFACE(IAGMClient, data, reply);
     switch(code) {

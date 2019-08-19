@@ -103,10 +103,7 @@ enum  channel_num{
     CHANNEL_8,
 };
 
-struct module_info;
-
-struct module_info
-{
+struct module_info {
     struct listnode list;
     /*local enum based module identification*/
     module_t module;

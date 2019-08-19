@@ -22,8 +22,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-struct listnode
-{
+struct listnode {
     struct listnode *next;
     struct listnode *prev;
 };

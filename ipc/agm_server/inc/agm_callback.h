@@ -44,14 +44,18 @@
 
 using namespace android;
 
-class ICallback : public ::android::IInterface {
+class ICallback : public ::android::IInterface
+{
     public:
         DECLARE_META_INTERFACE(Callback);
-    virtual int event_cb (uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data, agm_event_cb cb_func) = 0;
+        virtual int event_cb (uint32_t session_id,
+                          struct agm_event_cb_params *event_params,
+                          void *client_data, agm_event_cb cb_func) = 0;
 };
 
 
-class BnCallback : public ::android::BnInterface<ICallback> {
+class BnCallback : public ::android::BnInterface<ICallback>
+{
 public:
     BnCallback(){};
     ~BnCallback(){};
@@ -60,13 +64,15 @@ private:
                             const Parcel& data,
                             Parcel* reply,
                             uint32_t flags) override;
-    int event_cb (uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data, agm_event_cb cb_func) override;
+    int event_cb (uint32_t session_id,
+                  struct agm_event_cb_params *event_params,
+                  void *client_data, agm_event_cb cb_func) override;
 };
 
 typedef struct {
-struct listnode list;
-uint32_t session_id;
-sp<ICallback> cb_binder;
-agm_event_cb cb_func;
-void * client_data;
+    struct listnode list;
+    uint32_t session_id;
+    sp<ICallback> cb_binder;
+    agm_event_cb cb_func;
+    void * client_data;
 }clbk_data ;

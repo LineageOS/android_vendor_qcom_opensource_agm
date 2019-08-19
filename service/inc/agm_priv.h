@@ -40,9 +40,9 @@ struct agm_key_vector_gsl {
     struct agm_key_value *kv;       /**< array of key value pairs */
 };
 struct sg_prop {
-	uint32_t prop_id;
-	uint32_t num_values;
-	uint32_t *values;
+    uint32_t prop_id;
+    uint32_t num_values;
+    uint32_t *values;
 };
 
 /**
@@ -65,8 +65,8 @@ struct agm_meta_data_gsl {
 };
 
 struct agm_tag_config_gsl {
-	uint32_t tag_id;       /**< tag id */
-	struct agm_key_vector_gsl tkv;
+    uint32_t tag_id;       /**< tag id */
+    struct agm_key_vector_gsl tkv;
 };
 
 

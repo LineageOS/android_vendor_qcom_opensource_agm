@@ -26,6 +26,7 @@
 ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
+#define LOG_TAG "PLUGIN: pcm"
 
 #include <agm/agm_api.h>
 #include <errno.h>
@@ -42,6 +43,8 @@
 #include <tinyalsa/pcm_plugin.h>
 #include <snd-card-def.h>
 #include <tinyalsa/asoundlib.h>
+
+#include "utils.h"
 
 /* 2 words of uint32_t = 64 bits of mask */
 #define PCM_MASK_SIZE (2)
@@ -89,7 +92,8 @@ struct pcm_plugin_hw_constraints agm_pcm_constrs = {
     },
 };
 
-static inline struct snd_interval *param_to_interval(struct snd_pcm_hw_params *p, int n)
+static inline struct snd_interval *param_to_interval(struct snd_pcm_hw_params *p,
+                                                  int n)
 {
     return &(p->intervals[n - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL]);
 }
@@ -123,12 +127,12 @@ static inline int param_is_mask(int p)
 
 static inline int snd_mask_val(const struct snd_mask *mask)
 {
-	int i;
-	for (i = 0; i < PCM_MASK_SIZE; i++) {
-		if (mask->bits[i])
-			return ffs(mask->bits[i]) + (i << 5) - 1;
-	}
-	return 0;
+    int i;
+    for (i = 0; i < PCM_MASK_SIZE; i++) {
+        if (mask->bits[i])
+            return ffs(mask->bits[i]) + (i << 5) - 1;
+    }
+    return 0;
 }
 
 static unsigned int agm_format_to_bits(enum pcm_format format)
@@ -162,7 +166,8 @@ static enum agm_media_format alsa_to_agm_format(int format)
     };
 }
 
-static enum agm_media_format param_get_mask_val(struct snd_pcm_hw_params *p, int n)
+static enum agm_media_format param_get_mask_val(struct snd_pcm_hw_params *p,
+                                        int n)
 {
     if (param_is_mask(n)) {
         struct snd_mask *m = param_to_mask(p, n);
@@ -194,16 +199,16 @@ void agm_pcm_event_cb(uint32_t session_id,
     struct agm_pcm_priv *priv;
 
     if (!agm_pcm_plugin) {
-        printf("%s: client_data is NULL\n", __func__);
+        AGM_LOGE("%s: client_data is NULL\n", __func__);
         return;
     }
     priv = agm_pcm_plugin->priv;
     if (!priv) {
-        printf("%s: Private data is NULL\n", __func__);
+        AGM_LOGE("%s: Private data is NULL\n", __func__);
         return;
     }
     if (!event_params) {
-        printf("%s: event params is NULL\n", __func__);
+        AGM_LOGE("%s: event params is NULL\n", __func__);
         return;
     }
     if (event_params->event_id == AGM_EVENT_EOS_RENDERED) {
@@ -211,7 +216,7 @@ void agm_pcm_event_cb(uint32_t session_id,
         pthread_cond_signal(&priv->eos_cond);
         pthread_mutex_unlock(&priv->eos_lock);
     } else {
-        printf("%s: error: Invalid event params id: %d\n", __func__,
+        AGM_LOGE("%s: error: Invalid event params id: %d\n", __func__,
            event_params->event_id);
     }
 }
@@ -383,7 +388,7 @@ static void agm_pcm_eos(struct pcm_plugin *plugin, uint64_t handle)
     pthread_mutex_lock(&priv->eos_lock);
     ret = agm_session_eos(handle);
     if (ret)
-        printf("%s: EOS cmd fail\n", __func__);
+        AGM_LOGE("%s: EOS cmd fail\n", __func__);
     else
         pthread_cond_timedwait(&priv->eos_cond, &priv->eos_lock, &eos_ts);
     pthread_mutex_unlock(&priv->eos_lock);

@@ -35,28 +35,31 @@
 #include "ipc_interface.h"
 #include "agm_server_wrapper.h"
 #include <signal.h>
+#include "utils.h"
 
 static class AgmService *agmServiceInstance = new AgmService();
 
 static void sigint_handler(int sig)
 {
-    ALOGE("AgmService received signal\n");
+    AGM_LOGD("AgmService received signal\n");
     agmServiceInstance->~AgmService();
     exit(0);
 }
 
-int main() {
+int main()
+{
     signal(SIGINT, sigint_handler);
-    android::defaultServiceManager()->addService(android::String16("AgmService"), agmServiceInstance);
+    android::defaultServiceManager()->addService(android::String16("AgmService"),
+                                                    agmServiceInstance);
     if (agmServiceInstance->is_agm_service_initialized()) {
-        ALOGE("AgmService initialized \n");
+        AGM_LOGD("AgmService initialized \n");
         android::ProcessState::self()->startThreadPool();
-        ALOGE("AGM service is now ready\n");
+        AGM_LOGD("AGM service is now ready\n");
         android::IPCThreadState::self()->joinThreadPool();
-        ALOGE("AGM service thread joined\n");
+        AGM_LOGD("AGM service thread joined\n");
         return 0;
     } else {
-       ALOGE("AgmService initialization failed");
+       AGM_LOGD("AgmService initialization failed");
        return -1;
     }
 }

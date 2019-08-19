@@ -26,7 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#define LOGTAG "AGM: graph"
+#define LOG_TAG "AGM: graph"
 
 #include <errno.h>
 #include <pthread.h>
@@ -68,6 +68,7 @@ typedef struct module_info_link_list {
    struct listnode tagged_list;
 }module_info_link_list_t;
 
+
 static int get_acdb_files_from_directory(const char* acdb_files_path,
                                          struct gsl_acdb_data_files *data_files)
 {
@@ -105,7 +106,7 @@ static int get_acdb_files_from_directory(const char* acdb_files_path,
                break;
            }
            data_files->acdbFiles[i].fileNameLen =
-                                    (uint32_t)strlen(data_files->acdbFiles[i].fileName);
+                           (uint32_t)strlen(data_files->acdbFiles[i].fileName);
            AGM_LOGI("Load file: %s\n", data_files->acdbFiles[i].fileName);
            i++;
         }
@@ -130,7 +131,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     enum gsl_cmd_id cmd_id;
     enum agm_data_mode mode = sess_obj->stream_config.data_mode;
 
-    AGM_LOGD("%s sess buf_sz %d num_bufs %d", sess_obj->stream_config.dir == RX?
+    AGM_LOGD("%s sess buf_sz %d num_bufs %d\n", sess_obj->stream_config.dir == RX?
                  "Playback":"Capture", sess_obj->buffer_config.size,
                   sess_obj->buffer_config.count);
 
@@ -148,7 +149,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     else if (mode == AGM_DATA_NON_BLOCKING)
         buf_config.attributes = GSL_DATA_MODE_NON_BLOCKING;
     else {
-        AGM_LOGE("Unsupported buffer mode : %d, Default to Blocking", mode);
+        AGM_LOGE("Unsupported buffer mode : %d, Default to Blocking\n", mode);
         buf_config.attributes = GSL_DATA_MODE_BLOCKING;
     }
 
@@ -162,7 +163,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     ret = gsl_ioctl(gph_obj->graph_handle, cmd_id, &buf_config, size);
 
     if (ret != 0) {
-        AGM_LOGE("Buffer configuration failed error %d", ret);
+        AGM_LOGE("Buffer configuration failed error %d\n", ret);
     } else {
        gph_obj->buf_config  = buf_config;
     }
@@ -260,7 +261,7 @@ done:
 }
 
 int graph_get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
-				    void *payload, size_t *size)
+                                     void *payload, size_t *size)
 {
     return gsl_get_tags_with_module_info((struct gsl_key_vector *) gkv,
                                          payload, size);
@@ -273,7 +274,7 @@ static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
 
     ret = gsl_get_tags_with_module_info((struct gsl_key_vector *)gkv, NULL, size);
     if (ret != 0) {
-        AGM_LOGI("cannot get tags size info\n");
+        AGM_LOGE("cannot get tags size info\n");
         goto done;
     }
 
@@ -287,7 +288,7 @@ static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
     ret = gsl_get_tags_with_module_info((struct gsl_key_vector *)gkv, *payload,
                                          size);
     if (ret != 0)
-        AGM_LOGI("Failed to  get tags info with error no %d\n",ret);
+        AGM_LOGE("Failed to  get tags info with error no %d\n",ret);
 done:
     return ret;
 }
@@ -338,7 +339,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     list_init(&node_hw);
 
 
-    AGM_LOGD("entry");
+    AGM_LOGD("entry\n");
     if (meta_data_kv == NULL || gph_obj == NULL) {
         AGM_LOGE("Invalid input\n");
         ret = -EINVAL;
@@ -347,7 +348,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
 
     graph_obj = calloc (1, sizeof(struct graph_obj));
     if (graph_obj == NULL) {
-        AGM_LOGE("failed to allocate graph object");
+        AGM_LOGE("failed to allocate graph object\n");
         ret = -ENOMEM;
         goto done;
     }
@@ -399,7 +400,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
                 mod_list = node_to_item(node_list, module_info_link_list_t, tagged_list);
                 if (gsl_tag_entry->tag_id == mod_list->data->tag) {
                     if (gsl_tag_entry->num_modules > 1) {
-                        AGM_LOGD("modules num  is invalid");
+                        AGM_LOGE("modules num  is invalid");
                         goto free_graph_obj;
                     }
                     mod = mod_list->data;
@@ -426,7 +427,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
                 mod_list = node_to_item(node_list, module_info_link_list_t, tagged_list);
                 if (gsl_tag_entry->tag_id == mod_list->data->tag) {
                     if (gsl_tag_entry->num_modules > 1) {
-                        AGM_LOGD("modules num  is invalid");
+                        AGM_LOGE("modules num  is invalid");
                         goto free_graph_obj;
                     }
                     mod = mod_list->data;
@@ -469,14 +470,14 @@ tag_list:
                    (struct gsl_key_vector *)&meta_data_kv->ckv,
                    &graph_obj->graph_handle);
     if (ret != 0) {
-       AGM_LOGE("Failed to open the graph with error %d", ret);
+       AGM_LOGE("Failed to open the graph with error %d\n", ret);
        goto free_graph_obj;
     }
 
     ret = gsl_register_event_cb(graph_obj->graph_handle,
                                 gsl_callback_func, graph_obj);
     if (ret != 0) {
-        AGM_LOGE("failed to register callback");
+        AGM_LOGE("failed to register callback\n");
         goto close_graph;
     }
     graph_obj->state = OPENED;
@@ -512,15 +513,15 @@ int graph_close(struct graph_obj *graph_obj)
     module_info_t *temp_mod = NULL;
 
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry handle %x", graph_obj->graph_handle);
+    AGM_LOGD("entry handle %x\n", graph_obj->graph_handle);
 
     ret = gsl_close(graph_obj->graph_handle);
     if (ret !=0)
-        AGM_LOGE("gsl close failed error %d", ret);
+        AGM_LOGE("gsl close failed error %d\n", ret);
     /*free the list of modules associated with this graph_object*/
     list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
         list_remove(node);
@@ -534,7 +535,7 @@ int graph_close(struct graph_obj *graph_obj)
     pthread_mutex_unlock(&graph_obj->lock);
     pthread_mutex_destroy(&graph_obj->lock);
     free(graph_obj);
-    AGM_LOGD("exit");
+    AGM_LOGD("exit\n");
     return ret;
 }
 
@@ -547,18 +548,18 @@ int graph_prepare(struct graph_obj *graph_obj)
     struct agm_session_config stream_config;
 
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
     sess_obj = graph_obj->sess_obj;
 
     if (sess_obj == NULL) {
-        AGM_LOGE("invalid sess object");
+        AGM_LOGE("invalid sess object\n");
         return -EINVAL;
     }
     stream_config = sess_obj->stream_config;
 
-    AGM_LOGD("entry graph_handle %x", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
     pthread_mutex_lock(&graph_obj->lock);
     /**
      *Iterate over mod list to configure each module
@@ -570,7 +571,7 @@ int graph_prepare(struct graph_obj *graph_obj)
         if (mod->is_configured)
             continue;
         if ((mod->tag == STREAM_INPUT_MEDIA_FORMAT) && stream_config.is_hostless) {
-            AGM_LOGE("Shared mem mod present for a hostless session error out");
+            AGM_LOGE("Shared mem mod present for a hostless session error out\n");
             ret = -EINVAL;
             goto done;
         }
@@ -579,7 +580,7 @@ int graph_prepare(struct graph_obj *graph_obj)
               (stream_config.dir == TX)) ||
             ((mod->tag == STREAM_PCM_ENCODER) &&
               (stream_config.dir == RX))) {
-            AGM_LOGE("Session cfg (dir = %d) does not match session module %x",
+            AGM_LOGE("Session cfg (dir = %d) does not match session module %x\n",
                       stream_config.dir, mod->module);
              ret = -EINVAL;
              goto done;
@@ -590,7 +591,7 @@ int graph_prepare(struct graph_obj *graph_obj)
                 (mod->dev_obj->hw_ep_info.dir == AUDIO_INPUT)) ||
                ((mod->tag == DEVICE_HW_ENDPOINT_TX) &&
                 (mod->dev_obj->hw_ep_info.dir == AUDIO_OUTPUT))) {
-               AGM_LOGE("device cfg (dir = %d) does not match dev module %x",
+               AGM_LOGE("device cfg (dir = %d) does not match dev module %x\n",
                          mod->dev_obj->hw_ep_info.dir, mod->module);
                ret = -EINVAL;
                goto done;
@@ -615,14 +616,14 @@ int graph_prepare(struct graph_obj *graph_obj)
 
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_PREPARE, NULL, 0);
     if (ret !=0) {
-        AGM_LOGE("graph_prepare failed %d", ret);
+        AGM_LOGE("graph_prepare failed %d\n", ret);
         goto done;
     }
     graph_obj->state = PREPARED;
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit");
+    AGM_LOGD("exit\n");
     return ret;
 }
 
@@ -631,28 +632,28 @@ int graph_start(struct graph_obj *graph_obj)
     int ret = 0;
 
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
     if (!(graph_obj->state & (PREPARED | STOPPED))) {
-       AGM_LOGE("graph object is not in correct state, current state %d",
+       AGM_LOGE("graph object is not in correct state, current state %d\n",
                     graph_obj->state);
        ret = -EINVAL;
        goto done;
     }
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_START, NULL, 0);
     if (ret !=0) {
-        AGM_LOGE("graph_start failed %d", ret);
+        AGM_LOGE("graph_start failed %d\n", ret);
         goto done;
     }
     graph_obj->state = STARTED;
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit");
+    AGM_LOGD("exit\n");
     return ret;
 }
 
@@ -663,14 +664,14 @@ int graph_stop(struct graph_obj *graph_obj,
     struct gsl_cmd_properties gsl_cmd_prop = {0};
 
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
     if (!(graph_obj->state & (STARTED))) {
-       AGM_LOGE("graph object is not in correct state, current state %d",
+       AGM_LOGE("graph object is not in correct state, current state %d\n",
                     graph_obj->state);
        ret = -EINVAL;
        goto done;
@@ -689,7 +690,7 @@ int graph_stop(struct graph_obj *graph_obj,
         ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP, NULL, 0);
     }
     if (ret !=0) {
-        AGM_LOGE("graph stop failed %d", ret);
+        AGM_LOGE("graph stop failed %d\n", ret);
         goto done;
     }
 
@@ -697,7 +698,7 @@ int graph_stop(struct graph_obj *graph_obj,
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit");
+    AGM_LOGD("exit\n");
     return ret;
 }
 
@@ -711,7 +712,7 @@ int graph_pause_resume(struct graph_obj *graph_obj, bool pause)
     uint8_t *payload = NULL;
 
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
 
@@ -719,14 +720,14 @@ int graph_pause_resume(struct graph_obj *graph_obj, bool pause)
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
         if (mod->tag == TAG_PAUSE) {
-            AGM_LOGD("Soft Pause module IID 0x%x, Pause: %d", mod->miid, pause);
+            AGM_LOGD("Soft Pause module IID 0x%x, Pause: %d\n", mod->miid, pause);
 
             payload_size = sizeof(struct apm_module_param_data_t);
             ALIGN_PAYLOAD(payload_size, 8);
 
             payload = calloc(1, (size_t)payload_size);
             if (!payload) {
-                AGM_LOGE("No memory to allocate for payload");
+                AGM_LOGE("No memory to allocate for payload\n");
                 ret = -ENOMEM;
                 goto done;
             }
@@ -742,9 +743,10 @@ int graph_pause_resume(struct graph_obj *graph_obj, bool pause)
             header->param_size = 0x0;
 
             pthread_mutex_lock(&graph_obj->lock);
-            ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
+            ret = gsl_set_custom_config(graph_obj->graph_handle,
+                                         payload, payload_size);
             if (ret !=0)
-                AGM_LOGE("graph_set_custom_config failed %d", ret);
+                AGM_LOGE("graph_set_custom_config failed %d\n", ret);
             pthread_mutex_unlock(&graph_obj->lock);
             free(payload);
             break;
@@ -771,15 +773,15 @@ int graph_set_config(struct graph_obj *graph_obj, void *payload,
 {
     int ret = 0;
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret !=0)
-        AGM_LOGE("%s: graph_set_config failed %d", __func__, ret);
+        AGM_LOGE("%s: graph_set_config failed %d\n", __func__, ret);
 
     pthread_mutex_unlock(&graph_obj->lock);
 
@@ -813,15 +815,16 @@ int graph_set_config_with_tag(struct graph_obj *graph_obj,
      int ret = 0;
 
      if (graph_obj == NULL) {
-         AGM_LOGE("invalid graph object");
+         AGM_LOGE("invalid graph object\n");
          return -EINVAL;
      }
 
      pthread_mutex_lock(&graph_obj->lock);
      ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)gkv,
-                          tag_config->tag_id, (struct gsl_key_vector *)&tag_config->tkv);
+                          tag_config->tag_id,
+                          (struct gsl_key_vector *)&tag_config->tkv);
      if (ret)
-         AGM_LOGE("graph_set_config failed %d", ret);
+         AGM_LOGE("graph_set_config failed %d\n", ret);
 
      pthread_mutex_unlock(&graph_obj->lock);
 
@@ -834,7 +837,7 @@ int graph_set_cal(struct graph_obj *graph_obj,
      int ret = 0;
 
      if (graph_obj == NULL) {
-         AGM_LOGE("invalid graph object");
+         AGM_LOGE("invalid graph object\n");
          return -EINVAL;
      }
 
@@ -843,7 +846,7 @@ int graph_set_cal(struct graph_obj *graph_obj,
                        (struct gsl_key_vector *)&metadata->gkv,
                        (struct gsl_key_vector *)&metadata->ckv);
      if (ret)
-         AGM_LOGE("graph_set_cal failed %d", ret);
+         AGM_LOGE("graph_set_cal failed %d\n", ret);
 
      pthread_mutex_unlock(&graph_obj->lock);
 
@@ -857,7 +860,7 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
     uint32_t size_written = 0;
 
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
     pthread_mutex_lock(&graph_obj->lock);
@@ -877,13 +880,12 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
     ret = gsl_write(graph_obj->graph_handle,
                     SHMEM_ENDPOINT, &gsl_buff, &size_written);
     if (ret != 0) {
-        AGM_LOGE("gsl_write for size %d failed with error %d", size, ret);
+        AGM_LOGE("gsl_write for size %d failed with error %d\n", size, ret);
         goto done;
     }
     *size = size_written;
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-
     return ret;
 }
 
@@ -893,12 +895,12 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
     struct gsl_buff gsl_buff;
     int size_read = 0;
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
     pthread_mutex_lock(&graph_obj->lock);
     if (!(graph_obj->state & STARTED)) {
-        AGM_LOGE("Cannot add a graph in start state");
+        AGM_LOGE("Cannot add a graph in start state\n");
         ret = -EINVAL;
         goto done;
     }
@@ -912,7 +914,7 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
     ret = gsl_read(graph_obj->graph_handle,
                     SHMEM_ENDPOINT, &gsl_buff, &size_read);
     if ((ret != 0) || (size_read == 0)) {
-        AGM_LOGE("size_requested %d size_read %d error %d",
+        AGM_LOGE("size_requested %d size_read %d error %d\n",
                       size, size_read, ret);
     }
     *size = size_read;
@@ -934,15 +936,15 @@ int graph_add(struct graph_obj *graph_obj,
     struct listnode *node = NULL;
 
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
 
     if (graph_obj->state < OPENED) {
-        AGM_LOGE("Cannot add a graph in %d state", graph_obj->state);
+        AGM_LOGE("Cannot add a graph in %d state\n", graph_obj->state);
         ret = -EINVAL;
         goto done;
     }
@@ -962,7 +964,7 @@ int graph_add(struct graph_obj *graph_obj,
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_ADD_GRAPH, &add_graph,
                     sizeof(struct gsl_cmd_graph_select));
     if (ret != 0) {
-        AGM_LOGE("graph add failed with error %d", ret);
+        AGM_LOGE("graph add failed with error %d\n", ret);
         goto done;
     }
     if (dev_obj != NULL) {
@@ -983,7 +985,7 @@ int graph_add(struct graph_obj *graph_obj,
                                            mod->tag,
                                            &module_info, &module_info_size);
         if (ret != 0) {
-            AGM_LOGE("cannot get tagged module info for module %x",
+            AGM_LOGE("cannot get tagged module info for module %x\n",
                           mod->tag);
             ret = -EINVAL;
             goto done;
@@ -1027,7 +1029,8 @@ int graph_add(struct graph_obj *graph_obj,
                     gkv->num_kvs * sizeof(struct agm_key_value));
             mod->gkv = gkv;
             gkv = NULL;
-            AGM_LOGD("Adding the new module tag %x mid %x miid %x", mod->tag, mod->mid, mod->miid);
+            AGM_LOGD("Adding the new module tag %x mid %x miid %x\n",
+                                    mod->tag, mod->mid, mod->miid);
             ADD_MODULE(*mod, dev_obj);
         }
     }
@@ -1046,7 +1049,7 @@ int graph_add(struct graph_obj *graph_obj,
     }
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit");
+    AGM_LOGD("exit\n");
     return ret;
 }
 
@@ -1062,14 +1065,14 @@ int graph_change(struct graph_obj *graph_obj,
     struct listnode *node, *temp_node = NULL;
 
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
     if (graph_obj->state & STARTED) {
-        AGM_LOGE("Cannot change graph in start state");
+        AGM_LOGE("Cannot change graph in start state\n");
         ret = -EINVAL;
         goto done;
     }
@@ -1093,7 +1096,7 @@ int graph_change(struct graph_obj *graph_obj,
                                            mod->tag,
                                            &module_info, &module_info_size);
         if (ret != 0) {
-            AGM_LOGE("cannot get tagged module info for module %x",
+            AGM_LOGE("cannot get tagged module info for module %x\n",
                           mod->tag);
             ret = -EINVAL;
             goto done;
@@ -1170,7 +1173,7 @@ int graph_change(struct graph_obj *graph_obj,
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_CHANGE_GRAPH, &change_graph,
                     sizeof(struct gsl_cmd_graph_select));
     if (ret != 0) {
-        AGM_LOGE("graph add failed with error %d", ret);
+        AGM_LOGE("graph add failed with error %d\n", ret);
         goto done;
     }
     /*configure modules again*/
@@ -1185,7 +1188,7 @@ int graph_change(struct graph_obj *graph_obj,
     }
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit");
+    AGM_LOGD("exit\n");
     return ret;
 }
 
@@ -1196,11 +1199,11 @@ int graph_remove(struct graph_obj *graph_obj,
     struct gsl_cmd_remove_graph rm_graph;
 
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
 
     /**
      *graph_remove would only pass the graph which needs to be removed.
@@ -1214,11 +1217,11 @@ int graph_remove(struct graph_obj *graph_obj,
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_REMOVE_GRAPH, &rm_graph,
                     sizeof(struct gsl_cmd_remove_graph));
     if (ret != 0) {
-        AGM_LOGE("graph add failed with error %d", ret);
+        AGM_LOGE("graph add failed with error %d\n", ret);
     }
 
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit");
+    AGM_LOGD("exit\n");
     return ret;
 }
 
@@ -1227,12 +1230,12 @@ int graph_register_cb(struct graph_obj *gph_obj, event_cb cb,
 {
 
     if (gph_obj == NULL){
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
 
     if (cb == NULL) {
-        AGM_LOGE("No callback to register");
+        AGM_LOGE("No callback to register\n");
         return -EINVAL;
     }
 
@@ -1252,13 +1255,13 @@ int graph_register_for_events(struct graph_obj *gph_obj,
     size_t payload_size = 0;
 
     if (gph_obj == NULL){
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         ret = -EINVAL;
         goto done;
     }
 
     if (evt_reg_cfg == NULL) {
-        AGM_LOGE("No event register payload passed");
+        AGM_LOGE("No event register payload passed\n");
         ret = -EINVAL;
         goto done;
     }
@@ -1266,7 +1269,7 @@ int graph_register_for_events(struct graph_obj *gph_obj,
 
     if (gph_obj->graph_handle == NULL) {
         pthread_mutex_unlock(&gph_obj->lock);
-        AGM_LOGE("invalid graph handle");
+        AGM_LOGE("invalid graph handle\n");
         ret = -EINVAL;
         goto done;
     }
@@ -1276,7 +1279,7 @@ int graph_register_for_events(struct graph_obj *gph_obj,
     reg_ev_payload = calloc(1, payload_size);
     if (reg_ev_payload == NULL) {
         pthread_mutex_unlock(&gph_obj->lock);
-        AGM_LOGE("calloc failed for reg_ev_payload");
+        AGM_LOGE("calloc failed for reg_ev_payload\n");
         ret = -ENOMEM;
         goto done;
     }
@@ -1288,11 +1291,13 @@ int graph_register_for_events(struct graph_obj *gph_obj,
     reg_ev_payload->is_register = evt_reg_cfg->is_register;
 
     memcpy(reg_ev_payload + sizeof(apm_module_register_events_t),
-          evt_reg_cfg->event_config_payload, evt_reg_cfg->event_config_payload_size);
+          evt_reg_cfg->event_config_payload,
+          evt_reg_cfg->event_config_payload_size);
 
-    ret = gsl_ioctl(gph_obj->graph_handle, GSL_CMD_REGISTER_CUSTOM_EVENT, reg_ev_payload, payload_size);
+    ret = gsl_ioctl(gph_obj->graph_handle, GSL_CMD_REGISTER_CUSTOM_EVENT,
+                                           reg_ev_payload, payload_size);
     if (ret != 0) {
-       AGM_LOGE("event registration failed with error %d", ret);
+       AGM_LOGE("event registration failed with error %d\n", ret);
     }
     pthread_mutex_unlock(&gph_obj->lock);
 
@@ -1305,7 +1310,7 @@ size_t graph_get_hw_processed_buff_cnt(struct graph_obj *graph_obj,
                                        enum direction dir)
 {
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object or null callback");
+        AGM_LOGE("invalid graph object or null callback\n");
         return 0;
     }
     /*TODO: Uncomment that call once platform moves to latest GSL release*/
@@ -1316,10 +1321,10 @@ size_t graph_get_hw_processed_buff_cnt(struct graph_obj *graph_obj,
 int graph_eos(struct graph_obj *graph_obj)
 {
     if (graph_obj == NULL) {
-        AGM_LOGE("invalid graph object");
+        AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
-        AGM_LOGE("enter");
+        AGM_LOGE("enter\n");
     return gsl_ioctl(graph_obj->graph_handle, GSL_CMD_EOS, NULL, 0);
 }
 
@@ -1333,23 +1338,23 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
     uint64_t timestamp;
 
     if (graph_obj == NULL || tstamp == NULL) {
-        AGM_LOGE("Invalid Input Params");
+        AGM_LOGE("Invalid Input Params\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
     if (!(graph_obj->state & (STARTED))) {
-       AGM_LOGE("graph object is not in correct state, current state %d",
+       AGM_LOGE("graph object is not in correct state, current state %d\n",
                     graph_obj->state);
        ret = -EINVAL;
        goto done;
     }
     if (graph_obj->spr_miid == 0) {
-        AGM_LOGE("Invalid SPR module IID to query timestamp");
+        AGM_LOGE("Invalid SPR module IID to query timestamp\n");
         goto done;
     }
-    AGM_LOGV("SPR module IID: %x", graph_obj->spr_miid);
+    AGM_LOGV("SPR module IID: %x\n", graph_obj->spr_miid);
 
     payload_size = sizeof(struct apm_module_param_data_t) +
         sizeof(struct param_id_spr_session_time_t);
@@ -1371,10 +1376,11 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
 
     ret = gsl_get_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
-        AGM_LOGE("gsl_get_custom_config command failed with error %d", ret);
+        AGM_LOGE("gsl_get_custom_config command failed with error %d\n", ret);
         goto get_fail;
     }
-    AGM_LOGV("session_time: msw[%ld], lsw[%ld], at: msw[%ld], lsw[%ld] ts: msw[%ld], lsw[%ld]\n",
+    AGM_LOGV("session_time: msw[%ld], lsw[%ld], at: msw[%ld], \
+                          lsw[%ld] ts: msw[%ld], lsw[%ld]\n",
               sess_time->session_time.value_msw,
               sess_time->session_time.value_lsw,
               sess_time->absolute_time.value_msw,

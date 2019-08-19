@@ -26,6 +26,7 @@
 ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
+#define LOG_TAG "PLUGIN: compress"
 
 #include <agm/agm_api.h>
 #include <errno.h>
@@ -45,6 +46,7 @@
 #include <tinyalsa/asoundlib.h>
 #include "sound/compress_params.h"
 #include "sound/compress_offload.h"
+#include "utils.h"
 
 /* Default values */
 #define COMPR_PLAYBACK_MIN_FRAGMENT_SIZE (8 * 1024)
@@ -102,21 +104,21 @@ void agm_compress_event_cb(uint32_t session_id,
     struct agm_compress_priv *priv;
 
     if (!agm_compress_plugin) {
-        printf("%s: client_data is NULL\n", __func__);
+        AGM_LOGE("%s: client_data is NULL\n", __func__);
         return;
     }
     priv = agm_compress_plugin->priv;
     if (!priv) {
-        printf("%s: Private data is NULL\n", __func__);
+        AGM_LOGE("%s: Private data is NULL\n", __func__);
         return;
     }
     if (!event_params) {
-        printf("%s: event params is NULL\n", __func__);
+        AGM_LOGE("%s: event params is NULL\n", __func__);
         return;
     }
 
     pthread_mutex_lock(&priv->lock);
-    printf("%s: enter: bytes_avail = %ld, event_id = %d\n", __func__,
+    AGM_LOGV("%s: enter: bytes_avail = %ld, event_id = %d\n", __func__,
            priv->bytes_avail, event_params->event_id);
     if (event_params->event_id == AGM_EVENT_WRITE_DONE) {
         /*
@@ -125,7 +127,7 @@ void agm_compress_event_cb(uint32_t session_id,
          */
         priv->bytes_avail += priv->buffer_config.size;
         if (priv->bytes_avail > priv->total_buf_size) {
-            printf("%s: Error: bytes_avail %ld, total size = %ld\n",
+            AGM_LOGE("%s: Error: bytes_avail %ld, total size = %ld\n",
                    __func__, priv->bytes_avail, priv->total_buf_size);
             pthread_mutex_unlock(&priv->lock);
             return;
@@ -149,7 +151,7 @@ void agm_compress_event_cb(uint32_t session_id,
         }
         pthread_mutex_unlock(&priv->eos_lock);
     } else {
-        printf("%s: error: Invalid event params id: %d\n", __func__,
+        AGM_LOGE("%s: error: Invalid event params id: %d\n", __func__,
            event_params->event_id);
     }
     pthread_mutex_unlock(&priv->lock);
@@ -159,7 +161,8 @@ void agm_compress_event_cb(uint32_t session_id,
     pthread_mutex_unlock(&priv->poll_lock);
 }
 
-int agm_compress_write(struct compress_plugin *plugin, const void *buff, size_t count)
+int agm_compress_write(struct compress_plugin *plugin, const void *buff,
+                            size_t count)
 {
     struct agm_compress_priv *priv = plugin->priv;
     uint64_t handle;
@@ -171,12 +174,13 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff, size_t 
         return ret;
 
     if (count > priv->total_buf_size) {
-        printf("%s: Size %ld is greater than total buf size %ld\n",
+        AGM_LOGE("%s: Size %ld is greater than total buf size %ld\n",
                __func__, count, priv->total_buf_size);
         return -EINVAL;
     }
 
-    /* Call prepare in the first write as write() will be called before start() */
+    /* Call prepare in the first write as write()
+        will be called before start() */
     if (!priv->prepared) {
         ret = agm_session_prepare(handle);
         if (ret)
@@ -200,7 +204,8 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff, size_t 
         ret = -EINVAL;
         goto err;
     }
-    //printf("%s: count = %ld, priv->bytes_avail: %ld\n", __func__, count, priv->bytes_avail);
+    AGM_LOGV("%s: count = %ld, priv->bytes_avail: %ld\n",
+                     __func__, count, priv->bytes_avail);
     priv->bytes_copied += size;
     ret = size;
 err:
@@ -220,7 +225,7 @@ int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
         return ret;
 
     if (count > priv->bytes_avail) {
-        printf("%s: Invalid requested size %ld", __func__, count);
+        AGM_LOGE("%s: Invalid requested size %ld", __func__, count);
         return -EINVAL;
     }
 
@@ -237,7 +242,7 @@ int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
     /* Avalible buffer size is always multiple of fragment size */
     priv->bytes_avail -= (buf_cnt * priv->buffer_config.size);
     if (priv->bytes_avail < 0)
-        printf("%s: err: bytes_avail = %ld", __func__, priv->bytes_avail);
+        AGM_LOGE("%s: err: bytes_avail = %ld", __func__, priv->bytes_avail);
 
     priv->bytes_read += count;
 
@@ -246,7 +251,8 @@ int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
     return 0;
 }
 
-int agm_compress_tstamp(struct compress_plugin *plugin, struct snd_compr_tstamp *tstamp)
+int agm_compress_tstamp(struct compress_plugin *plugin,
+                       struct snd_compr_tstamp *tstamp)
 {
     struct agm_compress_priv *priv = plugin->priv;
     uint64_t handle;
@@ -270,7 +276,8 @@ int agm_compress_tstamp(struct compress_plugin *plugin, struct snd_compr_tstamp 
     return 0;
 }
 
-int agm_compress_avail(struct compress_plugin *plugin, struct snd_compr_avail *avail)
+int agm_compress_avail(struct compress_plugin *plugin,
+                        struct snd_compr_avail *avail)
 {
     struct agm_compress_priv *priv = plugin->priv;
     uint64_t handle;
@@ -287,15 +294,18 @@ int agm_compress_avail(struct compress_plugin *plugin, struct snd_compr_avail *a
     pthread_mutex_lock(&priv->lock);
     /* Avail size is always in multiples of fragment size */
     avail->avail = priv->bytes_avail;
-    printf("%s: size = %d, *avail = %d, pcm_io_frames: %d sampling_rate: %d\n", __func__,
-           sizeof(struct snd_compr_avail), avail->avail, avail->tstamp.pcm_io_frames,
-           avail->tstamp.sampling_rate);
+    AGM_LOGV("%s: size = %d, *avail = %d, pcm_io_frames: %d \
+             sampling_rate: %d\n", __func__,
+             sizeof(struct snd_compr_avail), avail->avail,
+             avail->tstamp.pcm_io_frames,
+             avail->tstamp.sampling_rate);
     pthread_mutex_unlock(&priv->lock);
 
     return ret;
 }
 
-int agm_compress_get_caps(struct compress_plugin *plugin, struct snd_compr_caps *caps)
+int agm_compress_get_caps(struct compress_plugin *plugin,
+                             struct snd_compr_caps *caps)
 {
     struct agm_compress_priv *priv = plugin->priv;
     uint64_t handle;
@@ -329,7 +339,7 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
     media_cfg->rate =  params->codec.sample_rate;
     media_cfg->channels = params->codec.ch_out;
 
-    switch(params->codec.id){
+    switch (params->codec.id) {
     case SND_AUDIOCODEC_MP3:
         media_cfg->format = AGM_FORMAT_MP3;
         break;
@@ -422,12 +432,13 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
     default:
         break;
     }
-    printf("%s: format = %d rate = %d, channels = %d\n", __func__,
+    AGM_LOGD("%s: format = %d rate = %d, channels = %d\n", __func__,
            media_cfg->format, media_cfg->rate, media_cfg->channels);
     return 0;
 }
 
-int agm_compress_set_params(struct compress_plugin *plugin, struct snd_compr_params *params)
+int agm_compress_set_params(struct compress_plugin *plugin,
+                                    struct snd_compr_params *params)
 {
     struct agm_compress_priv *priv = plugin->priv;
     struct agm_buffer_config *buf_cfg;
@@ -463,7 +474,7 @@ int agm_compress_set_params(struct compress_plugin *plugin, struct snd_compr_par
     if (ret)
         return ret;
 
-    printf("%s: exit fragments cnt = %d size = %ld\n", __func__,
+    AGM_LOGD("%s: exit fragments cnt = %d size = %ld\n", __func__,
            buf_cfg->count, buf_cfg->size);
     return ret;
 }
@@ -547,7 +558,7 @@ static int agm_compress_drain(struct compress_plugin *plugin)
     if (ret)
         return ret;
 
-    printf("%s: priv->bytes_avail = %ld,  priv->total_buf_size = %ld\n",
+    AGM_LOGV("%s: priv->bytes_avail = %ld,  priv->total_buf_size = %ld\n",
            __func__, priv->bytes_avail, priv->total_buf_size);
     /* No need to wait for all buffers to be consumed to issue EOS as
      * write and EOS cmds are sequential
@@ -557,12 +568,12 @@ static int agm_compress_drain(struct compress_plugin *plugin)
     priv->eos = true;
     ret = agm_session_eos(handle);
     if (ret) {
-        printf("%s: EOS fail\n", __func__);
+        AGM_LOGE("%s: EOS fail\n", __func__);
         pthread_mutex_unlock(&priv->eos_lock);
         return ret;
     }
     pthread_cond_wait(&priv->eos_cond, &priv->eos_lock);
-    printf("%s: out of eos wait\n", __func__);
+    AGM_LOGE("%s: out of eos wait\n", __func__);
     pthread_mutex_unlock(&priv->eos_lock);
 
     return 0;
@@ -636,7 +647,7 @@ void agm_compress_close(struct compress_plugin *plugin)
     uint64_t handle;
     int ret = 0;
 
-    printf("%s: free \n", __func__);
+    AGM_LOGV("%s:%d\n", __func__, __LINE__);
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
         return;
@@ -646,7 +657,7 @@ void agm_compress_close(struct compress_plugin *plugin)
 
     ret = agm_session_close(handle);
     if (ret)
-        printf("%s: agm_session_close failed \n", __func__);
+        AGM_LOGE("%s: agm_session_close failed \n", __func__);
 
     snd_card_def_put_card(priv->card_node);
     /* Unblock eos wait if eos-rendered event cb has not been called */
@@ -713,7 +724,7 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     int is_playback = 0, is_capture = 0, is_hostless = 0;
     void *card_node, *compr_node;
 
-    printf("%s: session_id: %d \n", __func__, device);
+    AGM_LOGV("%s: session_id: %d \n", __func__, device);
     agm_compress_plugin = calloc(1, sizeof(struct compress_plugin));
     if (!agm_compress_plugin)
         return -ENOMEM;
@@ -742,15 +753,18 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     agm_compress_plugin->priv = priv;
     priv->card_node = card_node;
 
-    ret = snd_card_def_get_int(agm_compress_plugin->node, "playback", &is_playback);
+    ret = snd_card_def_get_int(agm_compress_plugin->node, "playback",
+                                                       &is_playback);
     if (ret)
        goto err_card_put;
 
-    ret = snd_card_def_get_int(agm_compress_plugin->node, "capture", &is_capture);
+    ret = snd_card_def_get_int(agm_compress_plugin->node, "capture",
+                                                       &is_capture);
     if (ret)
        goto err_card_put;
 
-    ret = snd_card_def_get_int(agm_compress_plugin->node, "hostless", &is_hostless);
+    ret = snd_card_def_get_int(agm_compress_plugin->node, "hostless",
+                                                       &is_hostless);
     if (ret)
        goto err_card_put;
 
@@ -759,11 +773,13 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     priv->session_id = session_id;
 
     if ((priv->session_config.dir == RX) && !is_playback) {
-        printf("%s: Playback is supported for device %d \n", __func__, device);
+        AGM_LOGE("%s: Playback is supported for device %d \n",
+                                           __func__, device);
         goto err_card_put;
     }
     if ((priv->session_config.dir == TX) && !is_capture) {
-        printf("%s: Capture is supported for device %d \n", __func__, device);
+        AGM_LOGE("%s: Capture is supported for device %d \n",
+                                           __func__, device);
         goto err_card_put;
     }
 

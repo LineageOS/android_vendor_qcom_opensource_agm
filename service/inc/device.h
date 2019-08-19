@@ -121,7 +121,6 @@ struct device_obj {
     pthread_t device_prepare_thread;
     pthread_cond_t device_prepared;
     bool prepare_thread_created;
-
     struct refcount refcnt;
     int state;
 };
@@ -133,7 +132,8 @@ void device_deinit();
 int device_get_aif_info_list(struct aif_info *aif_list, size_t *audio_intfs);
 /* returns device_obj associated with device_id */
 int device_get_obj(uint32_t device_idx, struct device_obj **dev_obj);
-int device_get_hw_ep_info(struct device_obj *dev_obj, struct hw_ep_info *hw_ep_info_);
+int device_get_hw_ep_info(struct device_obj *dev_obj,
+                                     struct hw_ep_info *hw_ep_info_);
 int populate_device_hw_ep_info(struct device_obj *dev_obj);
 int device_open(struct device_obj *dev_obj);
 int device_prepare(struct device_obj *dev_obj);
@@ -143,8 +143,10 @@ int device_close(struct device_obj *dev_obj);
 
 enum device_state device_current_state(struct device_obj *obj);
 /* api to set device media config */
-int device_set_media_config(struct device_obj *obj, struct agm_media_config *device_media_config);
+int device_set_media_config(struct device_obj *obj,
+                 struct agm_media_config *device_media_config);
 /* api to set device meta graph keys + cal keys */
-int device_set_metadata(struct device_obj *obj, uint32_t size, uint8_t *payload);
+int device_set_metadata(struct device_obj *obj, uint32_t size,
+                 uint8_t *payload);
 int populate_device_hw_ep_info(struct device_obj *dev_obj);
 #endif

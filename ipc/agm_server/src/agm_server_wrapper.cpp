@@ -35,7 +35,6 @@
 #include <utils/Log.h>
 
 #include <agm/agm_api.h>
-#include "agm_server_wrapper.h"
 #include <pthread.h>
 #include <signal.h>
 #include <sys/prctl.h>
@@ -46,6 +45,8 @@
 #include <pthread.h>
 #include <string.h>
 #include <binder/IMemory.h>
+#include "utils.h"
+#include "agm_server_wrapper.h"
 
 using namespace android;
 
@@ -53,43 +54,50 @@ using namespace android;
 AgmService::AgmService()
 {
     agm_initialized = !agm_init();
-    ALOGV("agm_initialized %d", agm_initialized);
+    AGM_LOGV("agm_initialized %d", agm_initialized);
 }
 
 AgmService::~AgmService()
 {
     agm_initialized = agm_deinit();
-    ALOGV("agm_initialized %d", agm_initialized);
+    AGM_LOGV("agm_initialized %d", agm_initialized);
 }
 #endif
 
 int AgmService::ipc_agm_session_read(uint64_t handle, void *buff, size_t *count){
-    ALOGV("%s called \n", __func__);
+    AGM_LOGV("%s called \n", __func__);
     return agm_session_read(handle, buff, count);
 };
 
 int AgmService::ipc_agm_session_write(uint64_t handle, void *buff, size_t *count){
-    ALOGV("%s called \n", __func__);
+    AGM_LOGV("%s called \n", __func__);
     return agm_session_write(handle, buff, count);
 };
 
 int AgmService::ipc_agm_init(){
-    ALOGV("%s called\n", __func__);
+    AGM_LOGV("%s called\n", __func__);
     return 0;
 };
 
-int AgmService::ipc_agm_audio_intf_set_metadata(uint32_t audio_intf, uint32_t size, uint8_t *metadata){
-    ALOGE("%s called\n", __func__);
+int AgmService::ipc_agm_audio_intf_set_metadata(uint32_t audio_intf,
+                               uint32_t size, uint8_t *metadata)
+{
+    AGM_LOGE("%s called\n", __func__);
     return agm_aif_set_metadata(audio_intf, size, metadata);
 };
 
-int AgmService::ipc_agm_session_set_metadata(uint32_t session_id, uint32_t size, uint8_t *metadata){
-    ALOGE("%s called\n", __func__);
+int AgmService::ipc_agm_session_set_metadata(uint32_t session_id,
+                               uint32_t size, uint8_t *metadata)
+{
+    AGM_LOGE("%s called\n", __func__);
     return agm_session_set_metadata(session_id, size, metadata);
 };
 
-int AgmService::ipc_agm_session_audio_inf_set_metadata(uint32_t session_id, uint32_t audio_intf, uint32_t size, uint8_t *metadata){
-    ALOGE("%s called\n", __func__);
+int AgmService::ipc_agm_session_audio_inf_set_metadata(uint32_t session_id,
+                               uint32_t audio_intf, uint32_t size,
+                               uint8_t *metadata)
+{
+    AGM_LOGE("%s called\n", __func__);
     return agm_session_aif_set_metadata(session_id, audio_intf, size, metadata);
 };
 
@@ -123,97 +131,126 @@ int AgmService::ipc_agm_session_resume(uint64_t handle){
     return agm_session_resume(handle);
 };
 
-int AgmService::ipc_agm_session_set_loopback(uint32_t capture_session_id, uint32_t playback_session_id, bool state){
-    ALOGV("%s called\n", __func__);
-    return agm_session_set_loopback(capture_session_id, playback_session_id, state);
+int AgmService::ipc_agm_session_set_loopback(uint32_t capture_session_id,
+                               uint32_t playback_session_id, bool state)
+{
+    AGM_LOGV("%s called\n", __func__);
+    return agm_session_set_loopback(capture_session_id, playback_session_id,
+                               state);
 };
 
-size_t AgmService::ipc_agm_get_hw_processed_buff_cnt(uint64_t handle, enum direction dir) {
-    ALOGV("%s called\n", __func__);
+size_t AgmService::ipc_agm_get_hw_processed_buff_cnt(uint64_t handle,
+                               enum direction dir) {
+    AGM_LOGV("%s called\n", __func__);
     return agm_get_hw_processed_buff_cnt(handle, dir);
 };
 
-int AgmService::ipc_agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info){
-    ALOGV("%s called\n", __func__);
+int AgmService::ipc_agm_get_aif_info_list(struct aif_info *aif_list,
+                               size_t *num_aif_info)
+{
+    AGM_LOGV("%s called\n", __func__);
     return agm_get_aif_info_list(aif_list, num_aif_info);
 };
 
-int AgmService::ipc_agm_session_aif_get_tag_module_info(uint32_t session_id, uint32_t aif_id, void *payload, size_t *size){
-    ALOGV("%s called\n", __func__);
-    return agm_session_aif_get_tag_module_info(session_id, aif_id, payload, size);
+int AgmService::ipc_agm_session_aif_get_tag_module_info(uint32_t session_id,
+                               uint32_t aif_id, void *payload, size_t *size)
+{
+    AGM_LOGV("%s called\n", __func__);
+    return agm_session_aif_get_tag_module_info(session_id, aif_id,
+                               payload, size);
 };
 
-int AgmService::ipc_agm_session_aif_set_params(uint32_t session_id, uint32_t aif_id, void *payload, size_t size){
-    ALOGV("%s called\n", __func__);
+int AgmService::ipc_agm_session_aif_set_params(uint32_t session_id,
+                               uint32_t aif_id, void *payload, size_t size)
+{
+    AGM_LOGV("%s called\n", __func__);
     return agm_session_aif_set_params(session_id, aif_id, payload, size);
 };
 
-int AgmService::ipc_agm_session_set_params(uint32_t session_id, void *payload, size_t size){
-    ALOGV("%s called\n", __func__);
+int AgmService::ipc_agm_session_set_params(uint32_t session_id, void *payload,
+                               size_t size)
+{
+    AGM_LOGV("%s called\n", __func__);
     return agm_session_set_params(session_id, payload, size);
 };
 
-int AgmService::ipc_agm_set_params_with_tag(uint32_t session_id, uint32_t aif_id, struct agm_tag_config *tag_config){
-    ALOGV("%s called\n", __func__);
+int AgmService::ipc_agm_set_params_with_tag(uint32_t session_id,
+                               uint32_t aif_id,
+                               struct agm_tag_config *tag_config)
+{
+    AGM_LOGV("%s called\n", __func__);
     return agm_set_params_with_tag(session_id, aif_id, tag_config);
 };
 
 int AgmService::ipc_agm_session_open(uint32_t session_id, uint64_t *handle){
-    ALOGV("%s called\n", __func__);
+    AGM_LOGV("%s called\n", __func__);
     return agm_session_open(session_id, handle);
 };
 
 int AgmService::ipc_agm_session_set_config(uint64_t handle,
-                                           struct agm_session_config *session_config,
-                                           struct agm_media_config *media_config,
-                                           struct agm_buffer_config *buffer_config){
-    ALOGV("%s called\n", __func__);
-    return agm_session_set_config(handle, session_config, media_config, buffer_config);
+                        struct agm_session_config *session_config,
+                        struct agm_media_config *media_config,
+                        struct agm_buffer_config *buffer_config){
+    AGM_LOGV("%s called\n", __func__);
+    return agm_session_set_config(handle, session_config,
+                               media_config, buffer_config);
 };
 
- int AgmService::ipc_agm_session_audio_inf_connect(uint32_t session_id, uint32_t audio_intf, bool state){
-     ALOGV("%s called\n", __func__);
+ int AgmService::ipc_agm_session_audio_inf_connect(uint32_t session_id,
+                               uint32_t audio_intf, bool state)
+{
+     AGM_LOGV("%s called\n", __func__);
      return agm_session_aif_connect(session_id, audio_intf, state);
  };
 
-int AgmService::ipc_agm_audio_intf_set_media_config(uint32_t audio_intf, struct agm_media_config *media_config){
-    ALOGV("%s called\n", __func__);
+int AgmService::ipc_agm_audio_intf_set_media_config(uint32_t audio_intf,
+                               struct agm_media_config *media_config)
+{
+    AGM_LOGV("%s called\n", __func__);
     return agm_aif_set_media_config(audio_intf, media_config);
 };
 
-int AgmService::ipc_agm_session_register_for_events(uint32_t session_id, struct agm_event_reg_cfg *evt_reg_cfg) {
-    ALOGV("%s called\n", __func__);
+int AgmService::ipc_agm_session_register_for_events(uint32_t session_id,
+                               struct agm_event_reg_cfg *evt_reg_cfg)
+{
+    AGM_LOGV("%s called\n", __func__);
     return agm_session_register_for_events(session_id, evt_reg_cfg);
 };
 
-int AgmService::ipc_agm_session_register_cb(uint32_t session_id, agm_event_cb cb, enum event_type event, void *client_data) {
-    ALOGV("%s called\n", __func__);
-    return agm_session_register_cb(session_id, cb, event, client_data) ;
+int AgmService::ipc_agm_session_register_cb(uint32_t session_id,
+                               agm_event_cb cb, enum event_type event,
+                               void *client_data)
+{
+    AGM_LOGV("%s called\n", __func__);
+    return agm_session_register_cb(session_id, cb, event, client_data);
 };
 
-int AgmService::ipc_agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool state) {
-    ALOGV("%s called\n", __func__);
-    return agm_session_set_ec_ref(capture_session_id, aif_id, state) ;
+int AgmService::ipc_agm_session_set_ec_ref(uint32_t capture_session_id,
+                               uint32_t aif_id, bool state)
+{
+    AGM_LOGV("%s called\n", __func__);
+    return agm_session_set_ec_ref(capture_session_id, aif_id, state);
 };
 
 int AgmService::ipc_agm_session_aif_set_cal(uint32_t session_id,
-                                            uint32_t audio_intf,
-                                            struct agm_cal_config *cal_config){
-    ALOGV("%s called\n", __func__);
+                               uint32_t audio_intf,
+                               struct agm_cal_config *cal_config)
+{
+    AGM_LOGV("%s called\n", __func__);
     return agm_session_aif_set_cal(session_id, audio_intf, cal_config);
 };
 int AgmService::ipc_agm_session_eos(uint64_t handle) {
-    ALOGV("%s called\n", __func__);
+    AGM_LOGV("%s called\n", __func__);
     return agm_session_eos(handle);
 };
 
 int AgmService::ipc_agm_get_session_time(uint64_t handle, uint64_t *timestamp) {
-    ALOGV("%s called\n", __func__);
+    AGM_LOGV("%s called\n", __func__);
     return agm_get_session_time(handle, timestamp);
 };
 
 int AgmService::ipc_agm_session_get_params(uint32_t session_id, void *payload, size_t size){
-    ALOGV("%s called\n", __func__);
+    AGM_LOGV("%s called\n", __func__);
     return agm_session_get_params(session_id, payload, size);
 };
 

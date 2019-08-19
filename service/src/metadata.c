@@ -26,7 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#define LOGTAG "AGM: metadata"
+#define LOG_TAG "AGM: metadata"
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
@@ -67,182 +67,191 @@
 
 void metadata_print(struct agm_meta_data_gsl* metadata)
 {
-	int i, count = metadata->gkv.num_kvs;
-	AGM_LOGE("*****************************Metadata*****************************\n");
-	AGM_LOGE("GKV size:%d\n", count);
-	for (i = 0; i < count; i++) {
-		AGM_LOGE("key:0x%x, value:0x%x ", metadata->gkv.kv[i].key, metadata->gkv.kv[i].value);
-	}
+    int i, count = metadata->gkv.num_kvs;
+    AGM_LOGD("*************************Metadata*************************\n");
+    AGM_LOGD("GKV size:%d\n", count);
+    for (i = 0; i < count; i++) {
+        AGM_LOGD("key:0x%x, value:0x%x ", metadata->gkv.kv[i].key,
+                                       metadata->gkv.kv[i].value);
+    }
 
-	count = metadata->ckv.num_kvs;
-	AGM_LOGE("\nCKV count:%d\n", count);
-	for (i = 0; i < count; i++) {
-		AGM_LOGE("key:0x%x, value:0x%d ", metadata->ckv.kv[i].key, metadata->ckv.kv[i].value);
-	}
-	AGM_LOGE("\n");
+    count = metadata->ckv.num_kvs;
+    AGM_LOGD("\nCKV count:%d\n", count);
+    for (i = 0; i < count; i++) {
+        AGM_LOGD("key:0x%x, value:0x%d ", metadata->ckv.kv[i].key,
+                                       metadata->ckv.kv[i].value);
+    }
+    AGM_LOGD("\n");
 
-	AGM_LOGE("Property ID:%d\n", metadata->sg_props.prop_id);
-	AGM_LOGE("property count:%d\n", metadata->sg_props.num_values);
+    AGM_LOGD("Property ID:%d\n", metadata->sg_props.prop_id);
+    AGM_LOGD("property count:%d\n", metadata->sg_props.num_values);
 
-	count = metadata->sg_props.num_values;
-	AGM_LOGE("Property Values: ");
-	for (i = 0; i < count; i++) {
-		AGM_LOGE("0x%x ", metadata->sg_props.values[i]);
-	}
-	AGM_LOGE("\n");
-	AGM_LOGE("*****************************Metadata Done*****************************\n\n");
+    count = metadata->sg_props.num_values;
+    AGM_LOGD("Property Values: ");
+    for (i = 0; i < count; i++) {
+        AGM_LOGD("0x%x ", metadata->sg_props.values[i]);
+    }
+    AGM_LOGD("\n");
+    AGM_LOGD("****************Metadata Done***************************\n\n");
 
 }
 
 static void metadata_remove_dup(
-		struct agm_meta_data_gsl* meta_data) {
+       struct agm_meta_data_gsl* meta_data) {
 
-	int i, j, k, count;
+    int i, j, k, count;
 
-	//remove duplicate gkvs
-	count = meta_data->gkv.num_kvs;
-	for (i = 0; i < count; i++) {
-		for (j = i + 1; j < count; j++) {
-			if (meta_data->gkv.kv[i].key == meta_data->gkv.kv[j].key) {
-				for (k = j; k < count; k++) {
-					meta_data->gkv.kv[k].key = meta_data->gkv.kv[k + 1].key;
-					meta_data->gkv.kv[k].value = meta_data->gkv.kv[k + 1].value;
-				}
-				count--;
-				j--;
-			}
-		}
-	}
-	meta_data->gkv.num_kvs = count;
+    //remove duplicate gkvs
+    count = meta_data->gkv.num_kvs;
+    for (i = 0; i < count; i++) {
+        for (j = i + 1; j < count; j++) {
+            if (meta_data->gkv.kv[i].key == meta_data->gkv.kv[j].key) {
+                for (k = j; k < count; k++) {
+                    meta_data->gkv.kv[k].key = meta_data->gkv.kv[k + 1].key;
+                    meta_data->gkv.kv[k].value = meta_data->gkv.kv[k + 1].value;
+                }
+            count--;
+            j--;
+            }
+        }
+    }
+    meta_data->gkv.num_kvs = count;
 
-	//remove duplicate ckvs
-	count = meta_data->ckv.num_kvs;
-	for (i = 0; i < count; i++) {
-		for (j = i + 1; j < count; j++) {
-			if (meta_data->ckv.kv[i].key == meta_data->ckv.kv[j].key) {
-				for (k = j; k < count; k++) {
-					meta_data->ckv.kv[k].key = meta_data->ckv.kv[k + 1].key;
-					meta_data->ckv.kv[k].value = meta_data->ckv.kv[k + 1].value;
-				}
-				count--;
-				j--;
-			}
-		}
-	}
-	meta_data->ckv.num_kvs = count;
+    //remove duplicate ckvs
+    count = meta_data->ckv.num_kvs;
+    for (i = 0; i < count; i++) {
+        for (j = i + 1; j < count; j++) {
+            if (meta_data->ckv.kv[i].key == meta_data->ckv.kv[j].key) {
+                for (k = j; k < count; k++) {
+                    meta_data->ckv.kv[k].key = meta_data->ckv.kv[k + 1].key;
+                    meta_data->ckv.kv[k].value = meta_data->ckv.kv[k + 1].value;
+                }
+            count--;
+            j--;
+            }
+        }
+    }
+    meta_data->ckv.num_kvs = count;
 
-	//remove duplicate props
-	count = meta_data->sg_props.num_values;
-	for (i = 0; i < count; i++) {
-		for (j = i + 1; j < count; j++) {
-			if (meta_data->sg_props.values[i] == meta_data->sg_props.values[j]) {
-				for (k = j; k < count; k++) {
-					meta_data->sg_props.values[k] = meta_data->sg_props.values[k+1];
-				}
-				count--;
-				j--;
-			}
-		}
-	}
-	meta_data->sg_props.num_values = count;
+    //remove duplicate props
+    count = meta_data->sg_props.num_values;
+    for (i = 0; i < count; i++) {
+        for (j = i + 1; j < count; j++) {
+            if (meta_data->sg_props.values[i] == meta_data->sg_props.values[j]) {
+                for (k = j; k < count; k++) {
+                    meta_data->sg_props.values[k] =
+                                              meta_data->sg_props.values[k+1];
+                }
+                count--;
+                j--;
+            }
+        }
+    }
+    meta_data->sg_props.num_values = count;
 
-	//metadata_print(meta_data);
+    //metadata_print(meta_data);
 }
 
-void metadata_update_cal(struct agm_meta_data_gsl *meta_data, struct agm_key_vector_gsl *ckv)
+void metadata_update_cal(struct agm_meta_data_gsl *meta_data,
+                                     struct agm_key_vector_gsl *ckv)
 {
-	int i, j;
+    int i, j;
 
-	for (i = 0; i < meta_data->ckv.num_kvs; i++) {
-		for (j = 0; j < ckv->num_kvs; j++) {
-			if (meta_data->ckv.kv[i].key == ckv->kv[j].key) {
-				meta_data->ckv.kv[i].value = ckv->kv[j].value;
-			}
-		}
-	}
+    for (i = 0; i < meta_data->ckv.num_kvs; i++) {
+        for (j = 0; j < ckv->num_kvs; j++) {
+            if (meta_data->ckv.kv[i].key == ckv->kv[j].key) {
+                meta_data->ckv.kv[i].value = ckv->kv[j].value;
+            }
+        }
+    }
 }
 
 struct agm_meta_data_gsl* metadata_merge(int num, ...)
 {
-	struct agm_key_value *gkv_offset;
-	struct agm_key_value *ckv_offset;
-	uint32_t *prop_offset;
-	struct agm_meta_data_gsl *temp, *merged = NULL;
+    struct agm_key_value *gkv_offset;
+    struct agm_key_value *ckv_offset;
+    uint32_t *prop_offset;
+    struct agm_meta_data_gsl *temp, *merged = NULL;
 
-	va_list valist;
-	int i = 0;
-
-
-	merged = calloc(1, sizeof(struct agm_meta_data_gsl));
-	if (!merged) {
-		AGM_LOGE("%s: No memory to create merged metadata\n", __func__);
-		return NULL;
-	}
+    va_list valist;
+    int i = 0;
 
 
-	va_start(valist, num);
-	for (i = 0; i < num; i++) {
-		temp = va_arg(valist, struct agm_meta_data_gsl*);
-		if (temp) {
-			merged->gkv.num_kvs += temp->gkv.num_kvs;
-			merged->ckv.num_kvs += temp->ckv.num_kvs;
-			merged->sg_props.num_values += temp->sg_props.num_values;
-		}
-	}
-	va_end(valist);
+    merged = calloc(1, sizeof(struct agm_meta_data_gsl));
+    if (!merged) {
+        AGM_LOGE("%s: No memory to create merged metadata\n", __func__);
+        return NULL;
+    }
 
-	merged->gkv.kv = calloc(merged->gkv.num_kvs, sizeof(struct agm_key_value));
-	if (!merged->gkv.kv) {
-		AGM_LOGE("%s: No memory to merge gkv\n", __func__);
-		free(merged);
-		return NULL;
-	}
 
-	merged->ckv.kv = calloc(merged->ckv.num_kvs, sizeof(struct agm_key_value));
-	if (!merged->ckv.kv) {
-		AGM_LOGE("%s No memory to merge ckv\n", __func__);
-		free(merged->gkv.kv);
-		free(merged);
-		return NULL;
-	}
+    va_start(valist, num);
+    for (i = 0; i < num; i++) {
+        temp = va_arg(valist, struct agm_meta_data_gsl*);
+        if (temp) {
+            merged->gkv.num_kvs += temp->gkv.num_kvs;
+            merged->ckv.num_kvs += temp->ckv.num_kvs;
+            merged->sg_props.num_values += temp->sg_props.num_values;
+        }
+    }
+    va_end(valist);
 
-	merged->sg_props.values = calloc(merged->sg_props.num_values, sizeof(uint32_t));
-	if (!merged->sg_props.values) {
-		AGM_LOGE("%s No memory to merge properties\n", __func__);
-		free(merged->gkv.kv);
-		free(merged->ckv.kv);
-		free(merged);
-		return NULL;
-	}
+    merged->gkv.kv = calloc(merged->gkv.num_kvs, sizeof(struct agm_key_value));
+    if (!merged->gkv.kv) {
+        AGM_LOGE("%s: No memory to merge gkv\n", __func__);
+        free(merged);
+        return NULL;
+    }
 
-	gkv_offset = merged->gkv.kv;
-	ckv_offset = merged->ckv.kv;
-	prop_offset = merged->sg_props.values;
+    merged->ckv.kv = calloc(merged->ckv.num_kvs, sizeof(struct agm_key_value));
+    if (!merged->ckv.kv) {
+        AGM_LOGE("%s No memory to merge ckv\n", __func__);
+        free(merged->gkv.kv);
+        free(merged);
+        return NULL;
+    }
 
-	va_start(valist, num);
-	for (i = 0; i < num; i++) {
-		temp = va_arg(valist, struct agm_meta_data_gsl*);
-		if (temp) {
-			memcpy(gkv_offset, temp->gkv.kv, temp->gkv.num_kvs * sizeof(struct agm_key_value));
-			gkv_offset += temp->gkv.num_kvs;
+    merged->sg_props.values = calloc(merged->sg_props.num_values,
+                                               sizeof(uint32_t));
+    if (!merged->sg_props.values) {
+        AGM_LOGE("%s No memory to merge properties\n", __func__);
+        free(merged->gkv.kv);
+        free(merged->ckv.kv);
+        free(merged);
+        return NULL;
+    }
 
-			memcpy(ckv_offset, temp->ckv.kv, temp->ckv.num_kvs * sizeof(struct agm_key_value));
-			ckv_offset += temp->ckv.num_kvs;
+    gkv_offset = merged->gkv.kv;
+    ckv_offset = merged->ckv.kv;
+    prop_offset = merged->sg_props.values;
 
-			merged->sg_props.prop_id = temp->sg_props.prop_id;
-			memcpy(prop_offset, temp->sg_props.values, temp->sg_props.num_values * sizeof(uint32_t));
-			prop_offset += temp->sg_props.num_values;
+    va_start(valist, num);
+    for (i = 0; i < num; i++) {
+        temp = va_arg(valist, struct agm_meta_data_gsl*);
+        if (temp) {
+            memcpy(gkv_offset, temp->gkv.kv, temp->gkv.num_kvs *
+                                  sizeof(struct agm_key_value));
+            gkv_offset += temp->gkv.num_kvs;
 
-		}
-	}
-	va_end(valist);
-	//metadata_print(merged);
-	metadata_remove_dup(merged);
+            memcpy(ckv_offset, temp->ckv.kv, temp->ckv.num_kvs *
+                                  sizeof(struct agm_key_value));
+            ckv_offset += temp->ckv.num_kvs;
 
-	return merged;
+            merged->sg_props.prop_id = temp->sg_props.prop_id;
+            memcpy(prop_offset, temp->sg_props.values,
+                   temp->sg_props.num_values * sizeof(uint32_t));
+            prop_offset += temp->sg_props.num_values;
+
+        }
+    }
+    va_end(valist);
+    //metadata_print(merged);
+    metadata_remove_dup(merged);
+
+    return merged;
 }
 
-int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size, uint8_t *metadata)
+int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size,
+                                              uint8_t *metadata)
 {
 
     int ret = 0;
@@ -250,32 +259,35 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size, uint8_t *metada
     dest->gkv.num_kvs = NUM_GKV(metadata);
     dest->gkv.kv =  calloc(dest->gkv.num_kvs, sizeof(struct agm_key_value));
     if (!dest->gkv.kv) {
-        AGM_LOGE("%s: Memory allocation failed to copy GKV",__func__);
+        AGM_LOGE("%s: Memory allocation failed to copy GKV\n", __func__);
         ret = -ENOMEM;
         return ret;
     }
-    memcpy(dest->gkv.kv, PTR_TO_GKV(metadata), dest->gkv.num_kvs * sizeof(struct agm_key_value));
+    memcpy(dest->gkv.kv, PTR_TO_GKV(metadata), dest->gkv.num_kvs *
+                                    sizeof(struct agm_key_value));
 
     dest->ckv.num_kvs = NUM_CKV(metadata);
     dest->ckv.kv =  calloc(dest->ckv.num_kvs, sizeof(struct agm_key_value));
     if (!dest->ckv.kv) {
-        AGM_LOGE("%s: Memory allocation failed to copy CKV",__func__);
+        AGM_LOGE("%s: Memory allocation failed to copy CKV\n", __func__);
         metadata_free(dest);
         ret = -ENOMEM;
         return ret;
     }
-    memcpy(dest->ckv.kv, PTR_TO_CKV(metadata), dest->ckv.num_kvs * sizeof(struct agm_key_value));
+    memcpy(dest->ckv.kv, PTR_TO_CKV(metadata), dest->ckv.num_kvs *
+                                    sizeof(struct agm_key_value));
 
     dest->sg_props.prop_id = PROP_ID(metadata);
     dest->sg_props.num_values = NUM_PROPS(metadata);
     dest->sg_props.values =  calloc(dest->sg_props.num_values, sizeof(uint32_t));
     if (!dest->sg_props.values) {
-        AGM_LOGE("%s: Memory allocation failed to copy properties",__func__);
+        AGM_LOGE("%s: Memory allocation failed to copy properties\n", __func__);
         metadata_free(dest);
         ret = -ENOMEM;
         return ret;
     }
-    memcpy(dest->sg_props.values, PTR_TO_PROPS(metadata), dest->sg_props.num_values * sizeof(uint32_t));
+    memcpy(dest->sg_props.values, PTR_TO_PROPS(metadata),
+           dest->sg_props.num_values * sizeof(uint32_t));
 
     metadata_print(dest);
 
@@ -284,16 +296,16 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size, uint8_t *metada
 }
 
 void metadata_free(struct agm_meta_data_gsl *metadata)
- {
-	 if (metadata) {
-         free(metadata->ckv.kv);
-         metadata->ckv.kv = NULL;
+{
+    if (metadata) {
+        free(metadata->ckv.kv);
+        metadata->ckv.kv = NULL;
 
-         free(metadata->gkv.kv);
-         metadata->gkv.kv = NULL;
+        free(metadata->gkv.kv);
+        metadata->gkv.kv = NULL;
 
-         free(metadata->sg_props.values);
+        free(metadata->sg_props.values);
 
-         memset(metadata, 0, sizeof(struct agm_meta_data_gsl));
-	 }
- }
+        memset(metadata, 0, sizeof(struct agm_meta_data_gsl));
+    }
+}

@@ -66,7 +66,7 @@ struct graph_obj;
  * GSL with correct ACDB data file. This should be triggered only once
  * during the lifetime of the service.
  *
- * retuns CASA_EOK on success and error code on failure.                          
+ * retuns CASA_EOK on success and error code on failure.
  */
 int graph_init();
 
@@ -74,7 +74,7 @@ int graph_init();
  *\brief De initialize graph handling module,
  * this in turn deinitializes GSL.
  *
- * retuns CASA_EOK on success and error code on failure.                          
+ * retuns CASA_EOK on success and error code on failure.
  */
 int graph_deinit();
 
@@ -86,7 +86,7 @@ int graph_deinit();
  *\brief Opens graph based on the shared gkvs and ckvs
  * All other subsequent operations on the graph are valid
  * only after a successfull open call. It is expected that
- * session and device objects should not go away till the 
+ * session and device objects should not go away till the
  * associated graph object is present.
  * The order in which the objects should be created is
  * session, device in any order then the last object to be
@@ -94,13 +94,13 @@ int graph_deinit();
  * first object to be closed is the graph object and then
  * the session/device objects.
  *\param [in] meta_data_kv: composite graph and calibration
- *        key vectors needed to setup the complete graph. 
+ *        key vectors needed to setup the complete graph.
  *\param [in] session_obj: session obj
  *\param [in] device_obj: Device to which the session is
  *        connected to.In case of SSMD/MSMD usecases, the
  *        second device would be added to the graph using
  *        graph_add api.
- *\param [in/out] graph_obj: Graph object created based on 
+ *\param [in/out] graph_obj: Graph object created based on
  *        session and device objects.
  *
  * return CASA_EOK on success or error code otherwise.
@@ -285,7 +285,7 @@ size_t graph_get_hw_processed_buff_cnt(struct graph_obj *gph_obj,
                                     enum direction dir);
 
 int graph_get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
-		                            void *payload, size_t *size);
+                                    void *payload, size_t *size);
 
 int graph_set_config_with_tag(struct graph_obj *gph_obj,
                               struct agm_key_vector_gsl *gkv,
@@ -295,7 +295,7 @@ int graph_get_config(struct graph_obj *graph_obj, void *payload,
                      size_t payload_size);
 
 int graph_set_cal(struct graph_obj *gph_obj,
-		struct agm_meta_data_gsl *meta_data);
+                              struct agm_meta_data_gsl *meta_data);
 
 /**
  *\brief Issue eos to the associated graph

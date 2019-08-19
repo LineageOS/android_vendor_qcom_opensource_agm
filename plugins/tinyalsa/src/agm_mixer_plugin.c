@@ -27,7 +27,9 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 
-/* agm_mixer.c all names (variable/functions) should have amp_ (Agm Mixer Plugin) */
+/* agm_mixer.c all names (variable/functions) should have
+   amp_ (Agm Mixer Plugin) */
+#define LOG_TAG "PLUGIN: mixer"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -48,6 +50,8 @@
 
 #include <agm/agm_api.h>
 #include <snd-card-def.h>
+
+#include "utils.h"
 
 #define ARRAY_SIZE(a)    \
     (sizeof(a) / sizeof(a[0]))
@@ -291,7 +295,8 @@ static void amp_add_event_params(struct amp_priv *amp_priv,
     list_add_tail(&amp_priv->events_paramlist, &event_node->node);
 }
 
-void amp_event_cb(uint32_t session_id, struct agm_event_cb_params *event_params, void *client_data)
+void amp_event_cb(uint32_t session_id, struct agm_event_cb_params *event_params,
+                               void *client_data)
 {
     struct mixer_plugin *plugin = client_data;
     struct amp_priv *amp_priv;
@@ -440,14 +445,14 @@ static int amp_create_pcm_info_from_card(struct amp_dev_info *adi,
         ret = snd_card_def_get_str(pcm_node, "name",
                                    &adi->names[idx]);
         if (ret) {
-            printf("%s failed to get name for %s pcm wih idx %d\n",
+            AGM_LOGE("%s failed to get name for %s pcm wih idx %d\n",
                    __func__, dir, idx);
             return -EINVAL;
         }
         ret = snd_card_def_get_int(pcm_node, "id",
                                    &adi->idx_arr[idx]);
         if (ret) {
-            printf("%s failed to get name for %s pcm with idx %d\n",
+            AGM_LOGE("%s failed to get name for %s pcm with idx %d\n",
                    __func__, dir, idx);
             return -EINVAL;
         }
@@ -473,7 +478,7 @@ static int amp_get_pcm_info(struct amp_priv *amp_priv)
     num_compr = snd_card_def_get_num_node(amp_priv->card_node,
                                           SND_NODE_TYPE_COMPR);
     if (num_pcms <= 0 && num_compr <= 0) {
-        printf("%s: no pcms(%d)/compr(%d) nodes found for card %u\n",
+        AGM_LOGE("%s: no pcms(%d)/compr(%d) nodes found for card %u\n",
                __func__, num_pcms, num_compr, amp_priv->card);
         ret = -EINVAL;
         goto done;
@@ -491,7 +496,7 @@ static int amp_get_pcm_info(struct amp_priv *amp_priv)
 
     pcm_node_list = calloc(total_pcms, sizeof(*pcm_node_list));
     if (!pcm_node_list) {
-        printf("%s: alloc for pcm_node_list failed\n", __func__);
+        AGM_LOGE("%s: alloc for pcm_node_list failed\n", __func__);
         return -ENOMEM;
     }
 
@@ -500,7 +505,7 @@ static int amp_get_pcm_info(struct amp_priv *amp_priv)
                                               SND_NODE_TYPE_PCM,
                                               pcm_node_list, num_pcms);
         if (ret) {
-            printf("%s: failed to get pcm node list, err %d\n",
+            AGM_LOGE("%s: failed to get pcm node list, err %d\n",
                    __func__, ret);
             goto done;
         }
@@ -512,7 +517,7 @@ static int amp_get_pcm_info(struct amp_priv *amp_priv)
                                               &pcm_node_list[num_pcms],
                                               num_compr);
         if (ret) {
-            printf("%s: failed to get compr node list, err %d\n",
+            AGM_LOGE("%s: failed to get compr node list, err %d\n",
                    __func__, ret);
             goto done;
         }
@@ -651,7 +656,7 @@ static int amp_pcm_get_control_value(struct amp_priv *amp_priv,
     }
 
     if (mtd_idx >= pcm_adi->count) {
-        printf("%s: metadata index not found for pcm_idx %d",
+        AGM_LOGE("%s: metadata index not found for pcm_idx %d",
                __func__, pcm_idx);
         return -EINVAL;
     }
@@ -663,7 +668,7 @@ static int amp_be_media_fmt_get(struct mixer_plugin *plugin,
                 struct snd_control *ctl, struct snd_ctl_elem_value *ev)
 {
     //TODO: AGM should support get function.
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     return 0;
 }
 
@@ -674,7 +679,7 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
     uint32_t audio_intf_id = ctl->private_value;
     int ret = 0;
 
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     amp_priv->media_fmt.rate = (uint32_t)ev->value.integer.value[0];
     amp_priv->media_fmt.channels = (uint32_t)ev->value.integer.value[1];
     amp_priv->media_fmt.format = alsa_to_agm_fmt(ev->value.integer.value[2]);
@@ -685,9 +690,10 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
         ret = 0;
 
     if (ret)
-        printf("%s: set_media_config failed, err %d, aif_id %u rate %u channels %u fmt %u\n",
-               __func__, ret, audio_intf_id, amp_priv->media_fmt.rate,
-               amp_priv->media_fmt.channels, amp_priv->media_fmt.format);
+        AGM_LOGE("%s: set_media_config failed, err %d, aif_id %u rate %u \
+                 channels %u fmt %u\n",
+                 __func__, ret, audio_intf_id, amp_priv->media_fmt.rate,
+                 amp_priv->media_fmt.channels, amp_priv->media_fmt.format);
     return ret;
 }
 
@@ -695,7 +701,7 @@ static int amp_be_metadata_get(struct mixer_plugin *plugin,
                 struct snd_control *ctl, struct snd_ctl_tlv *tlv)
 {
     /* AGM should provide a get */
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     return 0;
 }
 
@@ -709,14 +715,14 @@ static int amp_be_metadata_put(struct mixer_plugin *plugin,
 
     payload = &tlv->tlv[0];
     tlv_size = tlv->length;
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     ret = agm_aif_set_metadata(audio_intf_id, tlv_size, payload);
 
     if (ret == -EALREADY)
         ret = 0;
 
     if (ret)
-        printf("%s: set_metadata failed, err %d, aid_id %u\n",
+        AGM_LOGE("%s: set_metadata failed, err %d, aid_id %u\n",
                __func__, ret, audio_intf_id);
     return ret;
 }
@@ -725,7 +731,7 @@ static int amp_pcm_aif_connect_get(struct mixer_plugin *plugin,
                 struct snd_control *ctl, struct snd_ctl_elem_value *ev)
 {
     /* TODO: Need AGM support to perform get */
-    printf("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     return 0;
 }
 
@@ -740,7 +746,7 @@ static int amp_pcm_aif_connect_put(struct mixer_plugin *plugin,
     int ret;
     bool state;
 
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     be_adi = amp_get_be_adi(amp_priv, pcm_adi->dir);
     if (!be_adi)
         return -EINVAL;
@@ -767,7 +773,7 @@ static int amp_pcm_aif_connect_put(struct mixer_plugin *plugin,
         ret = 0;
 
     if (ret)
-        printf("%s: connect failed err %d, pcm_idx %d be_idx %d\n",
+        AGM_LOGE("%s: connect failed err %d, pcm_idx %d be_idx %d\n",
                __func__, ret, pcm_idx, be_idx);
 
     return 0;
@@ -781,7 +787,7 @@ static int amp_pcm_mtd_control_get(struct mixer_plugin *plugin,
 
     ev->value.enumerated.item[0] = pcm_adi->pcm_mtd_ctl[idx];
 
-    printf ("%s: enter, val = %u\n", __func__,
+    AGM_LOGD("%s: enter, val = %u\n", __func__,
             ev->value.enumerated.item[0]);
     return 0;
 }
@@ -796,7 +802,7 @@ static int amp_pcm_mtd_control_put(struct mixer_plugin *plugin,
     val = ev->value.enumerated.item[0];
     pcm_adi->pcm_mtd_ctl[idx] = val;
 
-    printf("%s: value = %u\n", __func__, val);
+    AGM_LOGD("%s: value = %u\n", __func__, val);
     return 0;
 }
 
@@ -809,13 +815,14 @@ static int amp_pcm_event_get(struct mixer_plugin *plugin,
     struct agm_event_cb_params *eparams;
     int session_id = ctl->private_value;
 
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     list_for_each_safe(eparams_node, temp, &amp_priv->events_paramlist) {
         event_node = node_to_item(eparams_node, struct event_params_node, node);
-	if (event_node->session_id == session_id) {
+        if (event_node->session_id == session_id) {
             eparams = &event_node->event_params;
             memcpy(&ev->value.bytes.data[0], eparams,
-                   sizeof(struct agm_event_cb_params) + eparams->event_payload_size);
+                   sizeof(struct agm_event_cb_params)
+                   + eparams->event_payload_size);
             list_remove(&event_node->node);
             free(event_node);
             return 0;
@@ -832,13 +839,14 @@ static int amp_pcm_event_put(struct mixer_plugin *plugin,
     int session_id = ctl->private_value;
     int ret;
 
-    evt_reg_cfg = (struct agm_event_reg_cfg *) (struct agm_meta_data *) &ev->value.bytes.data[0];
+    evt_reg_cfg = (struct agm_event_reg_cfg *) (struct agm_meta_data *)
+                                          &ev->value.bytes.data[0];
     ret = agm_session_register_for_events(session_id, evt_reg_cfg);
     if (ret == -EALREADY)
         ret = 0;
 
     if (ret)
-        printf("%s: set_event failed, err %d, session_id %u\n",
+        AGM_LOGE("%s: set_event failed, err %d, session_id %u\n",
                __func__, ret, session_id);
 
     return ret;
@@ -848,7 +856,7 @@ static int amp_pcm_metadata_get(struct mixer_plugin *plugin,
                 struct snd_control *Ctl, struct snd_ctl_tlv *tlv)
 {
     /* TODO: AGM needs to provide this in a API */
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     return 0;
 }
 
@@ -862,7 +870,7 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
     uint32_t tlv_size;
     void *payload;
 
-    printf("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
 
     pcm_control = amp_pcm_get_control_value(plugin->priv, pcm_idx, pcm_adi);
     if (pcm_control < 0)
@@ -876,7 +884,7 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
             ret = 0;
 
         if (ret)
-            printf("%s: set_session_metadata failed err %d for %s\n",
+            AGM_LOGE("%s: set_session_metadata failed err %d for %s\n",
                    __func__, ret, ctl->name);
         return ret;
     }
@@ -889,7 +897,7 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
         ret = 0;
 
     if (ret)
-        printf("%s: set_aif_ses_metadata failed err %d for %s\n",
+        AGM_LOGE("%s: set_aif_ses_metadata failed err %d for %s\n",
                __func__, ret, ctl->name);
     return ret;
 }
@@ -916,7 +924,7 @@ static int amp_pcm_calibration_get(struct mixer_plugin *plugin,
                 struct snd_control *Ctl, struct snd_ctl_elem_value *ev)
 {
     /* TODO: AGM needs to provide this in a API */
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     return 0;
 }
 
@@ -941,10 +949,10 @@ static int amp_pcm_calibration_put(struct mixer_plugin *plugin,
     be_idx = be_adi->idx_arr[pcm_control];
 
 
-    printf ("%s: enter sesid:%d audif:%d \n", __func__, pcm_idx, be_idx);
+    AGM_LOGV("%s: enter sesid:%d audif:%d\n", __func__, pcm_idx, be_idx);
     ret = agm_session_aif_set_cal(pcm_idx, be_idx, cal_config);
     if (ret)
-        printf("%s: set_calbration failed, err %d, aif_id %u\n",
+        AGM_LOGE("%s: set_calbration failed, err %d, aif_id %u\n",
                __func__, ret, be_idx);
     return ret;
 }
@@ -967,7 +975,7 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
     size_t tlv_size;
     bool is_param_tag = false;
 
-    printf("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
 
     if (strstr(ctl->name, "setParamTag"))
         is_param_tag = true;
@@ -980,14 +988,14 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
 
     if (pcm_control == 0) {
         if (is_param_tag) {
-            printf("%s: aif not provided for setParamTag\n",
+            AGM_LOGE("%s: aif not provided for setParamTag\n",
                     __func__);
             return -EINVAL;
         }
 
         ret = agm_session_set_params(pcm_idx, payload, tlv_size);
         if (ret)
-            printf("%s: session_set_params failed err %d for %s\n",
+            AGM_LOGE("%s: session_set_params failed err %d for %s\n",
                    __func__, ret, ctl->name);
         return ret;
     }
@@ -1004,7 +1012,7 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
         ret = 0;
 
     if (ret)
-        printf("%s: set_params failed err %d for %s is_param_tag %s\n",
+        AGM_LOGE("%s: set_params failed err %d for %s is_param_tag %s\n",
                __func__, ret, ctl->name, is_param_tag ? "true" : "false");
     return ret;
 }
@@ -1086,14 +1094,14 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
     int pcm_control, be_idx, ret = 0;
     size_t tlv_size, get_size = 0;
 
-    printf("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
 
     pcm_control = amp_pcm_get_control_value(plugin->priv, pcm_idx, pcm_adi);
-    if(pcm_control < 0)
+    if (pcm_control < 0)
         return pcm_control;
 
     if (pcm_control == 0) {
-        printf("%s: cannot get tag info for session only\n",
+        AGM_LOGE("%s: cannot get tag info for session only\n",
                 __func__);
         return -EINVAL;
     }
@@ -1107,7 +1115,7 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
     ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
                     NULL, &get_size);
     if (ret || get_size == 0 || tlv_size < get_size) {
-        printf("%s: invalid size, ret %d, tlv_size %ld, get_size %ld\n",
+        AGM_LOGE("%s: invalid size, ret %d, tlv_size %ld, get_size %ld\n",
                 __func__, ret, tlv_size, get_size);
         return -EINVAL;
     }
@@ -1115,7 +1123,7 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
     ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
                             payload, &get_size);
     if (ret)
-        printf("%s: session_aif_get_tag_module_info failed err %d for %s\n",
+        AGM_LOGE("%s: session_aif_get_tag_module_info failed err %d for %s\n",
                __func__, ret, ctl->name);
     return ret;
 }
@@ -1131,7 +1139,7 @@ static int amp_pcm_loopback_get(struct mixer_plugin *plugin,
                 struct snd_control *Ctl, struct snd_ctl_elem_value *ev)
 {
     /* TODO: AGM API not available */
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     return 0;
 }
 
@@ -1145,7 +1153,7 @@ static int amp_pcm_loopback_put(struct mixer_plugin *plugin,
     bool state = true;
     int ret;
 
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     pcm_rx_adi = &amp_priv->rx_pcm_devs;
     if (!pcm_rx_adi)
         return -EINVAL;
@@ -1165,7 +1173,7 @@ static int amp_pcm_loopback_put(struct mixer_plugin *plugin,
         ret = 0;
 
     if (ret)
-        printf("%s: loopback failed err %d, tx_pcm_idx %d rx_pcm_idx %d\n",
+        AGM_LOGE("%s: loopback failed err %d, tx_pcm_idx %d rx_pcm_idx %d\n",
                __func__, ret, tx_pcm_idx, rx_pcm_idx);
 
     return 0;
@@ -1175,7 +1183,7 @@ static int amp_pcm_echoref_get(struct mixer_plugin *plugin,
                 struct snd_control *Ctl, struct snd_ctl_elem_value *ev)
 {
     /* TODO: AGM API not available */
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     return 0;
 }
 
@@ -1189,7 +1197,7 @@ static int amp_pcm_echoref_put(struct mixer_plugin *plugin,
     int ret;
     bool state = true;
 
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     be_adi = amp_get_be_adi(amp_priv, RX);
     if (!be_adi)
         return -EINVAL;
@@ -1206,7 +1214,7 @@ static int amp_pcm_echoref_put(struct mixer_plugin *plugin,
         ret = 0;
 
     if (ret)
-        printf("%s: set ecref failed err %d, pcm_idx %d be_idx %d\n",
+        AGM_LOGE("%s: set ecref failed err %d, pcm_idx %d be_idx %d\n",
                __func__, ret, pcm_idx, be_idx);
 
     return 0;
@@ -1216,7 +1224,7 @@ static int amp_pcm_sidetone_get(struct mixer_plugin *plugin,
                 struct snd_control *Ctl, struct snd_ctl_elem_value *ev)
 {
     /* TODO: AGM API not available */
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
     return 0;
 }
 
@@ -1610,7 +1618,8 @@ static ssize_t amp_read_event(struct mixer_plugin *plugin,
         if (list_empty(&amp_priv->events_list))
             return result;
 
-        data = node_to_item(amp_priv->events_list.next, struct mixer_plugin_event_data, node);
+        data = node_to_item(amp_priv->events_list.next,
+                            struct mixer_plugin_event_data, node);
         memcpy(ev, &data->ev, sizeof(struct snd_ctl_event));
 
         list_remove(&data->node);
@@ -1631,7 +1640,7 @@ static int amp_subscribe_events(struct mixer_plugin *plugin,
     struct event_params_node *event_node;
     struct mixer_plugin_event_data *ev_data;
 
-    printf ("%s: enter\n", __func__);
+    AGM_LOGD("%s: enter\n", __func__);
 
     amp_priv->event_cb = event_cb;
 
@@ -1682,17 +1691,17 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     int ret = 0;
     int be_ctl_cnt, pcm_ctl_cnt, total_ctl_cnt = 0;
 
-    printf("%s: enter, card %u\n", __func__, card);
+    AGM_LOGD("%s: enter, card %u\n", __func__, card);
 
     amp = calloc(1, sizeof(*amp));
     if (!amp) {
-        printf("agm mixer plugin alloc failed\n");
+        AGM_LOGE("agm mixer plugin alloc failed\n");
         return -ENOMEM;
     }
 
     amp_priv = calloc(1, sizeof(*amp_priv));
     if (!amp_priv) {
-        printf("amp priv data alloc failed\n");
+        AGM_LOGE("amp priv data alloc failed\n");
         ret = -ENOMEM;
         goto err_priv_alloc;
     }
@@ -1700,7 +1709,7 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     amp_priv->card = card;
     amp_priv->card_node = snd_card_def_get_card(amp_priv->card);
     if (!amp_priv->card_node) {
-        printf("%s: card node not found for card %d\n",
+        AGM_LOGE("%s: card node not found for card %d\n",
                __func__, amp_priv->card);
         ret = -EINVAL;
         goto err_get_card;
@@ -1755,7 +1764,7 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     amp_register_event_callback(amp, 1);
     list_init(&amp_priv->events_paramlist);
     list_init(&amp_priv->events_list);
-    printf("%s: total_ctl_cnt = %d\n", __func__, total_ctl_cnt);
+    AGM_LOGV("%s: total_ctl_cnt = %d\n", __func__, total_ctl_cnt);
 
     return 0;
 

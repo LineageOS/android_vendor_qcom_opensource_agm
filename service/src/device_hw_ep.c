@@ -27,7 +27,7 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 
-#define LOGTAG "AGM: device"
+#define LOG_TAG "AGM: device"
 
 #include <hw_intf_cmn_api.h>
 #include <log/log.h>
@@ -77,7 +77,7 @@ static int populate_hw_ep_intf_idx(hw_ep_info_t *hw_ep_info, char *intf_idx)
         else if (!strcmp(intf_idx, "4"))
             cdc_dma_i2s_tdm_config->intf_idx = CODEC_RX4;
         else {
-             ALOGE("%s: No matching intf_idx found\n",__func__);
+             AGM_LOGE("%s: No matching intf_idx found\n",__func__);
              return -EINVAL;
         }
         break;
@@ -95,12 +95,12 @@ static int populate_hw_ep_intf_idx(hw_ep_info_t *hw_ep_info, char *intf_idx)
         else if(!strcmp(intf_idx, "QUINARY"))
             cdc_dma_i2s_tdm_config->intf_idx = PCM_INTF_IDX_QUINARY;
         else {
-            ALOGE("%s: No matching intf_idx found\n",__func__);
+            AGM_LOGE("%s: No matching intf_idx found\n", __func__);
             return -EINVAL;
         }
         break;
     default:
-        ALOGE("%s: Unsupported HW endpoint %d\n", __func__, hw_ep_info->intf);
+        AGM_LOGE("%s: Unsupported HW endpoint %d\n", __func__, hw_ep_info->intf);
         return -EINVAL;
     }
 
@@ -238,7 +238,7 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj)
     case USB_AUDIO:
         return populate_slim_dp_usb_ep_info(&dev_obj->hw_ep_info, value);
     default:
-        ALOGE("%s: Unsupported interface name %s\n", __func__, dev_obj->name);
+        AGM_LOGE("%s: Unsupported interface name %s\n", __func__, dev_obj->name);
         return -EINVAL;
     }
 }

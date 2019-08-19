@@ -34,45 +34,46 @@
 #include <string.h>
 
 #include "agm_api.h"
+#include "utils.h"
 
 #define ARRAY_SIZE(a) \
-	(sizeof(a) / sizeof(a[0]))
+        (sizeof(a) / sizeof(a[0]))
 
 int agm_session_write(struct session_obj *handle, void *buff, size_t count)
 {
-        printf("%s %d\n", __func__, __LINE__);
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
     return 0;
 }
 
 
 int agm_session_read(struct session_obj *handle, void *buff, size_t count)
 {
-        printf("%s %d\n", __func__, __LINE__);
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
     return 0;
 }
 
 int agm_session_stop(struct session_obj *handle)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 int agm_session_start(struct session_obj *handle)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 int agm_session_prepare(struct session_obj *handle)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 int agm_session_close(struct session_obj *handle)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 int agm_session_set_config(struct session_obj *handle,
@@ -80,97 +81,94 @@ int agm_session_set_config(struct session_obj *handle,
         struct agm_media_config *media_config,
         struct agm_buffer_config *buffer_config)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 int agm_session_open(uint32_t session_id, struct session_obj **handle)
 {
-     struct session_obj *h = malloc(sizeof(100));
-
-        printf("%s %d\n", __func__, __LINE__);
-     *handle = h;
-        printf("%s %d\n", __func__, __LINE__);
-     return 0;
+    struct session_obj *h = malloc(sizeof(100));
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    *handle = h;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 
 int agm_audio_intf_set_media_config(uint32_t audio_intf,
                                     struct agm_media_config *media_config)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 int agm_audio_intf_set_metadata(uint32_t audio_intf,
                                 struct agm_meta_data *metadata)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 int agm_session_set_metadata(uint32_t session_id,
                                 struct agm_meta_data *metadata)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 int agm_session_audio_inf_set_metadata(uint32_t session_id,
                                        uint32_t audio_intf,
                                        struct agm_meta_data *metadata)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }
 
 int agm_session_audio_inf_connect(uint32_t session_id,
 	uint32_t audio_intf, bool state)
 {
-	printf("%s: s_id %u, aif_id %u, %s\n", __func__,
-		   session_id, audio_intf,
-		   state ? "connect" : "disconnect");
-	return 0;
+    AGM_LOGD("%s: s_id %u, aif_id %u, %s\n", __func__,
+                 session_id, audio_intf,
+                 state ? "connect" : "disconnect");
+    return 0;
 }
 
 static struct aif_info be_list[] = {
-	{
-		.aif_name = "SLIM_0_RX",
-		.dir = RX,
-	},
-	{
-		.aif_name = "SLIM_1_RX",
-		.dir = RX,
-	},
-	{
-		.aif_name = "SLIM_0_TX",
-		.dir = TX,
-	},
-	{
-		.aif_name = "SLIM_1_TX",
-		.dir = TX,
-	},
+    {
+        .aif_name = "SLIM_0_RX",
+        .dir = RX,
+    },
+    {
+        .aif_name = "SLIM_1_RX",
+        .dir = RX,
+    },
+    {
+        .aif_name = "SLIM_0_TX",
+        .dir = TX,
+    },
+    {
+        .aif_name = "SLIM_1_TX",
+        .dir = TX,
+    },
 };
-
 
 int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info)
 {
-	int i;
+    int i;
 
-        printf("%s %d\n", __func__, __LINE__);
-	if (*num_aif_info == 0) {
-		*num_aif_info = ARRAY_SIZE(be_list);
-		return 0;
-	}
-
-	for (i = 0; i < *num_aif_info; i++)
-		memcpy((aif_list + i), &be_list[i], sizeof(struct aif_info));
-
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    if (*num_aif_info == 0) {
+        *num_aif_info = ARRAY_SIZE(be_list);
+        return 0;
+    }
+    for (i = 0; i < *num_aif_info; i++)
+        memcpy((aif_list + i), &be_list[i], sizeof(struct aif_info));
+    return 0;
 }
 
-int agm_session_set_loopback(uint32_t capture_session_id, uint32_t playback_session_id)
+int agm_session_set_loopback(uint32_t capture_session_id,
+                            uint32_t playback_session_id)
 {
-        printf("%s %d\n", __func__, __LINE__);
-	return 0;
+    AGM_LOGD("%s %d\n", __func__, __LINE__);
+    return 0;
 }

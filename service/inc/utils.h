@@ -28,12 +28,12 @@
 **/
 
 #ifndef __UTILS_H__
-#include "casa_osal_log.h"
 #include "casa_osal_error.h"
+#include <utils/Log.h>
 
-#define AGM_LOGE(...) CASA_LOG_ERR(LOGTAG, __VA_ARGS__)
-#define AGM_LOGD(...) CASA_LOG_ERR(LOGTAG, __VA_ARGS__)
-#define AGM_LOGI(...) CASA_LOG_INFO(LOGTAG, __VA_ARGS__)
-#define AGM_LOGV(...) CASA_LOG_ERR(LOGTAG, __VA_ARGS__)
+#define AGM_LOGE(arg,...) ALOGE("%s: %d "  arg, __func__, __LINE__, ##__VA_ARGS__)
+#define AGM_LOGD(arg,...) ALOGD("%s: %d "  arg, __func__, __LINE__, ##__VA_ARGS__)
+#define AGM_LOGI(arg,...) ALOGI("%s: %d "  arg, __func__, __LINE__, ##__VA_ARGS__)
+#define AGM_LOGV(arg,...) ALOGV("%s: %d "  arg, __func__, __LINE__, ##__VA_ARGS__)
 
 #endif /*__UTILS_H*/

@@ -27,7 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define LOGTAG "AGM: graph_hw_ep"
+#define LOGTAG "AGM: graph_module"
 
 #include <errno.h>
 #include <pthread.h>
@@ -177,7 +177,7 @@ static int configure_codec_dma_ep(struct module_info *mod,
     size_t payload_sz, ret_payload_sz = 0;
     uint8_t *payload = NULL;
 
-    AGM_LOGD("entry mod tag %x miid %x mid %x\n", mod->tag, mod->miid, mod->mid);
+    AGM_LOGV("entry mod tag %x miid %x mid %x\n", mod->tag, mod->miid, mod->mid);
 
     payload_sz = sizeof(struct apm_module_param_data_t) +
         sizeof(struct param_id_codec_dma_intf_cfg_t);
@@ -220,7 +220,7 @@ static int configure_codec_dma_ep(struct module_info *mod,
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
 
-        AGM_LOGE("get_tagged_data for mod tag:%x miid:%x failed with error %d",
+        AGM_LOGD("get_tagged_data for mod tag:%x miid:%x failed with error %d",
                       mod->tag, mod->miid, ret);
         goto free_kvp;
     }
@@ -262,7 +262,7 @@ static int configure_i2s_ep(struct module_info *mod,
     size_t payload_sz, ret_payload_sz = 0;
     uint8_t *payload = NULL;
 
-    AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
+    AGM_LOGV("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
 
     payload_sz = sizeof(struct apm_module_param_data_t) +
         sizeof(struct  param_id_i2s_intf_cfg_t);
@@ -306,7 +306,7 @@ static int configure_i2s_ep(struct module_info *mod,
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
 
-        AGM_LOGE("get_tagged_data for module %d failed with error %d",
+        AGM_LOGD("get_tagged_data for module %d failed with error %d",
                       mod->tag, ret);
         goto free_kvp;
     }
@@ -349,7 +349,7 @@ static int configure_tdm_ep(struct module_info *mod,
     size_t payload_sz, ret_payload_sz = 0;
     uint8_t *payload = NULL;
 
-    AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
+    AGM_LOGV("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
 
     payload_sz = sizeof(struct apm_module_param_data_t) +
         sizeof(struct param_id_tdm_intf_cfg_t);
@@ -393,7 +393,7 @@ static int configure_tdm_ep(struct module_info *mod,
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
 
-        AGM_LOGE("get_tagged_data for module %d failed with error %d",
+        AGM_LOGD("get_tagged_data for module %d failed with error %d",
                       mod->tag, ret);
         goto free_kvp;
     }
@@ -438,7 +438,7 @@ static int configure_aux_pcm_ep(struct module_info *mod,
     size_t payload_sz ,ret_payload_sz = 0;
     uint8_t *payload = NULL;
 
-    AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
+    AGM_LOGV("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
 
     payload_sz = sizeof(struct apm_module_param_data_t) +
         sizeof(struct param_id_hw_pcm_intf_cfg_t);
@@ -482,7 +482,7 @@ static int configure_aux_pcm_ep(struct module_info *mod,
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
 
-        AGM_LOGE("get_tagged_data for module %d failed with error %d",
+        AGM_LOGD("get_tagged_data for module %d failed with error %d",
                       mod->tag, ret);
         goto free_kvp;
     }
@@ -525,7 +525,7 @@ static int configure_slimbus_ep(struct module_info *mod,
     int i = 0;
     char print_ch_map[SB_MAX_CHAN_CNT+1] = {0};
 
-    AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
+    AGM_LOGV("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
 
     if (dev_obj->media_config.channels > SB_MAX_CHAN_CNT) {
         AGM_LOGE("device channels %d exceed max supported ch %d for Slimbus",
@@ -574,7 +574,7 @@ static int configure_slimbus_ep(struct module_info *mod,
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
 
-        AGM_LOGE("get_tagged_data for module %d failed with error %d",
+        AGM_LOGD("get_tagged_data for module %d failed with error %d",
                       mod->tag, ret);
         goto free_kvp;
     }
@@ -615,7 +615,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
     struct param_id_hw_ep_mf_t* hw_ep_media_conf;
     struct agm_media_config media_config = dev_obj->media_config;
 
-    AGM_LOGD("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
+    AGM_LOGV("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
     payload_size = sizeof(struct apm_module_param_data_t) +
                    sizeof(struct param_id_hw_ep_mf_t);
 
@@ -718,7 +718,7 @@ int configure_output_media_format(struct module_info *mod,
     int ret = 0;
     int num_channels = MONO;
 
-    AGM_LOGD("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
+    AGM_LOGV("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
     num_channels = sess_obj->media_config.channels;
 
     payload_size = sizeof(struct apm_module_param_data_t) +

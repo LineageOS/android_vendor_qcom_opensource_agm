@@ -37,27 +37,30 @@
 #include <binder/IServiceManager.h>
 #include <binder/IPCThreadState.h>
 #include <cutils/list.h>
+#include "utils.h"
 
 using namespace android;
 
-class IAGMClient : public ::android::IInterface {
+class IAGMClient : public ::android::IInterface
+{
     public:
         DECLARE_META_INTERFACE(AGMClient);
 };
 
-class DummyBnClient : public ::android::BnInterface<IAGMClient> {
+class DummyBnClient : public ::android::BnInterface<IAGMClient>
+{
     public:
         DummyBnClient(){
-            ALOGE("Constructor of DummyBnClient called");
+            AGM_LOGV("Constructor of DummyBnClient called\n");
         }
         ~DummyBnClient(){
-            ALOGE("Destructor of DummyBnClient called");
+            AGM_LOGV("Destructor of DummyBnClient called\n");
         }
     private:
         int32_t onTransact(uint32_t code,
-                       const Parcel& data,
-                        Parcel* reply,
-                        uint32_t flags) override;
+                           const Parcel& data,
+                           Parcel* reply,
+                           uint32_t flags) override;
 };
 
 
@@ -86,10 +89,10 @@ typedef struct {
 typedef struct {
     struct listnode list;
     sp<IAGMClient> binder;
-	pid_t pid;
+    pid_t pid;
     sp<client_death_notifier> Client_death_notifier;
     struct listnode agm_client_hndl_list;
- } client_info;
+} client_info;
 
 client_info *get_client_handle_from_list(pid_t pid);
 void agm_register_client(sp<IBinder> binder);

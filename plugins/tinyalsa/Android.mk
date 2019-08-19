@@ -8,6 +8,9 @@ LOCAL_USE_VNDK := true
 LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/snd-card-parser/
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/casa/casa_osal
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/agm/
+LOCAL_C_INCLUDES += $(call include-path-for, agm) \
 
 LOCAL_SRC_FILES := src/agm_pcm_plugin.c
 
@@ -19,7 +22,9 @@ LOCAL_SHARED_LIBRARIES := \
         libtinyalsa \
         libsndcardparser \
         libclient_ipc \
-        libcutils
+        libutils \
+        libcutils \
+        liblog
 LOCAL_VENDOR_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)
@@ -29,6 +34,9 @@ LOCAL_USE_VNDK := true
 LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/snd-card-parser/
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/casa/casa_osal
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/agm/
+LOCAL_C_INCLUDES += $(call include-path-for, agm) \
 
 LOCAL_SRC_FILES := src/agm_mixer_plugin.c
 
@@ -40,7 +48,9 @@ LOCAL_SHARED_LIBRARIES := \
         libtinyalsa \
         libsndcardparser \
         libclient_ipc \
-        libcutils
+        libcutils \
+        libutils \
+        liblog
 
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_SHARED_LIBRARY)
@@ -51,7 +61,10 @@ LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
 LOCAL_C_INCLUDES += $(TOP)/external/tinycompress/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/agm/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/snd-card-parser/
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/casa/casa_osal
+LOCAL_C_INCLUDES += $(call include-path-for, agm) \
 
 LOCAL_ADDITIONAL_DEPENDENCIES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
@@ -66,7 +79,9 @@ LOCAL_SHARED_LIBRARIES := \
         libtinycompress \
         libsndcardparser \
         libclient_ipc \
-        libcutils
+        libutils \
+        libcutils \
+        liblog
 
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_SHARED_LIBRARY)

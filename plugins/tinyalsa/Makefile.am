@@ -4,8 +4,9 @@ EXTRA_DIST = $(pkgconfig_DATA)
 
 library_includedir = $(includedir)
 
-AM_CFLAGS := -I $(top_srcdir)/include -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/agm/
+AM_CFLAGS := -I $(top_srcdir)/include -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/agm/ -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include
 AM_CFLAGS += -Wno-unused-parameter
+AM_CFLAGS += $(GLIB_CFLAGS) -Dstrlcpy=g_strlcpy -Dstrlcat=g_strlcat -include glib.h
 
 lib_LTLIBRARIES      = libagm_pcm_plugin.la
 libagm_pcm_plugin_la_SOURCES   = src/agm_pcm_plugin.c
