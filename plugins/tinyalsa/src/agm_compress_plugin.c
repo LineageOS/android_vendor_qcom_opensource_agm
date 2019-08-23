@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <linux/ioctl.h>
+#include <time.h>
 #include <sound/asound.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -38,7 +39,6 @@
 #include <poll.h>
 #include <string.h>
 #include <pthread.h>
-#include <time.h>
 #include <tinycompress/compress_plugin.h>
 #include <tinycompress/tinycompress.h>
 #include <snd-card-def.h>
