@@ -1839,6 +1839,26 @@ int graph_set_config(struct graph_obj *graph_obj, void *payload,
     return ret;
 }
 
+int graph_get_config(struct graph_obj *graph_obj, void *payload,
+                     size_t payload_size)
+{
+    int ret = 0;
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object");
+        return -EINVAL;
+    }
+
+    pthread_mutex_lock(&graph_obj->lock);
+    AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
+    ret = gsl_get_custom_config(graph_obj->graph_handle, payload, payload_size);
+    if (ret !=0)
+        AGM_LOGE("%s: graph_get_config failed %d", __func__, ret);
+
+    pthread_mutex_unlock(&graph_obj->lock);
+
+    return ret;
+}
+
 int graph_set_config_with_tag(struct graph_obj *graph_obj,
                               struct agm_key_vector_gsl *gkv,
                               struct agm_tag_config_gsl *tag_config)

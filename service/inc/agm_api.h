@@ -516,6 +516,20 @@ int agm_session_set_params(uint32_t session_id,
 	void* payload, size_t size);
 
 /**
+ * \brief Get parameters of the modules of a given session
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[in] payload - payload
+ * \param[in] size - payload size in bytes
+ *
+ *  \return 0 on success, error code on failure.
+ *       If the session is not opened,
+ *       api will return failure.
+ */
+int agm_session_get_params(uint32_t session_id,
+	void* payload, size_t size);
+
+/**
  * \brief Set parameters for modules in b/w stream and audio interface
  *
  * \param[in] session_id - Valid audio session id

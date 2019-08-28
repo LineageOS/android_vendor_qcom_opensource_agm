@@ -103,6 +103,7 @@ enum {
     SET_CALIBRATION,
     EOS,
     GET_SESSION_TIME,
+    GET_PARAMS,
 };
 
 class BpAgmService : public ::android::BpInterface<IAgmService> {
@@ -594,6 +595,29 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
         memcpy(ckv_blob.data(), cal_config->kv, ckv_size);
         remote()->transact(SET_CALIBRATION, data, &reply);
         ckv_blob.release();
+        return reply.readInt32();
+    }
+
+    virtual int ipc_agm_session_get_params(uint32_t session_id,
+                                           void *payload, size_t count)
+     {
+        android::Parcel data, reply;
+        android::Parcel::WritableBlob blob;
+        android::Parcel::ReadableBlob get_param_blob;
+
+        data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
+        data.writeUint32(session_id);
+        data.writeUint32(count);
+        data.writeBlob(count, false, &blob);
+        memset(blob.data(), 0x0, count);
+        memcpy(blob.data(), payload, count);
+
+        remote()->transact(GET_PARAMS, data, &reply);
+
+        reply.readBlob(count, &get_param_blob);
+        memcpy(payload, get_param_blob.data(), count);
+        blob.release();
+        get_param_blob.release();
         return reply.readInt32();
     }
 };
@@ -1155,6 +1179,37 @@ fail_ses_aud_set_cal_data:
         reply->writeUint64(ts);
         reply->writeInt32(rc);
         break; }
+
+    case GET_PARAMS: {
+        uint32_t rc, pcm_idx;
+        size_t count = 0;
+        void *bn_payload;
+        android::Parcel::ReadableBlob blob;
+        android::Parcel::WritableBlob get_param_blob;
+
+        pcm_idx = data.readUint32();
+        count = (size_t) data.readUint32();
+        data.readBlob(count, &blob);
+
+        bn_payload = calloc(count, sizeof(uint8_t));
+        if (!bn_payload) {
+            ALOGE ("\n Out of memory\n");
+            rc =  -ENOMEM;
+            goto session_get_param_fail;
+        }
+
+        memcpy(bn_payload, blob.data(), count);
+        rc = ipc_agm_session_get_params(pcm_idx, bn_payload, count);
+
+        reply->writeBlob(count, false, &get_param_blob);
+        memcpy(get_param_blob.data(), bn_payload, count);
+        free(bn_payload);
+    session_get_param_fail:
+        reply->writeInt32(rc);
+        get_param_blob.release();
+        blob.release();
+        break; }
+
     default:
         return BBinder::onTransact(code, data, reply, flags);
     }

@@ -77,6 +77,7 @@ class AgmService : public BnAgmService {
                                      struct agm_cal_config *cal_config);
         virtual int ipc_agm_session_eos(struct session_obj *handle);
         virtual int ipc_agm_get_session_time(struct session_obj *handle, uint64_t *timestamp);
+        virtual int ipc_agm_session_get_params(uint32_t session_id, void *payload, size_t size);
 
         ~AgmService()
         {

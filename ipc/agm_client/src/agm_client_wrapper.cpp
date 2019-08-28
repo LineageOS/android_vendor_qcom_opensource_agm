@@ -385,3 +385,14 @@ int agm_get_session_time(struct session_obj *handle, uint64_t *timestamp)
     ALOGE("%s: agm service is not running\n", __func__);
     return -EAGAIN;
 }
+
+int agm_session_get_params(uint32_t session_id, void *payload, size_t size)
+{
+    if(!agm_server_died)
+    {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_get_params(session_id, payload, size);
+    }
+    ALOGE("%s: agm service is not running\n", __func__);
+    return -EAGAIN;
+}

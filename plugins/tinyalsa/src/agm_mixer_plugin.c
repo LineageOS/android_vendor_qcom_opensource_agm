@@ -77,6 +77,7 @@ enum {
     PCM_CTL_NAME_GET_TAG_INFO,
     PCM_CTL_NAME_EVENT,
     PCM_CTL_NAME_SET_CALIBRATION,
+    PCM_CTL_NAME_GET_PARAM,
     /* Add new ones here */
 };
 
@@ -91,6 +92,7 @@ static char *amp_pcm_ctl_name_extn[] = {
     "getTaggedInfo",
     "event",
     "setCalibration",
+    "getParam",
     /* Add new ones below, be sure to update enum as well */
 };
 
@@ -127,6 +129,14 @@ struct amp_dev_info {
      * Unused for BE devs
      */
     int *pcm_mtd_ctl;
+
+    /*
+     * Mixer ctl data cache for
+     * "pcm<id> getParam"
+     * Unused for BE devs
+     */
+    void *get_param_payload;
+    int get_param_payload_size;
 };
 
 struct amp_priv {
@@ -215,6 +225,11 @@ static void amp_free_dev_info(struct amp_dev_info *adi)
     if (adi->pcm_mtd_ctl) {
         free(adi->pcm_mtd_ctl);
         adi->pcm_mtd_ctl = NULL;
+    }
+
+    if (adi->get_param_payload) {
+        free(adi->get_param_payload);
+        adi->get_param_payload = NULL;
     }
 
     adi->count = 0;
@@ -974,6 +989,73 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
     return ret;
 }
 
+static int amp_pcm_get_param_get(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
+{
+    struct amp_dev_info *pcm_adi = ctl->private_data;
+    struct amp_dev_info *be_adi;
+    void *payload;
+    int pcm_idx = ctl->private_value;
+    int pcm_control, be_idx, ret = 0;
+    size_t tlv_size;
+
+    printf("%s: enter\n", __func__);
+
+    payload = &tlv->tlv[0];
+    tlv_size = tlv->length;
+
+    if (!pcm_adi->get_param_payload) {
+        printf("%s: put() for getParam not called\n", __func__);
+        return -EINVAL;
+    }
+
+    if (tlv_size < pcm_adi->get_param_payload_size) {
+        printf("%s: Buffer size less than expected\n", __func__);
+        return -EINVAL;
+    }
+
+    memcpy(payload, pcm_adi->get_param_payload, pcm_adi->get_param_payload_size);
+    ret = agm_session_get_params(pcm_idx, payload, tlv_size);
+
+    if (ret == -EALREADY)
+        ret = 0;
+
+    if (ret)
+        printf("%s: failed err %d for %s\n", __func__, ret, ctl->name);
+
+    free(pcm_adi->get_param_payload);
+    pcm_adi->get_param_payload = NULL;
+    pcm_adi->get_param_payload_size = 0;
+    return ret;
+}
+
+static int amp_pcm_get_param_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
+{
+    struct amp_dev_info *pcm_adi = ctl->private_data;
+    void *payload;
+    int pcm_idx = ctl->private_value;
+    int pcm_control, ret = 0;
+    size_t tlv_size;
+
+    printf("%s: enter\n", __func__);
+
+    if (pcm_adi->get_param_payload) {
+        free(pcm_adi->get_param_payload);
+        pcm_adi->get_param_payload = NULL;
+    }
+    payload = &tlv->tlv[0];
+    pcm_adi->get_param_payload_size = tlv->length;
+
+    pcm_adi->get_param_payload = calloc(1, pcm_adi->get_param_payload_size);
+    if (!pcm_adi->get_param_payload)
+        return -ENOMEM;
+
+    memcpy(pcm_adi->get_param_payload, payload, pcm_adi->get_param_payload_size);
+
+    return 0;
+}
+
 static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
                 struct snd_control *ctl, struct snd_ctl_tlv *tlv)
 {
@@ -1140,6 +1222,8 @@ static struct snd_value_tlv_bytes pcm_setparamtag_bytes =
     SND_VALUE_TLV_BYTES(1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_setparam_bytes =
     SND_VALUE_TLV_BYTES(64 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
+static struct snd_value_tlv_bytes pcm_getparam_bytes =
+    SND_VALUE_TLV_BYTES(64 * 1024, amp_pcm_get_param_get, amp_pcm_get_param_put);
 
 static struct snd_value_int media_fmt_int =
     SND_VALUE_INTEGER(3, 0, 384000, 1);
@@ -1230,6 +1314,19 @@ static void amp_create_pcm_set_param_ctl(struct amp_priv *amp_priv,
         INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_setparamtag_bytes,
                     pval, pdata);
     }
+
+}
+
+static void amp_create_pcm_get_param_ctl(struct amp_priv *amp_priv,
+                char *name, int ctl_idx, int pval, void *pdata)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+         name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_GET_PARAM]);
+    INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_getparam_bytes,
+                pval, pdata);
 
 }
 
@@ -1383,6 +1480,8 @@ static int amp_form_common_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx,
         amp_create_pcm_event_ctl(amp_priv, name, (*ctl_idx)++,
                         idx, pcm_adi);
         amp_create_pcm_calibration_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, pcm_adi);
+        amp_create_pcm_get_param_ctl(amp_priv, name, (*ctl_idx)++,
                         idx, pcm_adi);
     }
 

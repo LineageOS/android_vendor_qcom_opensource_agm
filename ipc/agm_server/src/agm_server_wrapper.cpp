@@ -211,3 +211,8 @@ int AgmService::ipc_agm_get_session_time(struct session_obj *handle, uint64_t *t
     ALOGV("%s called\n", __func__);
     return agm_get_session_time(handle, timestamp);
 };
+
+int AgmService::ipc_agm_session_get_params(uint32_t session_id, void *payload, size_t size){
+    ALOGV("%s called\n", __func__);
+    return agm_session_get_params(session_id, payload, size);
+};

@@ -1258,6 +1258,25 @@ done:
 	return ret;
 }
 
+int session_obj_get_sess_params(struct session_obj *sess_obj,
+        void *payload, size_t size)
+{
+    int ret = 0;
+
+    pthread_mutex_lock(&sess_obj->lock);
+
+    if (sess_obj->state != SESSION_CLOSED) {
+        ret = graph_get_config(sess_obj->graph, payload, size);
+            if (ret)
+                AGM_LOGE("%s:Error:%d get sess params on sess_id:%d\n",
+                              __func__, ret, sess_obj->sess_id);
+    }
+
+done:
+    pthread_mutex_unlock(&sess_obj->lock);
+    return ret;
+}
+
 int session_obj_get_tag_with_module_info(struct session_obj *sess_obj, uint32_t aif_id, void *payload, size_t *size)
 {
 	int ret = 0;

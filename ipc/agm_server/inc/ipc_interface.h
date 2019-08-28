@@ -80,6 +80,7 @@ class IAgmService: public ::android::IInterface {
                                     struct agm_cal_config *cal_config) = 0;
         virtual int ipc_agm_session_eos(struct session_obj *session_handle)= 0;
         virtual int ipc_agm_get_session_time(struct session_obj *session_handle, uint64_t *timestamp)= 0;
+        virtual int ipc_agm_session_get_params(uint32_t session_id, void *payload, size_t size) = 0;
 };
 
 class BnAgmService : public ::android::BnInterface<IAgmService> {

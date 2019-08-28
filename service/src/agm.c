@@ -219,6 +219,29 @@ done:
 	return ret;
 }
 
+int agm_session_get_params(uint32_t session_id,
+        void* payload, size_t size)
+{
+    struct session_obj *obj = NULL;
+    int ret = 0;
+
+    ret = session_obj_get(session_id, &obj);
+    if (ret) {
+            AGM_LOGE("%s: Error:%d retrieving session obj with session id=%d\n", __func__, ret, session_id);
+            goto done;
+    }
+
+    ret = session_obj_get_sess_params(obj, payload, size);
+    if (ret) {
+            AGM_LOGE("%s: Error:%d getting parameters for session obj with session id=%d\n",
+                            __func__, ret, session_id);
+            goto done;
+    }
+
+done:
+    return ret;
+}
+
 int agm_session_set_params(uint32_t session_id,
 	void* payload, size_t size)
 {
