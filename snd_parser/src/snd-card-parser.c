@@ -36,8 +36,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
+#define MAX_PATH 256
 #define BUF_SIZE 1024
+#define UINT_MAX (~0U)
 
 struct snd_prop_val_pair {
     char *prop;
@@ -92,6 +95,7 @@ struct xml_userdata {
     size_t offs;
 
     unsigned int card;
+    char *card_name;
     struct snd_dev_def_card *cur_card_def;
     struct snd_dev_def *cur_dev_def;
     bool card_found;
@@ -220,29 +224,63 @@ static void snd_dev_def_init(struct xml_userdata *data, const XML_Char *tag_name
     data->cur_dev_def = dev_def;
 }
 
+static struct snd_dev_def_card *snd_parse_initialize_card_def(struct xml_userdata *data)
+{
+    struct snd_dev_def_card *card_def = NULL;
+
+    if (data->cur_card_def)
+        return data->cur_card_def;
+
+    card_def = calloc(1, sizeof(struct snd_dev_def_card));
+    if (!card_def)
+        return card_def;
+
+    data->card_found = true;
+    data->cur_card_def = card_def;
+    list_init(&card_def->pcm_devs_list);
+    list_init(&card_def->mixer_devs_list);
+    list_init(&card_def->compr_devs_list);
+    return card_def;
+}
+
 static void snd_parse_card_properties(struct xml_userdata *data, const XML_Char *tag_name)
 {
     struct snd_dev_def_card *card_def = NULL;
     unsigned int card;
+    const char s[4] = ", ";
+    char *token = NULL;
+    char *tok_ptr;
 
     if (!strcmp(tag_name, "id")) {
         card = atoi(data->data_buf);
         if (card == data->card) {
-            card_def = calloc(1, sizeof(struct snd_dev_def_card));
-            if (!card_def)
-                return;
-
-            card_def->card = card;
-            data->card_found = true;
-            data->cur_card_def = card_def;
-            list_init(&card_def->pcm_devs_list);
-            list_init(&card_def->mixer_devs_list);
-            list_init(&card_def->compr_devs_list);
+            card_def = snd_parse_initialize_card_def(data);
+            if (card_def)
+                card_def->card = card;
         }
     } else if (!strcmp(tag_name, "name")) {
         card_def = data->cur_card_def;
-        if (!card_def)
+        if (!card_def) {
+            if (!data->card_name)
+                return;
+            token = strtok_r(data->data_buf, s, &tok_ptr);
+
+            while (token != 0) {
+                if (!strncmp(data->card_name, token, strlen(data->card_name))) {
+                    card_def = snd_parse_initialize_card_def(data);
+                    if (!card_def)
+                        return;
+                    goto card_found;
+                }
+
+                token = strtok_r(0, s, &tok_ptr);
+            }
             return;
+        }
+
+card_found:
+        if (token)
+            strlcpy(data->data_buf, token, strlen(token) + 1);
 
         card_def->name = calloc(1, strlen(data->data_buf) + 1);
         if (!card_def->name)
@@ -399,11 +437,36 @@ void *snd_card_def_get_card(unsigned int card)
     FILE *file;
     XML_Parser parser;
     void *buf;
-    int bytes_read;
+    int bytes_read, len = 0;
+    char *snd_card_name = NULL;
+    bool card_found = false;
     struct listnode *snd_card_node, *temp;
     struct xml_userdata card_data;
     struct snd_dev_def_card *card_def = NULL;
+    char filename[MAX_PATH];
 
+    snprintf(filename, MAX_PATH, "/proc/asound/card%d/id", card);
+    if (access(filename, F_OK ) != -1 ) {
+        file = fopen(filename, "r");
+        if (file < 0) {
+            printf("open %s: failed\n", filename);
+        } else {
+            snd_card_name = calloc(1, BUF_SIZE);
+            if (!snd_card_name)
+                return NULL;
+
+            if (fgets(snd_card_name, BUF_SIZE - 1, file)) {
+                len = strlen(snd_card_name);
+                snd_card_name[len - 1] = '\0';
+                card = UINT_MAX;
+            } else {
+                free(snd_card_name);
+                snd_card_name = NULL;
+            }
+            fclose(file);
+        }
+    }
+    file = NULL;
     pthread_rwlock_wrlock(&snd_rwlock);
     if (snd_card_list_init == false) {
         list_init(&snd_card_list);
@@ -413,7 +476,13 @@ void *snd_card_def_get_card(unsigned int card)
 
     list_for_each_safe(snd_card_node, temp, &snd_card_list) {
         card_def = node_to_item(snd_card_node, struct snd_dev_def_card, list_node);
-        if (card_def->card == card) {
+        if (snd_card_name) {
+            if (!strncmp(snd_card_name, card_def->name, strlen(snd_card_name)))
+                card_found = true;
+        } else if (card_def->card == card) {
+            card_found = true;
+        }
+        if (card_found) {
             card_def->refcnt++;
             pthread_rwlock_unlock(&snd_rwlock);
             return card_def;
@@ -435,6 +504,7 @@ void *snd_card_def_get_card(unsigned int card)
     }
 
     card_data.card = card;
+    card_data.card_name = snd_card_name;
     XML_SetUserData(parser, &card_data);
     XML_SetElementHandler(parser, snd_start_tag, snd_end_tag);
     XML_SetCharacterDataHandler(parser, snd_data_handler);
