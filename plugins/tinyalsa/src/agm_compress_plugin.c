@@ -342,8 +342,10 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
             sess_cfg->codec.aac_dec.aac_fmt_flag = 0x00;
         sess_cfg->codec.aac_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.aac_dec.sample_rate = media_cfg->rate;
+#ifdef COMPRESS_UAPI_DEC_HEADER
         sess_cfg->codec.aac_dec.audio_obj_type = copt->aac_dec.audio_obj_type;
         sess_cfg->codec.aac_dec.total_size_of_PCE_bits = copt->aac_dec.pce_bits_size;
+#endif
         break;
     case SND_AUDIOCODEC_FLAC:
         media_cfg->format = AGM_FORMAT_FLAC;
@@ -388,17 +390,20 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
         sess_cfg->codec.wma_dec.fmt_tag = params->codec.format;
         sess_cfg->codec.wma_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.wma_dec.sample_rate = media_cfg->rate;
+#ifdef COMPRESS_UAPI_DEC_HEADER
         sess_cfg->codec.wma_dec.avg_bytes_per_sec = copt->wma_dec.avg_bit_rate/8;
         sess_cfg->codec.wma_dec.blk_align = copt->wma_dec.super_block_align;
         sess_cfg->codec.wma_dec.bits_per_sample = copt->wma_dec.bits_per_sample;
         sess_cfg->codec.wma_dec.channel_mask = copt->wma_dec.channelmask;
         sess_cfg->codec.wma_dec.enc_options = copt->wma_dec.encodeopt;
+#endif
         break;
     case SND_AUDIOCODEC_WMA_PRO:
         media_cfg->format = AGM_FORMAT_WMAPRO;
         sess_cfg->codec.wmapro_dec.fmt_tag = params->codec.format;
         sess_cfg->codec.wmapro_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.wmapro_dec.sample_rate = media_cfg->rate;
+#ifdef COMPRESS_UAPI_DEC_HEADER
         sess_cfg->codec.wmapro_dec.avg_bytes_per_sec = copt->wma_dec.avg_bit_rate/8;
         sess_cfg->codec.wmapro_dec.blk_align = copt->wma_dec.super_block_align;
         sess_cfg->codec.wmapro_dec.bits_per_sample = copt->wma_dec.bits_per_sample;
@@ -406,6 +411,7 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
         sess_cfg->codec.wmapro_dec.enc_options = copt->wma_dec.encodeopt;
         sess_cfg->codec.wmapro_dec.advanced_enc_option = copt->wma_dec.encodeopt1;
         sess_cfg->codec.wmapro_dec.advanced_enc_option2 = copt->wma_dec.encodeopt2;
+#endif
         break;
     case SND_AUDIOCODEC_VORBIS:
         media_cfg->format = AGM_FORMAT_VORBIS;
