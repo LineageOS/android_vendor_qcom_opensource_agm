@@ -1972,7 +1972,7 @@ int graph_set_config_with_tag(struct graph_obj *graph_obj,
      }
 
      pthread_mutex_lock(&graph_obj->lock);
-     ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)&gkv,
+     ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)gkv,
                           tag_config->tag_id, (struct gsl_key_vector *)&tag_config->tkv);
      if (ret)
          AGM_LOGE("graph_set_config failed %d", ret);
