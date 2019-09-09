@@ -46,6 +46,8 @@
 #define  TDM                        0x2
 #define  AUXPCM                     0x3
 #define  SLIMBUS                    0x4
+#define  DISPLAY_PORT               0x5
+#define  USB_AUDIO                  0x6
 
 #define  AUDIO_OUTPUT               0x1 /**< playback usecases*/
 #define  AUDIO_INPUT                0x2 /**< capture/voice activation usecases*/
@@ -66,16 +68,34 @@ enum device_state {
     DEV_STOPPED,
 };
 
+struct hw_ep_cdc_dma_i2s_tdm_config {
+    /* lpaif type e.g. LPAIF, LPAIF_WSA, LPAIF_RX_TX*/
+    uint32_t lpaif_type;
+    /* Interface ID e.g. Primary, Secondary, Tertiary ….*/
+    uint32_t intf_idx;
+};
+
+struct hw_ep_slimbus_config {
+    /* Slimbus device id : Expected values :
+     * DEV1 : 0
+     * DEV2 : 1
+     */
+    uint32_t dev_id;
+};
+
+union hw_ep_config {
+    struct hw_ep_cdc_dma_i2s_tdm_config cdc_dma_i2s_tdm_config;
+    struct hw_ep_slimbus_config slim_config;
+};
+
 typedef struct hw_ep_info
 {
-     /* interface e.g. CODEC_DMA, I2S, AUX_PCM, SLIMBUS…*/
-     uint32_t intf;
-    /* lpaif type e.g. LPAIF, LPAIF_WSA, LPAIF_RX_TX*/
-     uint32_t lpaif_type;
-    /* Interface ID e.g. Primary, Secondary, Tertiary ….*/
-     uint32_t intf_idx;
+    /* interface e.g. CODEC_DMA, I2S, AUX_PCM, SLIM, DISPLAY_PORT */
+    uint32_t intf;
     /* Direction of the interface RX or TX (Sink or Source)*/
-     uint32_t dir;
+    uint32_t dir;
+
+    union hw_ep_config ep_config;
 }hw_ep_info_t;
 
 struct device_obj {
@@ -126,4 +146,5 @@ enum device_state device_current_state(struct device_obj *obj);
 int device_set_media_config(struct device_obj *obj, struct agm_media_config *device_media_config);
 /* api to set device meta graph keys + cal keys */
 int device_set_metadata(struct device_obj *obj, uint32_t size, uint8_t *payload);
+int populate_device_hw_ep_info(struct device_obj *dev_obj);
 #endif

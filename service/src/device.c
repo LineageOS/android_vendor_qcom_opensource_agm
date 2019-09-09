@@ -41,7 +41,6 @@
 #include "metadata.h"
 #include "utils.h"
 #include <tinyalsa/asoundlib.h>
-#include <hw_intf_cmn_api.h>
 
 #define PCM_DEVICE_FILE "/proc/asound/pcm"
 
@@ -54,23 +53,6 @@ static struct pcm_config config;
 #define DEFAULT_SAMPLING_RATE        48000
 #define DEFAULT_PERIOD_SIZE          960
 #define DEFAULT_PERIOD_COUNT         2
-#define DEV_ARG_SIZE                 20
-#define DEV_VALUE_SIZE               60
-
-#define CODEC_RX0 1
-#define CODEC_TX0 1
-#define CODEC_RX1 2
-#define CODEC_TX1 2
-#define CODEC_RX2 3
-#define CODEC_TX2 3
-#define CODEC_RX3 4
-#define CODEC_TX3 4
-#define CODEC_RX4 5
-#define CODEC_TX4 5
-#define CODEC_RX5 6
-#define CODEC_TX5 6
-#define CODEC_RX6 7
-#define CODEC_RX7 8
 
 static struct pcm_config config = {
      .channels = 2,
@@ -346,116 +328,6 @@ int device_get_obj(uint32_t device_idx, struct device_obj **dev_obj)
     return 0;
 }
 
-int device_get_hw_ep_info(struct device_obj *dev_obj, struct hw_ep_info *hw_ep_inf)
-{
-    if (dev_obj == NULL) {
-        AGM_LOGE("%s: Invalid device object\n",__func__);
-        return -EINVAL;
-    }
-    memcpy(hw_ep_inf, &(dev_obj->hw_ep_info), sizeof(struct hw_ep_info));
-    return 0;
-}
-
-int populate_device_hw_ep_info(struct device_obj *dev_obj)
-{
-    char lpaif_type[DEV_ARG_SIZE], intf[DEV_ARG_SIZE];
-    char intf_idx[DEV_ARG_SIZE], dir[DEV_ARG_SIZE];
-    char arg[DEV_ARG_SIZE] = {0};
-    char value[DEV_VALUE_SIZE] = {0};
-
-    if (dev_obj == NULL) {
-        AGM_LOGE("%s: Invalid device object\n",__func__);
-        return -EINVAL;
-    }
-
-    if (dev_obj->name) {
-        sscanf(dev_obj->name, "%20[^-]-%60s", arg, value);
-        strlcpy(intf, arg, strlen(arg)+1);
-        sscanf(value, "%20[^-]-%60s", arg, value);
-        strlcpy(lpaif_type, arg, strlen(arg)+1);
-        sscanf(value, "%20[^-]-%60s", arg, value);
-        strlcpy(dir, arg, strlen(arg)+1);
-        sscanf(value, "%20[^-]-%60s", arg, value);
-        strlcpy(intf_idx, arg, strlen(arg)+1);
-    } else {
-        AGM_LOGE("%s: dev_obj_name doesn't exist\n",__func__);
-        return -EINVAL;
-    }
-
-    if (strcmp(intf, "CODEC_DMA") == 0)
-        dev_obj->hw_ep_info.intf = CODEC_DMA;
-    else if (strcmp(intf, "MI2S") == 0)
-        dev_obj->hw_ep_info.intf = MI2S;
-    else if (strcmp(intf, "TDM") == 0)
-        dev_obj->hw_ep_info.intf = TDM;
-    else if (strcmp(intf, "AUXPCM") == 0)
-        dev_obj->hw_ep_info.intf = AUXPCM;
-    else if (strcmp(intf, "SLIMBUS") == 0)
-        dev_obj->hw_ep_info.intf = SLIMBUS;
-    else {
-        AGM_LOGE("%s: No matching intf found\n",__func__);
-        return -EINVAL;
-    }
-
-    if (strcmp(lpaif_type, "LPAIF") == 0)
-        dev_obj->hw_ep_info.lpaif_type = LPAIF;
-    else if (strcmp(lpaif_type, "LPAIF_RXTX") == 0)
-        dev_obj->hw_ep_info.lpaif_type = LPAIF_RXTX;
-    else if (strcmp(lpaif_type, "LPAIF_WSA") == 0)
-        dev_obj->hw_ep_info.lpaif_type = LPAIF_WSA;
-    else if (strcmp(lpaif_type, "LPAIF_VA") == 0)
-        dev_obj->hw_ep_info.lpaif_type = LPAIF_VA;
-    else if (strcmp(lpaif_type, "LPAIF_AXI") == 0)
-        dev_obj->hw_ep_info.lpaif_type = LPAIF_AXI;
-    else {
-        AGM_LOGE("%s: No matching lpaif_type found\n",__func__);
-        return -EINVAL;
-    }
-
-    if (strcmp(dir, "RX") == 0)
-        dev_obj->hw_ep_info.dir = AUDIO_OUTPUT;
-    else if (strcmp(dir, "TX") == 0)
-        dev_obj->hw_ep_info.dir = AUDIO_INPUT;
-    else {
-        AGM_LOGE("%s: No matching dir found\n",__func__);
-        return -EINVAL;
-    }
-
-    if (dev_obj->hw_ep_info.intf != SLIMBUS) {
-
-        if ((strcmp(intf_idx, "PRIMARY") == 0) || (strcmp(intf_idx, "0") == 0)) {
-            if (dev_obj->hw_ep_info.intf == CODEC_DMA)
-                dev_obj->hw_ep_info.intf_idx = CODEC_RX0; /*RX and TX have the same value. Hence no need to check RX/TX.*/
-            else
-                dev_obj->hw_ep_info.intf_idx = PCM_INTF_IDX_PRIMARY;
-        } else if ((strcmp(intf_idx, "SECONDARY") == 0) || (strcmp(intf_idx, "1") == 0)) {
-            if (dev_obj->hw_ep_info.intf == CODEC_DMA)
-                dev_obj->hw_ep_info.intf_idx = CODEC_RX1;
-            else
-                dev_obj->hw_ep_info.intf_idx = PCM_INTF_IDX_SECONDARY;
-        } else if ((strcmp(intf_idx, "TERTIARY") == 0) || (strcmp(intf_idx, "2") == 0)) {
-            if (dev_obj->hw_ep_info.intf == CODEC_DMA)
-                dev_obj->hw_ep_info.intf_idx = CODEC_RX2;
-            else
-                dev_obj->hw_ep_info.intf_idx = PCM_INTF_IDX_TERTIARY;
-        } else if ((strcmp(intf_idx, "QUATERNARY") == 0) || (strcmp(intf_idx, "3") == 0)) {
-            if (dev_obj->hw_ep_info.intf == CODEC_DMA)
-                dev_obj->hw_ep_info.intf_idx = CODEC_RX3;
-            else
-                dev_obj->hw_ep_info.intf_idx = PCM_INTF_IDX_QUATERNARY;
-        } else if((strcmp(intf_idx, "QUINARY") == 0) || (strcmp(intf_idx, "4") == 0)) {
-            if (dev_obj->hw_ep_info.intf == CODEC_DMA)
-                dev_obj->hw_ep_info.intf_idx = CODEC_RX4;
-            else
-                dev_obj->hw_ep_info.intf_idx = PCM_INTF_IDX_QUINARY;
-        } else {
-            ALOGE("%s: No matching intf_idx found\n",__func__);
-            return -EINVAL;
-        }
-    }
-    return 0;
-}
-
 int device_set_media_config(struct device_obj *dev_obj, struct agm_media_config *device_media_config)
 {
    if (dev_obj == NULL || device_media_config == NULL) {
@@ -481,7 +353,6 @@ int device_init()
     unsigned int count = 0, i = 0;
     FILE *fp;
     int ret = 0;
-    struct device_obj *head_obj = NULL;
 
     fp = fopen(PCM_DEVICE_FILE, "r");
     if (!fp) {
@@ -526,9 +397,9 @@ int device_init()
         /* populate the hw_ep_ifo for all the available pcm-id's*/
         ret = populate_device_hw_ep_info(dev_obj);
         if (ret) {
-            ALOGE("%s: ERROR. %d hw_ep_info population failed", __func__, ret);
-            free(dev_obj);
-            goto free_device;
+           ALOGE("%s: hw_ep_info parsing failed %s\n", __func__, dev_obj->name);
+           free(dev_obj);
+           ret = 0;
         }
 
         pthread_mutex_init(&dev_obj->lock, (const pthread_mutexattr_t *) NULL);
