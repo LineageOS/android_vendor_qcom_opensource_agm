@@ -49,6 +49,7 @@ static int done = 0;
 char *audio_interface_name[] = {
     "CODEC_DMA-LPAIF_VA-TX-0",
     "CODEC_DMA-LPAIF_VA-TX-1",
+    "CODEC_DMA-LPAIF_RXTX-TX-3",
     "MI2S-LPAIF_AXI-TX-PRIMARY",
     "TDM-LPAIF_AXI-TX-PRIMARY",
     "AUXPCM-LPAIF_AXI-TX-PRIMARY",
