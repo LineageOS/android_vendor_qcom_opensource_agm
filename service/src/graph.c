@@ -1387,7 +1387,7 @@ static module_info_t stream_module_list[] = {
 int configure_buffer_params(struct graph_obj *gph_obj,
                             struct session_obj *sess_obj)
 {
-    struct gsl_cmd_configure_read_write_params buf_config;
+    struct gsl_cmd_configure_read_write_params buf_config = {0};
     int ret = 0;
     size_t size = 0;
     enum gsl_cmd_id cmd_id;
@@ -1401,6 +1401,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     buf_config.num_buffs = sess_obj->buffer_config.count;
     buf_config.start_threshold = sess_obj->stream_config.start_threshold;
     buf_config.stop_threshold = sess_obj->stream_config.stop_threshold;
+    buf_config.shmem_ep_tag = SHMEM_ENDPOINT;
     /**
      *TODO:expose a flag to chose between different data passing modes
      *BLOCKING/NON-BLOCKING/SHARED_MEM.
@@ -1436,7 +1437,9 @@ int graph_init()
 {
     uint32_t ret = 0;
     struct gsl_acdb_data_files acdb_files;
+    struct gsl_acdb_file delta_file;
     struct gsl_init_data init_data;
+    const char *delta_file_path;
 
     /*Populate acdbfiles from the shared file path*/
     acdb_files.num_files = 0;
@@ -1449,12 +1452,24 @@ int graph_init()
 #  error "Define -DACDB_PATH="PATH" in the makefile to compile"
 #endif
 
+#ifdef ACDB_DELTA_FILE_PATH
+    delta_file_path = CONV_TO_STRING(ACDB_DELTA_FILE_PATH);
+    if ((strlen(delta_file_path) + 1) > sizeof(delta_file.fileName)) {
+       AGM_LOGE("path is big than what gsl handles");
+       ret = -EINVAL;
+       return ret;
+    }
+    delta_file.fileNameLen = strlen(delta_file_path) + 1;
+    ret = strlcpy(delta_file.fileName, delta_file_path, delta_file.fileNameLen);
+#else
+#  error "Define -DACDB_DELTA_FILE_PATH="PATH" in the makefile to compile"
+#endif
+
     init_data.acdb_files = &acdb_files;
-    init_data.acdb_delta_file = NULL;
+    init_data.acdb_delta_file = &delta_file;
     init_data.acdb_addr = 0x0;
     init_data.max_num_ready_checks = 1;
     init_data.ready_check_interval_ms = 100;
-
     ret = gsl_init(&init_data);
     if (ret != 0) {
         AGM_LOGE("gsl_init failed error %d \n", ret);
@@ -1463,7 +1478,6 @@ int graph_init()
     return 0;
 
 deinit_gsl:
-    gsl_deinit();
     return ret;
 }
 
