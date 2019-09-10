@@ -79,7 +79,7 @@ class client_death_notifier : public IBinder::DeathRecipient
 
 typedef struct {
      struct listnode list;
-     struct session_obj *handle;
+     void *handle;
      //bool rx;
  } agm_client_session_handle;
 
@@ -94,5 +94,5 @@ typedef struct {
 client_info *get_client_handle_from_list(pid_t pid);
 void agm_register_client(sp<IBinder> binder);
 void agm_unregister_client(sp<IBinder> binder);
-void agm_add_session_obj_handle( struct session_obj *handle);
-void agm_remove_session_obj_handle( struct session_obj *handle);
+void agm_add_session_obj_handle(void *handle);
+void agm_remove_session_obj_handle(void *handle);

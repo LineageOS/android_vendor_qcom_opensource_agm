@@ -290,6 +290,10 @@ int graph_get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
 int graph_set_config_with_tag(struct graph_obj *gph_obj,
                               struct agm_key_vector_gsl *gkv,
                               struct agm_tag_config_gsl *tag_config);
+
+int graph_get_config(struct graph_obj *graph_obj, void *payload,
+                     size_t payload_size);
+
 int graph_set_cal(struct graph_obj *gph_obj,
 		struct agm_meta_data_gsl *meta_data);
 

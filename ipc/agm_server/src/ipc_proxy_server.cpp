@@ -147,7 +147,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
         }
 
-        virtual int ipc_agm_session_set_config(struct session_obj *handle,
+        virtual int ipc_agm_session_set_config(void *handle,
             struct agm_session_config *session_config,
             struct agm_media_config *media_config,
             struct agm_buffer_config *buffer_config)
@@ -261,18 +261,18 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
         }
 
-        virtual int ipc_agm_session_open(uint32_t session_id, struct session_obj **handle)
+        virtual int ipc_agm_session_open(uint32_t session_id, void **handle)
         {
             android::Parcel data, reply;
             ALOGV("%s:%d\n", __func__, __LINE__);
             data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
             data.writeUint32(session_id);
             remote()->transact(OPEN, data, &reply);
-            *handle = (struct session_obj *)reply.readInt64();
+            *handle = (void *)reply.readInt64();
             return reply.readInt32();
         }
 
-        virtual int ipc_agm_session_close(struct session_obj *handle)
+        virtual int ipc_agm_session_close(void *handle)
         {
             android::Parcel data, reply;
             ALOGV("%s:%d\n", __func__, __LINE__);
@@ -282,7 +282,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
         }
 
-        virtual int ipc_agm_session_prepare(struct session_obj *handle)
+        virtual int ipc_agm_session_prepare(void *handle)
         {
             android::Parcel data, reply;
             ALOGV("%s:%d\n", __func__, __LINE__);
@@ -292,7 +292,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
         }
 
-        virtual int ipc_agm_session_start(struct session_obj *handle)
+        virtual int ipc_agm_session_start(void *handle)
         {
             android::Parcel data, reply;
             ALOGV("%s:%d\n", __func__, __LINE__);
@@ -302,7 +302,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
         }
 
-        virtual int ipc_agm_session_stop(struct session_obj *handle)
+        virtual int ipc_agm_session_stop(void *handle)
         {
             android::Parcel data, reply;
             ALOGV("%s:%d\n", __func__, __LINE__);
@@ -312,7 +312,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
         }
 
-        virtual int ipc_agm_session_pause(struct session_obj *handle)
+        virtual int ipc_agm_session_pause(void *handle)
         {
             android::Parcel data, reply;
             ALOGV("%s:%d\n", __func__, __LINE__);
@@ -322,7 +322,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
         }
 
-        virtual int ipc_agm_session_resume(struct session_obj *handle)
+        virtual int ipc_agm_session_resume(void *handle)
         {
             android::Parcel data, reply;
             ALOGV("%s:%d\n", __func__, __LINE__);
@@ -344,7 +344,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
         }
 
-	virtual size_t ipc_agm_get_hw_processed_buff_cnt(struct session_obj *handle, enum direction dir)
+	virtual size_t ipc_agm_get_hw_processed_buff_cnt(void *handle, enum direction dir)
         {
 	    android::Parcel data, reply;
             ALOGV("%s:%d\n", __func__, __LINE__);
@@ -355,7 +355,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return reply.readInt32();
 	}
 
-        virtual int ipc_agm_session_read(struct session_obj *session_handle, void *buff, size_t *count)
+        virtual int ipc_agm_session_read(void *session_handle, void *buff, size_t *count)
         {
             int rc = 0;
             android::Parcel data, reply;
@@ -377,7 +377,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
             return rc;
         }
 
-        virtual int ipc_agm_session_write(struct session_obj *session_handle, void *buff, size_t *count) {
+        virtual int ipc_agm_session_write(void *session_handle, void *buff, size_t *count) {
             android::Parcel data, reply;
             android::Parcel::WritableBlob blob;
             data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
@@ -542,7 +542,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
         return  reply.readInt32();
     }
 
-    virtual int ipc_agm_session_eos(struct session_obj *handle)
+    virtual int ipc_agm_session_eos(void *handle)
     {
         android::Parcel data, reply;
         ALOGV("%s:%d\n", __func__, __LINE__);
@@ -552,7 +552,7 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
         return reply.readInt32();
     }
 
-    virtual int ipc_agm_get_session_time(struct session_obj *handle, uint64_t *timestamp)
+    virtual int ipc_agm_get_session_time(void *handle, uint64_t *timestamp)
     {
         android::Parcel data, reply;
         ALOGV("%s:%d\n", __func__, __LINE__);
@@ -670,7 +670,7 @@ android::status_t BnAgmService::onTransact(uint32_t code, const android::Parcel&
 
    case OPEN : {
         uint32_t session_id;
-        struct session_obj *handle = NULL;
+        void *handle = NULL;
         session_id = data.readUint32();
         rc = ipc_agm_session_open(session_id, &handle);
         if (handle != NULL)
@@ -737,7 +737,7 @@ fail_ses_aud_set_meta:
 
     case GET_BUFF_CNT :{
         enum direction dir;
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         dir = (direction) data.readUint32();
         rc = (uint32_t)ipc_agm_get_hw_processed_buff_cnt(handle, dir);
         reply->writeInt32(rc);
@@ -782,38 +782,38 @@ fail_audio_set_meta:
         break; }
 
     case CLOSE : {
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         rc = ipc_agm_session_close(handle);
 		agm_remove_session_obj_handle(handle);
         reply->writeInt32(rc);
         break; }
 
     case PREPARE : {
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         rc = ipc_agm_session_prepare(handle);
         reply->writeInt32(rc);
         break; }
 
     case START : {
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         rc = ipc_agm_session_start(handle);
         reply->writeInt32(rc);
         break; }
 
     case STOP : {
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         rc = ipc_agm_session_stop(handle);
         reply->writeInt32(rc);
         break; }
 
     case PAUSE : {
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         rc = ipc_agm_session_pause(handle);
         reply->writeInt32(rc);
         break; }
 
     case RESUME : {
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         rc = ipc_agm_session_resume(handle);
         reply->writeInt32(rc);
         break; }
@@ -844,7 +844,7 @@ fail_audio_set_meta:
         break; }
 
     case SESSION_SET_CONFIG : {
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         struct agm_session_config session_config;
         struct agm_media_config media_config;
         struct agm_buffer_config buffer_config;
@@ -874,10 +874,10 @@ fail_audio_set_meta:
     case READ : {
         int32_t rc;
         size_t byte_count;
-        struct session_obj *handle;
+        void *handle;
         void *buf = NULL;
         android::Parcel::WritableBlob blob;
-        handle = (struct session_obj *)data.readInt64();
+        handle = (void *)data.readInt64();
         byte_count = data.readUint32();
         buf = (void *)calloc(1, byte_count);
         if (buf == NULL) {
@@ -905,9 +905,9 @@ free_buff:
         uint32_t rc;
         size_t byte_count;
         void *buf;
-        struct session_obj *handle;
+        void *handle;
         android::Parcel::ReadableBlob blob;
-        handle = (struct session_obj *)data.readInt64();
+        handle = (void *)data.readInt64();
         byte_count = data.readUint32();
         buf = calloc(1,byte_count);
         if (buf == NULL) {
@@ -1167,13 +1167,13 @@ fail_ses_aud_set_cal_data:
         break; }
 
     case EOS : {
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         rc = ipc_agm_session_eos(handle);
         reply->writeInt32(rc);
         break; }
 
     case GET_SESSION_TIME : {
-        struct session_obj *handle = (struct session_obj *)data.readInt64();
+        void *handle = (void *)data.readInt64();
         uint64_t ts = data.readUint64();
         rc = ipc_agm_get_session_time(handle, &ts);
         reply->writeUint64(ts);

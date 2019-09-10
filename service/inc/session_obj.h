@@ -129,6 +129,8 @@ int session_obj_set_sess_params(struct session_obj *sess_obj,
 int session_obj_set_sess_aif_params(struct session_obj *sess_obj,
 	uint32_t audio_intf,
 	void *payload, size_t size);
+int session_obj_get_sess_params(struct session_obj *sess_obj,
+        void *payload, size_t size);
 int session_obj_set_sess_aif_params_with_tag(struct session_obj *sess_obj,
 	uint32_t aif_id,
 	struct agm_tag_config *tag_config);

@@ -51,7 +51,7 @@ struct agm_pcm_priv {
     struct agm_media_config *media_config;
     struct agm_buffer_config *buffer_config;
     struct agm_session_config *session_config;
-    struct session_obj *handle;
+    void *handle;
     void *card_node;
     pthread_cond_t eos_cond;
     pthread_mutex_t eos_lock;
@@ -173,7 +173,7 @@ static enum agm_media_format param_get_mask_val(struct snd_pcm_hw_params *p, int
 }
 
 static int agm_get_session_handle(struct agm_pcm_priv *priv,
-                                  struct session_obj **handle)
+                                  void **handle)
 {
     if (!priv)
         return -EINVAL;
@@ -221,7 +221,7 @@ static int agm_pcm_hw_params(struct pcm_plugin *plugin,
     struct agm_pcm_priv *priv = plugin->priv;
     struct agm_media_config *media_config;
     struct agm_buffer_config *buffer_config;
-    struct session_obj *handle;
+    void *handle;
     int ret = 0;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -246,7 +246,7 @@ static int agm_pcm_sw_params(struct pcm_plugin *plugin,
 {
     struct agm_pcm_priv *priv = plugin->priv;
     struct agm_session_config *session_config = NULL;
-    struct session_obj *handle = NULL;
+    void *handle = NULL;
     int ret = 0, is_hostless = 0;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -271,7 +271,7 @@ static int agm_pcm_sync_ptr(struct pcm_plugin *plugin,
                             struct snd_pcm_sync_ptr *sync_ptr)
 {
     struct agm_pcm_priv *priv = plugin->priv;
-    struct session_obj *handle;
+    void *handle;
 
     if (!priv)
         return -EINVAL;
@@ -287,7 +287,7 @@ static int agm_pcm_sync_ptr(struct pcm_plugin *plugin,
 static int agm_pcm_writei_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
 {
     struct agm_pcm_priv *priv = plugin->priv;
-    struct session_obj *handle;
+    void *handle;
     void *buff;
     size_t count;
     int ret = 0;
@@ -306,7 +306,7 @@ static int agm_pcm_writei_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
 static int agm_pcm_readi_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
 {
     struct agm_pcm_priv *priv = plugin->priv;
-    struct session_obj *handle;
+    void *handle;
     void *buff;
     size_t count;
     int ret = 0;
@@ -325,7 +325,7 @@ static int agm_pcm_readi_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
 static int agm_pcm_ttstamp(struct pcm_plugin *plugin, int *tstamp)
 {
     struct agm_pcm_priv *priv = plugin->priv;
-    struct session_obj *handle;
+    void *handle;
     int ret = 0;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -338,7 +338,7 @@ static int agm_pcm_ttstamp(struct pcm_plugin *plugin, int *tstamp)
 
 static int agm_pcm_prepare(struct pcm_plugin *plugin)
 {
-    struct session_obj *handle;
+    void *handle;
     struct agm_pcm_priv *priv = plugin->priv;
     int ret = 0;
 
@@ -352,7 +352,7 @@ static int agm_pcm_prepare(struct pcm_plugin *plugin)
 static int agm_pcm_start(struct pcm_plugin *plugin)
 {
     struct agm_pcm_priv *priv = plugin->priv;
-    struct session_obj *handle;
+    void *handle;
     int ret;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -362,7 +362,7 @@ static int agm_pcm_start(struct pcm_plugin *plugin)
     return agm_session_start(handle);
 }
 
-static void agm_pcm_eos(struct pcm_plugin *plugin, struct session_obj *handle)
+static void agm_pcm_eos(struct pcm_plugin *plugin, void *handle)
 {
     struct agm_pcm_priv *priv = plugin->priv;
     int ret = 0;
@@ -392,7 +392,7 @@ static void agm_pcm_eos(struct pcm_plugin *plugin, struct session_obj *handle)
 static int agm_pcm_drop(struct pcm_plugin *plugin)
 {
     struct agm_pcm_priv *priv = plugin->priv;
-    struct session_obj *handle;
+    void *handle;
     int ret;
     struct timespec eos_ts;
 
@@ -408,7 +408,7 @@ static int agm_pcm_drop(struct pcm_plugin *plugin)
 static int agm_pcm_close(struct pcm_plugin *plugin)
 {
     struct agm_pcm_priv *priv = plugin->priv;
-    struct session_obj *handle;
+    void *handle;
     int ret = 0;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -450,7 +450,7 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
     struct agm_session_config *session_config;
     struct agm_media_config *media_config;
     struct agm_buffer_config *buffer_config;
-    struct session_obj *handle;
+    void *handle;
     int ret = 0, session_id = device;
     void *card_node, *pcm_node;
 

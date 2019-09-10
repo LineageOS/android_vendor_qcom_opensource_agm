@@ -48,24 +48,24 @@ class IAgmService: public ::android::IInterface {
         virtual int ipc_agm_audio_intf_set_metadata(uint32_t audio_intf, uint32_t size, uint8_t *metadata)= 0;
         virtual int ipc_agm_session_set_metadata(uint32_t session_id, uint32_t size, uint8_t *metadata)= 0;
         virtual int ipc_agm_session_audio_inf_set_metadata(uint32_t session_id, uint32_t audio_intf, uint32_t size, uint8_t *metadata)= 0;
-        virtual int ipc_agm_session_close(struct session_obj *handle)= 0;
+        virtual int ipc_agm_session_close(void *handle)= 0;
         virtual int ipc_agm_audio_intf_set_media_config(uint32_t audio_intf, struct agm_media_config *media_config)= 0;
-        virtual int ipc_agm_session_prepare(struct session_obj *session_handle)= 0;
-        virtual int ipc_agm_session_start(struct session_obj *session_handle)= 0;
-        virtual int ipc_agm_session_stop(struct session_obj *session_handle)= 0;
-        virtual int ipc_agm_session_pause(struct session_obj *session_handle)= 0;
-        virtual int ipc_agm_session_resume(struct session_obj *session_handle)= 0;
-        virtual int ipc_agm_session_read(struct session_obj *session_handle, void *buff, size_t *count)= 0;
-        virtual int ipc_agm_session_write(struct session_obj *session_handle, void *buff, size_t *count)= 0;
+        virtual int ipc_agm_session_prepare(void *session_handle)= 0;
+        virtual int ipc_agm_session_start(void *session_handle)= 0;
+        virtual int ipc_agm_session_stop(void *session_handle)= 0;
+        virtual int ipc_agm_session_pause(void *session_handle)= 0;
+        virtual int ipc_agm_session_resume(void *session_handle)= 0;
+        virtual int ipc_agm_session_read(void *session_handle, void *buff, size_t *count)= 0;
+        virtual int ipc_agm_session_write(void *session_handle, void *buff, size_t *count)= 0;
         virtual int ipc_agm_session_audio_inf_connect(uint32_t session_id, uint32_t audio_intf, bool state) = 0;
         virtual int ipc_agm_session_set_loopback(uint32_t capture_session_id, uint32_t playback_session_id, bool state) = 0;
-        virtual size_t ipc_agm_get_hw_processed_buff_cnt(struct session_obj *handle, enum direction dir) = 0;
+        virtual size_t ipc_agm_get_hw_processed_buff_cnt(void *handle, enum direction dir) = 0;
         virtual int ipc_agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info) = 0;
-        virtual int ipc_agm_session_open(uint32_t session_id, struct session_obj **handle) = 0;
+        virtual int ipc_agm_session_open(uint32_t session_id, void **handle) = 0;
         virtual int ipc_agm_session_register_for_events(uint32_t session_id, struct agm_event_reg_cfg *evt_reg_cfg) = 0;
         virtual int ipc_agm_session_register_cb(uint32_t session_id, agm_event_cb cb, enum event_type event, void *client_data) = 0;
         virtual int ipc_agm_session_set_config(
-                                    struct session_obj *handle,
+                                    void *handle,
                                     struct agm_session_config *session_config,
                                     struct agm_media_config *media_config,
                                     struct agm_buffer_config *buffer_config) = 0;
@@ -78,8 +78,8 @@ class IAgmService: public ::android::IInterface {
                                     uint32_t session_id,
                                     uint32_t audio_intf,
                                     struct agm_cal_config *cal_config) = 0;
-        virtual int ipc_agm_session_eos(struct session_obj *session_handle)= 0;
-        virtual int ipc_agm_get_session_time(struct session_obj *session_handle, uint64_t *timestamp)= 0;
+        virtual int ipc_agm_session_eos(void *session_handle)= 0;
+        virtual int ipc_agm_get_session_time(void *session_handle, uint64_t *timestamp)= 0;
         virtual int ipc_agm_session_get_params(uint32_t session_id, void *payload, size_t size) = 0;
 };
 
