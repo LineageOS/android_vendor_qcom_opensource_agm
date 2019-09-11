@@ -180,6 +180,30 @@ Return<void> AGM::ipc_agm_session_aif_get_tag_module_info(uint32_t session_id,
     return Void();
 }
 
+Return<void> AGM::ipc_agm_session_get_params(uint32_t session_id,
+                                     uint32_t size,
+                                     ipc_agm_session_get_params_cb _hidl_cb) {
+    ALOGV("%s : session_id = %d, size = %d\n", __func__, session_id, size);
+    uint8_t * payload_local = NULL;
+    int32_t ret = 0;
+    hidl_vec<uint8_t> payload_hidl;
+
+    payload_local = (uint8_t *) calloc (1, size);
+    if (payload_local == NULL) {
+        ALOGE("%s: Cannot allocate memory for payload_local\n", __func__);
+        _hidl_cb(-ENOMEM, payload_hidl);
+        return Void();
+    }
+
+    payload_hidl.resize((size_t)size);
+    ret = agm_session_set_params(session_id, payload_local, (size_t)size);
+    if (!ret)
+       memcpy(payload_hidl.data(), payload_local, (size_t)size);
+
+    _hidl_cb(ret, payload_hidl);
+    return Void();
+}
+
 Return<int32_t> AGM::ipc_agm_session_aif_set_params(uint32_t session_id,
                                                uint32_t aif_id,
                                                const hidl_vec<uint8_t>& payload,

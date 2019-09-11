@@ -114,6 +114,9 @@ struct AGM : public IAGM {
                  uint32_t aif_id,
                  uint32_t size,
                  ipc_agm_session_aif_get_tag_module_info_cb _hidl_cb) override;
+    Return<void> ipc_agm_session_get_params(uint32_t session_id,
+                    uint32_t size,
+                    ipc_agm_session_get_params_cb _hidl_cb) override;
     Return<int32_t> ipc_agm_session_aif_set_params(uint32_t session_id,
                                               uint32_t aif_id,
                                               const hidl_vec<uint8_t>& payload,
