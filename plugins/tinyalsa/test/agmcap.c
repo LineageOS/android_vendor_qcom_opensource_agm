@@ -66,14 +66,10 @@ int capturing = 1;
 char *audio_interface_name[] = {
     "CODEC_DMA-LPAIF_VA-TX-0",
     "CODEC_DMA-LPAIF_VA-TX-1",
-    "CODEC_DMA-LPAIF_WSA-RX-0",
-    "CODEC_DMA-LPAIF_WSA-RX-1",
-    "MI2S-LPAIF_AXI-RX-PRIMARY",
     "MI2S-LPAIF_AXI-TX-PRIMARY",
-    "TDM-LPAIF_AXI-RX-PRIMARY",
-    "TDM-LPAIF_AXI-TX-PRIMARY",
-    "AUXPCM-LPAIF_AXI-RX-PRIMARY",
     "AUXPCM-LPAIF_AXI-TX-PRIMARY",
+    "SLIM-DEV1-TX-0",
+    "USB_AUDIO-TX",
 };
 
 static unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
@@ -105,16 +101,7 @@ int main(int argc, char **argv)
     if (argc < 2) {
         printf("Usage: %s file.wav [-D card] [-d device]"
                 " [-c channels] [-r rate] [-b bits] [-p period_size]"
-                " [-n n_periods] [-T capture time] [-i audio_intf id]\n"
-                " valid capture_intf_id :\n"
-                "0 : TX_CDC_DMA_TX_0\n"
-                "1 : SLIM_0_TX\n"
-                "2 : PRI_TDM_TX_0\n"
-                "3 : SEC_TDM_TX_0\n"
-                "4 : AUXPCM_TX\n"
-                "5 : SEC_AUXPCM_TX\n"
-                "6 : PRI_MI2S_TX\n"
-                "7 : SEC_MI2S_TX\n", argv[0]);
+                " [-n n_periods] [-T capture time] [-i audio_intf id]\n", argv[0]);
         return 1;
     }
 

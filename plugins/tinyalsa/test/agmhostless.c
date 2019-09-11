@@ -281,7 +281,7 @@ void play_loopback(unsigned int card, unsigned int p_device, unsigned int c_devi
         printf("Failed to connect capture pcm to audio interface\n");
         goto err_disconnect;
     }
- 
+
     p_pcm = pcm_open(card, p_device, PCM_OUT, &config);
     if (!p_pcm || !pcm_is_ready(p_pcm)) {
         printf("Unable to open playback PCM device (%s)\n",
