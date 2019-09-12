@@ -55,6 +55,9 @@ void server_death_notifier::serviceDied(uint64_t cookie,
 {
     ALOGE("%s : AGM Service died ,cookie : %lu",__func__,cookie);
     agm_server_died = true;
+    // We exit the client process here, so that it also can restart
+    // leading to a fresh start on both the sides.
+    _exit(1);
 }
 
 android::sp<IAGM> get_agm_server() {

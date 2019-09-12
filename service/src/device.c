@@ -33,6 +33,7 @@
 #include <pthread.h>
 #include <sched.h>
 #include <stdio.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -56,17 +57,52 @@
 #define TRUE 1
 #define FALSE 0
 
+#define DEVICE_ENABLE 1
+#define DEVICE_DISABLE 0
+
 /* Global list to store supported devices */
 struct device_obj **device_list;
 static uint32_t num_audio_intfs;
-static struct pcm_config config;
+
+#define SYSFS_FD_PATH "/sys/kernel/aud_dev/state"
+static int sysfs_fd = -1;
 
 #define MAX_BUF_SIZE                 2048
 #define DEFAULT_SAMPLING_RATE        48000
 #define DEFAULT_PERIOD_SIZE          960
 #define DEFAULT_PERIOD_COUNT         2
 
-static struct pcm_config config;
+#define MAX_USR_INPUT 9
+
+static void update_sysfs_fd (int8_t pcm_id, int8_t state)
+{
+    char buf[MAX_USR_INPUT]={0};
+    snprintf(buf, MAX_USR_INPUT,"%d %d", pcm_id, state);
+    if (sysfs_fd >= 0)
+        write(sysfs_fd, buf, MAX_USR_INPUT);
+    else {
+        /*AGM service and sysfs file creation are async events.
+         *Also when the syfs node is first created the default
+         *user attribute for the sysfs file is root.
+         *To change the same we need to execute a command from
+         *init scripts, which again are async and there is no
+         *deterministic way of scheduling this command only after
+         *the sysfs node is created. And all this should happen before
+         *we try to open the file from agm context, otherwise the open
+         *call would fail with permission denied error.
+         *Hence we try to open the file first time when we access it instead
+         *of doing it from agm_init.
+         *This gives the system enough time for the file attributes to
+         *be changed.
+         */
+        sysfs_fd = open(SYSFS_FD_PATH, O_WRONLY);
+        if (sysfs_fd >= 0) {
+            write(sysfs_fd, buf, MAX_USR_INPUT);
+        } else {
+            AGM_LOGE("%s: invalid file handle\n", __func__);
+        }
+    }
+}
 
 enum pcm_format agm_to_pcm_format(enum agm_media_format format)
 {
@@ -88,6 +124,7 @@ int device_open(struct device_obj *dev_obj)
 {
     int ret = 0;
     struct pcm *pcm = NULL;
+    struct pcm_config config;
 
     if (dev_obj == NULL) {
         AGM_LOGE("%s: Invalid device object\n", __func__);
@@ -102,7 +139,7 @@ int device_open(struct device_obj *dev_obj)
         goto done;
     }
 
-    memset(&config, 0, sizeof(config));
+    memset(&config, 0, sizeof(struct pcm_config));
     config.channels = dev_obj->media_config.channels;
     config.rate = dev_obj->media_config.rate;
     config.format = agm_to_pcm_format(dev_obj->media_config.format);
@@ -111,6 +148,7 @@ int device_open(struct device_obj *dev_obj)
     config.start_threshold = DEFAULT_PERIOD_SIZE / 4;
     config.stop_threshold = INT_MAX;
 
+    update_sysfs_fd(dev_obj->pcm_id, DEVICE_ENABLE);
     pcm = pcm_open(dev_obj->card_id, dev_obj->pcm_id, dev_obj->pcm_flags,
                 &config);
     if (!pcm || !pcm_is_ready(pcm)) {
@@ -118,9 +156,9 @@ int device_open(struct device_obj *dev_obj)
                 __func__, dev_obj->pcm_id, pcm_get_error(pcm), config.rate,
                 config.channels, config.format);
         ret = -EIO;
+        update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
         goto done;
     }
-
     dev_obj->pcm = pcm;
     dev_obj->state = DEV_OPENED;
     dev_obj->refcnt.open++;
@@ -292,12 +330,11 @@ int device_close(struct device_obj *dev_obj)
 
     pthread_mutex_lock(&dev_obj->lock);
     if (--dev_obj->refcnt.open == 0) {
+        update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
         ret = pcm_close(dev_obj->pcm);
         if (ret) {
             AGM_LOGE("%s: PCM device %u close failed, ret = %d\n",
                      __func__, dev_obj->pcm_id, ret);
-            dev_obj->refcnt.open++;
-            goto done;
         }
         dev_obj->state = DEV_CLOSED;
         dev_obj->refcnt.prepare = 0;
@@ -522,6 +559,9 @@ void device_deinit()
         free(dev_obj);
         dev_obj = NULL;
     }
+    if (sysfs_fd >= 0)
+        close(sysfs_fd);
+    sysfs_fd = -1;
     free(device_list);
     device_list = NULL;
 }
