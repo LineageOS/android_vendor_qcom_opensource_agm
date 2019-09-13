@@ -47,6 +47,23 @@ using AgmCalConfig = ::vendor::qti::hardware::AGMIPC::V1_0::AgmCalConfig;
 using IAGMCallback = ::vendor::qti::hardware::AGMIPC::V1_0::IAGMCallback;
 using AgmEventCbParams = ::vendor::qti::hardware::AGMIPC::V1_0::AgmEventCbParams;
 
+class server_death_notifier : public android::hardware::hidl_death_recipient
+{
+    public:
+        server_death_notifier(){}
+        void serviceDied(uint64_t cookie,
+         const android::wp<::android::hidl::base::V1_0::IBase>& who) override ;
+};
+
+class client_death_notifier : public android::hardware::hidl_death_recipient
+{
+    public:
+        client_death_notifier(){}
+        void serviceDied(uint64_t cookie,
+         const android::wp<::android::hidl::base::V1_0::IBase>& who) override ;
+};
+
+
 class ClntClbk
 {
     public :

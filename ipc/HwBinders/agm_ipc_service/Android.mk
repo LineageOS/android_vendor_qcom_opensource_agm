@@ -17,6 +17,7 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     libcutils \
     libhardware \
+    libhwbinder \
     libbase \
     vendor.qti.hardware.AGMIPC@1.0 \
     libagm

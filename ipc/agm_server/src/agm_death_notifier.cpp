@@ -106,7 +106,7 @@ void agm_register_client(sp<IBinder> binder)
     
 }
 
-void agm_add_session_obj_handle( void *handle)
+void agm_add_session_obj_handle(uint64_t handle)
 {
     client_info *client_handle = NULL;
     agm_client_session_handle *hndl = NULL;
@@ -130,7 +130,7 @@ exit:
     pthread_mutex_unlock(&g_client_list_lock);
 }
 
-void agm_remove_session_obj_handle(void *handle)
+void agm_remove_session_obj_handle(uint64_t handle)
 {
     client_info *client_handle = NULL;
     struct listnode *node = NULL;

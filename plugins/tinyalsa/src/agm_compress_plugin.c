@@ -57,7 +57,7 @@ struct agm_compress_priv {
     struct agm_buffer_config buffer_config;
     struct agm_session_config session_config;
     struct snd_compr_caps compr_cap;
-    void *handle;
+    uint64_t handle;
     bool prepared;
     uint64_t bytes_copied; /* Copied to DSP buffer */
     uint64_t total_buf_size; /* Total buffer size */
@@ -82,7 +82,7 @@ struct agm_compress_priv {
 };
 
 static int agm_get_session_handle(struct agm_compress_priv *priv,
-                                  void **handle)
+                                  uint64_t *handle)
 {
     if (!priv)
         return -EINVAL;
@@ -162,7 +162,7 @@ void agm_compress_event_cb(uint32_t session_id,
 int agm_compress_write(struct compress_plugin *plugin, const void *buff, size_t count)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret = 0;
     int64_t size = count, buf_cnt;
 
@@ -212,7 +212,7 @@ err:
 int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret = 0, buf_cnt = 0;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -249,7 +249,7 @@ int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
 int agm_compress_tstamp(struct compress_plugin *plugin, struct snd_compr_tstamp *tstamp)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret = 0;
     uint64_t timestamp = 0;
 
@@ -273,7 +273,7 @@ int agm_compress_tstamp(struct compress_plugin *plugin, struct snd_compr_tstamp 
 int agm_compress_avail(struct compress_plugin *plugin, struct snd_compr_avail *avail)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     void *buff;
     size_t count;
     int ret = 0;
@@ -298,7 +298,7 @@ int agm_compress_avail(struct compress_plugin *plugin, struct snd_compr_avail *a
 int agm_compress_get_caps(struct compress_plugin *plugin, struct snd_compr_caps *caps)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -430,7 +430,7 @@ int agm_compress_set_params(struct compress_plugin *plugin, struct snd_compr_par
     struct agm_compress_priv *priv = plugin->priv;
     struct agm_buffer_config *buf_cfg;
     struct agm_session_config *sess_cfg;
-    void *handle;
+    uint64_t handle;
     int ret = 0;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -469,7 +469,7 @@ int agm_compress_set_params(struct compress_plugin *plugin, struct snd_compr_par
 static int agm_compress_start(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -482,7 +482,7 @@ static int agm_compress_start(struct compress_plugin *plugin)
 static int agm_compress_stop(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -512,7 +512,7 @@ static int agm_compress_stop(struct compress_plugin *plugin)
 static int agm_compress_pause(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -525,7 +525,7 @@ static int agm_compress_pause(struct compress_plugin *plugin)
 static int agm_compress_resume(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -538,7 +538,7 @@ static int agm_compress_resume(struct compress_plugin *plugin)
 static int agm_compress_drain(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -569,7 +569,7 @@ static int agm_compress_drain(struct compress_plugin *plugin)
 static int agm_compress_partial_drain(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -583,7 +583,7 @@ static int agm_compress_partial_drain(struct compress_plugin *plugin)
 static int agm_compress_next_track(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -599,7 +599,7 @@ static int agm_compress_poll(struct compress_plugin *plugin,
                              int timeout)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     struct timespec poll_ts;
     int ret = 0;
 
@@ -631,7 +631,7 @@ static int agm_compress_poll(struct compress_plugin *plugin,
 void agm_compress_close(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
-    void *handle;
+    uint64_t handle;
     int ret = 0;
 
     printf("%s: free \n", __func__);
@@ -706,7 +706,7 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
 {
     struct compress_plugin *agm_compress_plugin;
     struct agm_compress_priv *priv;
-    void *handle;
+    uint64_t handle;
     int ret = 0, session_id = device;
     int is_playback = 0, is_capture = 0, is_hostless = 0;
     void *card_node, *compr_node;

@@ -574,7 +574,7 @@ int agm_session_register_for_events(uint32_t session_id, struct agm_event_reg_cf
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_open(uint32_t session_id, void **handle);
+int agm_session_open(uint32_t session_id, uint64_t *handle);
 
 /**
   * \brief Set Session config
@@ -590,7 +590,7 @@ int agm_session_open(uint32_t session_id, void **handle);
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_set_config(void *hndl,
+int agm_session_set_config(uint64_t hndl,
 	struct agm_session_config *session_config,
 	struct agm_media_config *media_config,
 	struct agm_buffer_config *buffer_config);
@@ -603,7 +603,7 @@ int agm_session_set_config(void *hndl,
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_close(void *hndl);
+int agm_session_close(uint64_t hndl);
 
 /**
   * \brief prepare the session.
@@ -613,7 +613,7 @@ int agm_session_close(void *hndl);
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_prepare(void *hndl);
+int agm_session_prepare(uint64_t hndl);
 
 /**
   * \brief Start the session.
@@ -624,7 +624,7 @@ int agm_session_prepare(void *hndl);
   * \return 0 on success, error code otherwise
   */
 
-int agm_session_start(void *hndl);
+int agm_session_start(uint64_t hndl);
 
 /**
   * \brief Stop the session. session must be in started/paused
@@ -635,7 +635,7 @@ int agm_session_start(void *hndl);
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_stop(void *hndl);
+int agm_session_stop(uint64_t hndl);
 
 /**
   * \brief Pause the session. session must be in started state
@@ -646,7 +646,7 @@ int agm_session_stop(void *hndl);
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_pause(void *hndl);
+int agm_session_pause(uint64_t hndl);
 
 /**
   * \brief Resume the session. session must be in paused state
@@ -657,7 +657,7 @@ int agm_session_pause(void *hndl);
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_resume(void *hndl);
+int agm_session_resume(uint64_t hndl);
 
 /**
   * \brief Read data buffers.from session
@@ -671,7 +671,7 @@ int agm_session_resume(void *hndl);
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_read(void *handle, void *buff, size_t *count);
+int agm_session_read(uint64_t handle, void *buff, size_t *count);
 
 /**
  * \brief Write data buffers.to session
@@ -685,7 +685,7 @@ int agm_session_read(void *handle, void *buff, size_t *count);
  *
  * \return 0 on success, error code otherwise
  */
-int agm_session_write(void *hndl, void *buff, size_t *count);
+int agm_session_write(uint64_t hndl, void *buff, size_t *count);
 
 /**
   * \brief Get count of Buffer processed by h/w
@@ -698,7 +698,7 @@ int agm_session_write(void *hndl, void *buff, size_t *count);
   * \return:  An increasing count of buffers, value wraps back to zero
   * once it reaches SIZE_MAX
   */
-size_t agm_get_hw_processed_buff_cnt(void *hndl, enum direction dir);
+size_t agm_get_hw_processed_buff_cnt(uint64_t hndl, enum direction dir);
 
 /**
   * \brief Get list of AIF info objects.
@@ -744,7 +744,7 @@ int agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id, bool st
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_eos(void *handle);
+int agm_session_eos(uint64_t handle);
 
 /**
   * \brief get timestamp of the session.
@@ -756,7 +756,7 @@ int agm_session_eos(void *handle);
   *
   * \return 0 on success, error code otherwise
   */
-int agm_get_session_time(void *handle, uint64_t *timestamp);
+int agm_get_session_time(uint64_t handle, uint64_t *timestamp);
 
 #ifdef __cplusplus
 }  /* extern "C" */

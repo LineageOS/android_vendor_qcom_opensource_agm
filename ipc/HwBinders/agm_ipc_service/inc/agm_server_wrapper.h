@@ -32,8 +32,44 @@
 #include <vendor/qti/hardware/AGMIPC/1.0/IAGM.h>
 #include <hidl/MQDescriptor.h>
 #include <hidl/Status.h>
+#include <cutils/list.h>
 #include "agm_api.h"
 #include "inc/AGMCallback.h"
+
+/*
+ * clbk_data_list is used to store all the
+ * data associated while registering a
+ * callback, which can later be freed in
+ * case of sudden death of client.
+ */
+struct listnode clbk_data_list;
+pthread_mutex_t clbk_data_list_lock;
+bool clbk_data_list_init = false;
+
+/*
+ * client_list stores all the session
+ * handles for the sessions opened by
+ * a particular client, which is uniquely
+ * identified by it's pid. In case of
+ * death of client, we clear this list
+ * and call agm_session_close for all
+ * opened sessions.
+ */
+struct listnode client_list;
+pthread_mutex_t client_list_lock;
+bool client_list_init = false;
+
+typedef struct {
+   struct listnode list;
+   uint64_t handle;
+} agm_client_session_handle;
+
+typedef struct {
+    struct listnode list;
+    uint32_t pid;
+    struct listnode agm_client_hndl_list;
+} client_info;
+void add_handle_to_list(uint64_t handle);
 
 namespace vendor {
 namespace qti {
@@ -58,6 +94,7 @@ class SrvrClbk
     sp<IAGMCallback> clbk_binder;
     uint32_t event;
     uint64_t clnt_data;
+    int pid;
 
     SrvrClbk()
     {
@@ -65,14 +102,16 @@ class SrvrClbk
         clbk_binder = NULL;
         event = 0;
         clnt_data = 0;
+        pid = 0;
     }
     SrvrClbk(uint32_t sess_id, sp<IAGMCallback> binder,
-             uint32_t evnt, uint64_t cd)
+             uint32_t evnt, uint64_t cd, int p_id)
     {
         session_id = sess_id;
         clbk_binder = binder;
         event = evnt;
         clnt_data = cd;
+        pid = p_id;
     }
 
     sp<IAGMCallback> get_clbk_binder()
@@ -91,7 +130,15 @@ class SrvrClbk
     }
 };
 
+typedef struct clbk_data {
+   struct listnode list;
+   uint64_t clbk_clt_data;
+   SrvrClbk *srv_clt_data;
+} clbk_data;
+
 struct AGM : public IAGM {
+
+    public :
     AGM() {agm_init();}
     Return<int32_t> ipc_agm_init() override;
     Return<int32_t> ipc_agm_deinit() override;
@@ -169,6 +216,8 @@ struct AGM : public IAGM {
     Return<int32_t> ipc_agm_session_eos(uint64_t hndl) override;
     Return<void> ipc_agm_get_session_time(uint64_t hndl,
                                 ipc_agm_get_session_time_cb _hidl_cb) override;
+    private :
+    sp<client_death_notifier> Client_death_notifier = NULL;
 };
 
 }  // namespace implementation
@@ -177,5 +226,6 @@ struct AGM : public IAGM {
 }  // namespace hardware
 }  // namespace qti
 }  // namespace vendor
+
 
 #endif  // ANDROID_SYSTEM_AGMIPC_V1_0_AGM_H

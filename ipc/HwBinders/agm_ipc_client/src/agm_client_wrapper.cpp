@@ -48,12 +48,26 @@ using android::sp;
 
 bool agm_server_died = false;
 android::sp<IAGM> agm_client = NULL;
+sp<server_death_notifier> Server_death_notifier = NULL;
+
+void server_death_notifier::serviceDied(uint64_t cookie,
+                   const android::wp<::android::hidl::base::V1_0::IBase>& who)
+{
+    ALOGE("%s : AGM Service died ,cookie : %lu",__func__,cookie);
+    agm_server_died = true;
+}
 
 android::sp<IAGM> get_agm_server() {
     if (agm_client == NULL) {
         agm_client = IAGM::getService();
         if (agm_client == nullptr) {
             ALOGE("AGM service not initialized\n");
+        }
+        if(Server_death_notifier == NULL)
+        {
+            Server_death_notifier = new server_death_notifier();
+            agm_client->linkToDeath(Server_death_notifier,0);
+            ALOGE("%s : server linked to death \n", __func__);
         }
     }
     return agm_client ;
@@ -66,25 +80,22 @@ int agm_aif_set_media_config(uint32_t audio_intf,
         android::sp<IAGM> agm_client = get_agm_server();
         hidl_vec<AgmMediaConfig> media_config_hidl;
         media_config_hidl.resize(sizeof(struct agm_media_config));
-        memcpy(media_config_hidl.data(),
-               media_config,
-               sizeof(struct agm_media_config));
-
+        media_config_hidl.data()->rate = media_config->rate;
+        media_config_hidl.data()->channels = media_config->channels;
+        media_config_hidl.data()->format = (::vendor::qti::hardware::AGMIPC::V1_0::AgmMediaFormat) media_config->format;
         return agm_client->ipc_agm_aif_set_media_config(audio_intf,
                                                         media_config_hidl);
     }
     return -EINVAL;
 }
 
-int agm_session_set_config(void *handle,
+int agm_session_set_config(uint64_t handle,
                             struct agm_session_config *session_config,
                             struct agm_media_config *media_config,
                             struct agm_buffer_config *buffer_config) {
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+    ALOGE("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        uint64_t handle_hidl = (uint64_t) handle;
-
         hidl_vec<AgmSessionConfig> session_config_hidl;
         session_config_hidl.resize(sizeof(struct agm_session_config));
         memcpy(session_config_hidl.data(),
@@ -93,17 +104,16 @@ int agm_session_set_config(void *handle,
 
         hidl_vec<AgmMediaConfig> media_config_hidl;
         media_config_hidl.resize(sizeof(struct agm_media_config));
-        memcpy(media_config_hidl.data(),
-               media_config,
-               sizeof(struct agm_media_config));
+        media_config_hidl.data()->rate = media_config->rate;
+        media_config_hidl.data()->channels = media_config->channels;
+        media_config_hidl.data()->format = (::vendor::qti::hardware::AGMIPC::V1_0::AgmMediaFormat) media_config->format;
 
         hidl_vec<AgmBufferConfig> buffer_config_hidl;
         buffer_config_hidl.resize(sizeof(struct agm_buffer_config));
-        memcpy(buffer_config_hidl.data(),
-               buffer_config,
-               sizeof(struct agm_buffer_config));
-
-        return agm_client->ipc_agm_session_set_config(handle_hidl,
+        buffer_config_hidl.data()->count = buffer_config->count;
+        buffer_config_hidl.data()->size = buffer_config->size;
+        ALOGV("%s : Exit", __func__);
+        return agm_client->ipc_agm_session_set_config(handle,
                                                       session_config_hidl,
                                                       media_config_hidl,
                                                       buffer_config_hidl);
@@ -171,77 +181,72 @@ int agm_session_aif_set_metadata(uint32_t session_id, uint32_t audio_intf,
     return -EINVAL;
 }
 
-int agm_session_close(void *handle){
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+int agm_session_close(uint64_t handle){
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        uint64_t handle_hidl = (uint64_t) handle;
-        return agm_client->ipc_agm_session_close(handle_hidl);
+        return agm_client->ipc_agm_session_close(handle);
     }
     return -EINVAL;
 }
 
-int agm_session_prepare(void *handle){
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+int agm_session_prepare(uint64_t handle){
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        uint64_t handle_hidl = (uint64_t) handle;
-        return agm_client->ipc_agm_session_prepare(handle_hidl);
+        return agm_client->ipc_agm_session_prepare(handle);
     }
     return -EINVAL;
 }
 
-int agm_session_start(void *handle){
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+int agm_session_start(uint64_t handle){
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        uint64_t handle_hidl = (uint64_t) handle;
-        return agm_client->ipc_agm_session_start(handle_hidl);
+        return agm_client->ipc_agm_session_start(handle);
     }
     return -EINVAL;
 }
 
-int agm_session_stop(void *handle){
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+int agm_session_stop(uint64_t handle){
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        uint64_t handle_hidl = (uint64_t) handle;
-        return agm_client->ipc_agm_session_stop(handle_hidl);
+        return agm_client->ipc_agm_session_stop(handle);
     }
     return -EINVAL;
 }
 
-int agm_session_pause(void *handle){
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+int agm_session_pause(uint64_t handle){
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        uint64_t handle_hidl = (uint64_t) handle;
-        return agm_client->ipc_agm_session_pause(handle_hidl);
+        return agm_client->ipc_agm_session_pause(handle);
     }
     return -EINVAL;
 }
 
-int agm_session_resume(void *handle){
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+int agm_session_resume(uint64_t handle){
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        uint64_t handle_hidl = (uint64_t) handle;
-        return agm_client->ipc_agm_session_resume(handle_hidl);
+        return agm_client->ipc_agm_session_resume(handle);
     }
     return -EINVAL;
 }
 
-int agm_session_open(uint32_t session_id, void **handle) {
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+int agm_session_open(uint32_t session_id, uint64_t *handle) {
+    ALOGE("%s called with handle = %x , *handle = %x\n", __func__, handle, *handle);
     int ret = -EINVAL;
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         agm_client->ipc_agm_session_open(session_id,
                               [&](int32_t _ret, hidl_vec<uint64_t> handle_hidl)
                               {  ret = _ret;
-                                 *handle = (void*) *handle_hidl.data();
+                                 *handle = *handle_hidl.data();
                               });
     }
+    ALOGE("%s Received handle = %x , *handle = %x\n", __func__, handle, *handle);
     return ret;
 }
 
@@ -259,17 +264,16 @@ int  agm_session_aif_connect(uint32_t session_id,
     return -EINVAL;
 }
 
-int agm_session_read(void *handle, void *buf, size_t *byte_count){
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+int agm_session_read(uint64_t handle, void *buf, size_t *byte_count){
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         if (handle == NULL)
             return -EINVAL;
 
-        uint64_t handle_hidl = (uint64_t) handle;
         int ret = -EINVAL;
 
-        agm_client->ipc_agm_session_read(handle_hidl, *byte_count,
+        agm_client->ipc_agm_session_read(handle, *byte_count,
                    [&](int32_t _ret, hidl_vec<uint8_t> buff_hidl, uint32_t cnt)
                    { ret = _ret;
                      if (ret != -ENOMEM) {
@@ -282,8 +286,8 @@ int agm_session_read(void *handle, void *buf, size_t *byte_count){
     return -EINVAL;
 }
 
-int agm_session_write(void *handle, void *buf, size_t *byte_count) {
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+int agm_session_write(uint64_t handle, void *buf, size_t *byte_count) {
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         int ret = -EINVAL;
@@ -291,12 +295,11 @@ int agm_session_write(void *handle, void *buf, size_t *byte_count) {
         if (handle == NULL)
             return -EINVAL;
 
-        uint64_t handle_hidl = (uint64_t) handle;
         hidl_vec<uint8_t> buf_hidl;
         buf_hidl.resize(*byte_count);
         memcpy(buf_hidl.data(), buf, *byte_count);
 
-        agm_client->ipc_agm_session_write(handle_hidl, buf_hidl, *byte_count,
+        agm_client->ipc_agm_session_write(handle, buf_hidl, *byte_count,
                                            [&](int32_t _ret, uint32_t cnt)
                                            { ret = _ret;
                                              if (ret != -ENOMEM)
@@ -323,13 +326,12 @@ int agm_session_set_loopback(uint32_t capture_session_id,
     return -EINVAL;
 }
 
-size_t agm_get_hw_processed_buff_cnt(void *handle, enum direction dir) {
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+size_t agm_get_hw_processed_buff_cnt(uint64_t handle, enum direction dir) {
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        uint64_t handle_hidl = (uint64_t) handle;
         Direction dir_hidl = (Direction) dir;
-        return agm_client->ipc_agm_get_hw_processed_buff_cnt(handle_hidl,
+        return agm_client->ipc_agm_get_hw_processed_buff_cnt(handle,
                                                              dir_hidl);
     }
     return -EINVAL;
@@ -491,7 +493,13 @@ int agm_session_register_for_events(uint32_t session_id,
         size_t size_local = sizeof(struct agm_event_reg_cfg) +
                       (evt_reg_cfg->event_config_payload_size);
         evt_reg_cfg_hidl.resize(size_local);
-        memcpy(evt_reg_cfg_hidl.data(), evt_reg_cfg, size_local);
+
+        evt_reg_cfg_hidl.data()->module_instance_id = evt_reg_cfg->module_instance_id;
+        evt_reg_cfg_hidl.data()->event_id = evt_reg_cfg->event_id;
+        evt_reg_cfg_hidl.data()->event_config_payload_size = evt_reg_cfg->event_config_payload_size;
+        evt_reg_cfg_hidl.data()->is_register = evt_reg_cfg->is_register;
+        for (int i = 0; i < evt_reg_cfg->event_config_payload_size; i++)
+            evt_reg_cfg_hidl.data()->event_config_payload[i] = evt_reg_cfg->event_config_payload[i];
 
         return agm_client->ipc_agm_session_register_for_events(session_id,
                                                               evt_reg_cfg_hidl);
@@ -540,7 +548,7 @@ int agm_session_set_ec_ref(uint32_t capture_session_id,
 int agm_session_register_cb(uint32_t session_id, agm_event_cb cb,
                              enum event_type evt_type, void *client_data)
 {
-    ALOGV("%s : sess_id = %d, evt_type = %d, client_data = %p \n", __func__,
+    ALOGV("%s : sess_id = %d, evt_type = %d, client_data = %x \n", __func__,
            session_id, evt_type, client_data);
     if (!agm_server_died) {
         sp<IAGMCallback> ClbkBinder = NULL;
@@ -562,25 +570,23 @@ int agm_session_register_cb(uint32_t session_id, agm_event_cb cb,
     return -EINVAL;
 }
 
-int agm_session_eos(void *handle)
+int agm_session_eos(uint64_t handle)
 {
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        uint64_t handle_hidl = (uint64_t) handle;
-        return agm_client->ipc_agm_session_eos(handle_hidl);
+        return agm_client->ipc_agm_session_eos(handle);
     }
     return -EINVAL;
 }
 
-int agm_get_session_time(void *handle, uint64_t *timestamp)
+int agm_get_session_time(uint64_t handle, uint64_t *timestamp)
 {
-    ALOGV("%s called with handle = %p \n", __func__, handle);
+    ALOGV("%s called with handle = %x \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         int ret = -EINVAL;
-        uint64_t handle_hidl = (uint64_t) handle;
-        agm_client->ipc_agm_get_session_time(handle_hidl,
+        agm_client->ipc_agm_get_session_time(handle,
                                              [&](int _ret, uint64_t ts)
                                              { ret = _ret;
                                                *timestamp = ts;

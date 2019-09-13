@@ -32,6 +32,112 @@
 #include <log/log.h>
 #include <cutils/list.h>
 #include <pthread.h>
+#include <hwbinder/IPCThreadState.h>
+
+void client_death_notifier::serviceDied(uint64_t cookie,
+                   const android::wp<::android::hidl::base::V1_0::IBase>& who)
+{
+    ALOGE("%s : Client died ,cookie (pid) : %d",__func__,cookie);
+    struct listnode *node = NULL;
+    struct listnode *tempnode = NULL;
+    agm_client_session_handle *hndl = NULL;
+    client_info *handle = NULL;
+    struct listnode *sess_node = NULL;
+    struct listnode *sess_tempnode = NULL;
+
+    ::vendor::qti::hardware::AGMIPC::V1_0::implementation::clbk_data *clbk_data_hndl = NULL;
+    if (clbk_data_list_init) {
+    pthread_mutex_lock(&clbk_data_list_lock);
+    list_for_each_safe(node, tempnode, &clbk_data_list) {
+        clbk_data_hndl = node_to_item(node,
+              ::vendor::qti::hardware::AGMIPC::V1_0::implementation::clbk_data,
+              list);
+        if (clbk_data_hndl->srv_clt_data->pid == cookie) {
+            ALOGV("%s : Matched pid with cookie = \" %d \" ", __func__,
+                                               clbk_data_hndl->srv_clt_data->pid);
+            list_remove(node);
+            free(clbk_data_hndl);
+        }
+    }
+    pthread_mutex_unlock(&clbk_data_list_lock);
+    }
+    pthread_mutex_lock(&client_list_lock);
+    if (client_list_init) {
+    list_for_each_safe(node, tempnode, &client_list) {
+        handle = node_to_item(node, client_info, list);
+        if (handle->pid == cookie) {
+            ALOGV("%s: MATCHED pid = %d\n", __func__, cookie);
+            list_for_each_safe(sess_node, sess_tempnode,
+                                              &handle->agm_client_hndl_list) {
+                hndl = node_to_item(sess_node, agm_client_session_handle, list);
+                   if (hndl->handle != NULL) {
+                       agm_session_close(hndl->handle);
+                       list_remove(sess_node);
+                       free(hndl);
+                   }
+                }
+                list_remove(node);
+                free(handle);
+        }
+    }
+    }
+    pthread_mutex_unlock(&client_list_lock);
+    ALOGV("%s: exit\n", __func__);
+}
+
+void add_handle_to_list(uint64_t handle)
+{
+    struct listnode *node = NULL;
+    struct listnode *tempnode = NULL;
+    client_info *client_handle = NULL;
+    client_info *client_handle_temp = NULL;
+    agm_client_session_handle *hndl = NULL;
+    if (client_list_init == false) {
+        pthread_mutex_init(&client_list_lock,
+                          (const pthread_mutexattr_t *) NULL);
+        list_init(&client_list);
+        client_list_init = true;
+    }
+    int pid = ::android::hardware::IPCThreadState::self()->getCallingPid();
+    client_handle = (client_info *)calloc(1, sizeof(client_info));
+    if (client_handle == NULL) {
+        ALOGE("%s: Cannot allocate memory for client handle\n", __func__);
+        return;
+    }
+    int flag = 0;
+    if(client_list_init) {
+        pthread_mutex_lock(&client_list_lock);
+        list_for_each(node, &client_list) {
+            client_handle_temp = node_to_item(node, client_info, list);
+            if(client_handle_temp->pid == pid) {
+                hndl = (agm_client_session_handle *)
+                                   calloc(1, sizeof(agm_client_session_handle));
+                if (hndl == NULL) {
+                    ALOGE("%s: Cannot allocate memory for agm handle\n", __func__);
+                    goto exit;
+                }
+                hndl->handle = handle;
+                list_add_tail(&client_handle_temp->agm_client_hndl_list, &hndl->list);
+                flag = 1;
+                break;
+            }
+        }
+        if (flag == 0) {
+            client_handle->pid = pid;
+            list_add_tail(&client_list, &client_handle->list);
+            list_init(&client_handle->agm_client_hndl_list);
+            hndl = (agm_client_session_handle *)calloc(1, sizeof(agm_client_session_handle));
+            if (hndl == NULL) {
+                ALOGE("%s: Cannot allocate memory to store agm session handle\n", __func__);
+                goto exit;
+            }
+            hndl->handle = handle;
+            list_add_tail(&client_handle->agm_client_hndl_list, &hndl->list);
+        }
+    }
+exit :
+        pthread_mutex_unlock(&client_list_lock);
+}
 
 namespace vendor {
 namespace qti {
@@ -39,16 +145,6 @@ namespace hardware {
 namespace AGMIPC {
 namespace V1_0 {
 namespace implementation {
-
-struct listnode clbk_data_list;
-pthread_mutex_t clbk_data_list_lock;
-bool clbk_data_list_init = false;
-
-typedef struct clbk_data {
-   struct listnode list;
-   uint64_t clbk_clt_data;
-   SrvrClbk *srv_clt_data;
-}clbk_data;
 
 void ipc_callback (uint32_t session_id,
                    struct agm_event_cb_params *evt_param,
@@ -93,7 +189,9 @@ Return<int32_t> AGM::ipc_agm_aif_set_media_config(uint32_t aif_id,
         ALOGE("%s: Cannot allocate memory for med_config_l\n", __func__);
         return -ENOMEM;
     }
-    memcpy(med_config_l, media_config.data(), sizeof(struct agm_media_config));
+    med_config_l->rate = media_config.data()->rate;
+    med_config_l->channels = media_config.data()->channels;
+    med_config_l->format = (enum agm_media_format) media_config.data()->format;
     int32_t ret = agm_aif_set_media_config (aif_id, med_config_l);
     return ret;
 }
@@ -300,21 +398,29 @@ Return<int32_t> AGM::ipc_agm_session_register_for_events(uint32_t session_id,
         ALOGE("%s: Cannot allocate memory for evt_reg_cfg_local\n", __func__);
         return -ENOMEM;
     }
-    memcpy(evt_reg_cfg_local, evt_reg_cfg.data(),
+    evt_reg_cfg_local->module_instance_id = evt_reg_cfg.data()->module_instance_id;
+    evt_reg_cfg_local->event_id = evt_reg_cfg.data()->event_id;
+    evt_reg_cfg_local->event_config_payload_size = evt_reg_cfg.data()->event_config_payload_size;
+    evt_reg_cfg_local->is_register = evt_reg_cfg.data()->is_register;
+    for (int i = 0; i < evt_reg_cfg.data()->event_config_payload_size; i++)
+        evt_reg_cfg_local->event_config_payload[i] = evt_reg_cfg.data()->event_config_payload[i];
+/*     memcpy(evt_reg_cfg_local, evt_reg_cfg.data(),
            sizeof(struct agm_event_reg_cfg) +
            (evt_reg_cfg.data()->event_config_payload_size)*sizeof(uint8_t));
-    return agm_session_register_for_events(session_id, evt_reg_cfg_local);
+  */   return agm_session_register_for_events(session_id, evt_reg_cfg_local);
 }
 
 Return<void> AGM::ipc_agm_session_open(uint32_t session_id,
                                             ipc_agm_session_open_cb _hidl_cb) {
     ALOGV("%s : session_id = %d\n", __func__, session_id);
-    void *handle = NULL;
+    uint64_t handle;
     int32_t ret = agm_session_open(session_id, &handle);
     hidl_vec<uint64_t> handle_ret;
     handle_ret.resize(sizeof(uint64_t));
-    *handle_ret.data() = (uint64_t) handle;
+    *handle_ret.data() = handle;
     _hidl_cb(ret, handle_ret);
+    add_handle_to_list(handle);
+    ALOGV("%s : handle received is : %x",__func__, handle);
     return Void();
 }
 
@@ -322,7 +428,7 @@ Return<int32_t> AGM::ipc_agm_session_set_config(uint64_t hndl,
                 const hidl_vec<AgmSessionConfig>& session_config,
                 const hidl_vec<AgmMediaConfig>& media_config,
                 const hidl_vec<AgmBufferConfig>& buffer_config) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
 
     struct agm_media_config *media_config_local = NULL;
     media_config_local = (struct agm_media_config*)
@@ -331,10 +437,9 @@ Return<int32_t> AGM::ipc_agm_session_set_config(uint64_t hndl,
         ALOGE("%s: Cannot allocate memory for media_config_local\n", __func__);
         return -ENOMEM;
     }
-    memcpy(media_config_local,
-           media_config.data(),
-           sizeof(struct agm_media_config));
-
+    media_config_local->rate = media_config.data()->rate;
+    media_config_local->channels = media_config.data()->channels;
+    media_config_local->format = (enum agm_media_format) media_config.data()->format;
     struct agm_session_config *session_config_local = NULL;
     session_config_local = (struct agm_session_config*)
                                   calloc(1, sizeof(struct agm_session_config));
@@ -353,57 +458,76 @@ Return<int32_t> AGM::ipc_agm_session_set_config(uint64_t hndl,
         ALOGE("%s: Cannot allocate memory for buffer_config_local\n", __func__);
         return -ENOMEM;
     }
-    memcpy(buffer_config_local,
-           buffer_config.data(),
-           sizeof(struct agm_buffer_config));
+    buffer_config_local->count = buffer_config.data()->count;
+    buffer_config_local->size = buffer_config.data()->size;
 
-    void *handle = (void *) hndl;
-    return agm_session_set_config(handle,
+    return agm_session_set_config(hndl,
                                   session_config_local,
                                   media_config_local,
                                   buffer_config_local);
 }
 
 Return<int32_t> AGM::ipc_agm_session_close(uint64_t hndl) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
-    return agm_session_close(handle);
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    struct listnode *node = NULL;
+    struct listnode *tempnode = NULL;
+    agm_client_session_handle *hndle = NULL;
+    client_info *handle = NULL;
+    struct listnode *sess_node = NULL;
+    struct listnode *sess_tempnode = NULL;
+    pthread_mutex_lock(&client_list_lock);
+    list_for_each_safe(node, tempnode, &client_list) {
+        handle = node_to_item(node, client_info, list);
+            list_for_each_safe(sess_node, sess_tempnode,
+                                       &handle->agm_client_hndl_list) {
+                hndle = node_to_item(sess_node,
+                                     agm_client_session_handle,
+                                     list);
+                   if (hndle->handle == hndl) {
+                       list_remove(sess_node);
+                       free(hndle);
+                   }
+                }
+                list_remove(node);
+                free(handle);
+    }
+    pthread_mutex_unlock(&client_list_lock);
+    return agm_session_close(hndl);
 }
 
 Return<int32_t> AGM::ipc_agm_session_prepare(uint64_t hndl) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
-    return agm_session_prepare(handle);
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
+
+    return agm_session_prepare(hndl);
 }
 
 Return<int32_t> AGM::ipc_agm_session_start(uint64_t hndl) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
-    return agm_session_start(handle);
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
+
+    return agm_session_start(hndl);
 }
 
 Return<int32_t> AGM::ipc_agm_session_stop(uint64_t hndl) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
-    return agm_session_stop(handle);
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
+
+    return agm_session_stop(hndl);
 }
 
 Return<int32_t> AGM::ipc_agm_session_pause(uint64_t hndl) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
-    return agm_session_pause(handle);
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
+
+    return agm_session_pause(hndl);
 }
 Return<int32_t> AGM::ipc_agm_session_resume(uint64_t hndl) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
-    return agm_session_resume(handle);
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
+
+    return agm_session_resume(hndl);
 }
 
 Return<void> AGM::ipc_agm_session_read(uint64_t hndl, uint32_t count,
                                              ipc_agm_session_read_cb _hidl_cb) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
     hidl_vec <uint8_t> buff_ret;
-    void *handle = (void *) hndl;
     void *buffer = NULL;
     buffer = (void*) calloc(1,count);
     if (buffer == NULL) {
@@ -412,7 +536,7 @@ Return<void> AGM::ipc_agm_session_read(uint64_t hndl, uint32_t count,
         return Void();
     }
     size_t cnt = (size_t) count;
-    int ret = agm_session_read(handle, buffer, &cnt);
+    int ret = agm_session_read(hndl, buffer, &cnt);
     buff_ret.resize(count);
     memcpy(buff_ret.data(), buffer, count);
     _hidl_cb (ret, buff_ret, cnt);
@@ -423,8 +547,7 @@ Return<void> AGM::ipc_agm_session_write(uint64_t hndl,
                                         const hidl_vec<uint8_t>& buff,
                                         uint32_t count,
                                         ipc_agm_session_write_cb _hidl_cb) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
     void* buffer = NULL;
     buffer = (void*) calloc(1,count);
     if (buffer == NULL) {
@@ -434,17 +557,16 @@ Return<void> AGM::ipc_agm_session_write(uint64_t hndl,
     }
     memcpy(buffer, buff.data(), count);
     size_t cnt = (size_t) count;
-    int ret = agm_session_write(handle, buffer, &cnt);
+    int ret = agm_session_write(hndl, buffer, &cnt);
     _hidl_cb (ret, cnt);
     return Void();
 }
 
 Return<int32_t> AGM::ipc_agm_get_hw_processed_buff_cnt(uint64_t hndl,
                                                         Direction dir) {
-    ALOGV("%s called with handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
+    ALOGV("%s called with handle = %x \n", __func__, hndl);
     enum direction dir_local = (enum direction) dir;
-    return agm_get_hw_processed_buff_cnt(handle, dir_local);
+    return agm_get_hw_processed_buff_cnt(hndl, dir_local);
 }
 
 Return<void> AGM::ipc_agm_get_aif_info_list(uint32_t num_aif_info,
@@ -503,8 +625,18 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
     agm_event_cb ipc_cb;
     SrvrClbk  *sr_clbk_data, *tmp_sr_clbk_data = NULL;
     clbk_data *clbk_data_obj = NULL;
+
+    if ( this->Client_death_notifier == NULL ) {
+        this->Client_death_notifier = new client_death_notifier();
+        ALOGV("Client_death_notifier = %p", this->Client_death_notifier.get());
+    }
+    int pid = ::android::hardware::IPCThreadState::self()->getCallingPid();
+    ALOGV("%s : client about to link to death with pid = %d\n", __func__, pid);
+
     if (cb != NULL) {
-        sr_clbk_data = new SrvrClbk (session_id, cb, evt_type, ipc_client_data);
+        cb->linkToDeath(this->Client_death_notifier, pid);
+        ALOGV("%s : client linked to death with pid = %d\n", __func__, pid);
+        sr_clbk_data = new SrvrClbk (session_id, cb, evt_type, ipc_client_data, pid);
         ALOGV("%s new SrvrClbk= %p, clntdata= %p, sess id= %d, evt_type= %d \n",
                 __func__, (void *) sr_clbk_data,ipc_client_data,session_id,
                 (uint32_t)evt_type);
@@ -548,9 +680,10 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
         ipc_cb = NULL;
     }
     if (sr_clbk_data == NULL) {
-        ALOGV("server callback data is NULL");
+        ALOGE("server callback data is NULL");
         return -ENOMEM;
     }
+    ALOGV("%s : Exit ", __func__);
     return agm_session_register_cb(session_id,
                                    ipc_cb,
                                    (enum event_type) evt_type,
@@ -558,17 +691,15 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
 }
 
 Return<int32_t> AGM::ipc_agm_session_eos(uint64_t hndl){
-    ALOGV("%s : handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
-    return agm_session_eos(handle);
+    ALOGV("%s : handle = %x \n", __func__, hndl);
+    return agm_session_eos(hndl);
 }
 
 Return<void> AGM::ipc_agm_get_session_time(uint64_t hndl,
                                           ipc_agm_get_session_time_cb _hidl_cb){
-    ALOGV("%s : handle = %lu \n", __func__, hndl);
-    void *handle = (void *) hndl;
+    ALOGV("%s : handle = %x \n", __func__, hndl);
     uint64_t ts;
-    int ret = agm_get_session_time(handle, &ts);
+    int ret = agm_get_session_time(hndl, &ts);
     _hidl_cb(ret,ts);
     return Void();
 }

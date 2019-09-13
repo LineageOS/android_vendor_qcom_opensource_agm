@@ -94,7 +94,7 @@ int agm_aif_set_media_config(uint32_t audio_intf, struct agm_media_config *media
     return -EAGAIN;
 }
 
-int agm_session_set_config(void *handle,
+int agm_session_set_config(uint64_t handle,
                 struct agm_session_config *session_config,
                 struct agm_media_config *media_config,
                 struct agm_buffer_config *buffer_config)
@@ -147,7 +147,7 @@ int agm_session_aif_set_metadata(uint32_t session_id, uint32_t audio_intf, uint3
     return -EAGAIN;
 }
 
-int agm_session_close(void *handle)
+int agm_session_close(uint64_t handle)
 {
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -157,7 +157,7 @@ int agm_session_close(void *handle)
     return -EAGAIN;
 }
 
-int agm_session_prepare(void *handle)
+int agm_session_prepare(uint64_t handle)
 {
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -167,7 +167,7 @@ int agm_session_prepare(void *handle)
     return -EAGAIN;
 }
 
-int agm_session_start(void *handle)
+int agm_session_start(uint64_t handle)
 {
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -177,7 +177,7 @@ int agm_session_start(void *handle)
     return -EAGAIN;
 }
 
-int agm_session_stop(void *handle)
+int agm_session_stop(uint64_t handle)
 {
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -187,7 +187,7 @@ int agm_session_stop(void *handle)
     return -EAGAIN;
 }
 
-int agm_session_pause(void *handle)
+int agm_session_pause(uint64_t handle)
 {
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -197,7 +197,7 @@ int agm_session_pause(void *handle)
     return -EAGAIN;
 }
 
-int agm_session_resume(void *handle)
+int agm_session_resume(uint64_t handle)
 {
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -207,7 +207,7 @@ int agm_session_resume(void *handle)
     return -EAGAIN;
 }
 
-int agm_session_open(uint32_t session_id, void **handle)
+int agm_session_open(uint32_t session_id, uint64_t *handle)
 {
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -227,7 +227,7 @@ int  agm_session_aif_connect(uint32_t session_id, uint32_t audio_intf, bool stat
     return -EAGAIN;
 }
 
-int agm_session_read(void *handle, void *buf, size_t *byte_count){
+int agm_session_read(uint64_t handle, void *buf, size_t *byte_count){
 
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -240,7 +240,7 @@ int agm_session_read(void *handle, void *buf, size_t *byte_count){
     return -EAGAIN;
 }
 
-int agm_session_write(void *handle, void *buf, size_t *byte_count) {
+int agm_session_write(uint64_t handle, void *buf, size_t *byte_count) {
 
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -264,7 +264,7 @@ int agm_session_set_loopback(uint32_t capture_session_id, uint32_t playback_sess
     return -EAGAIN;
 }
 
-size_t agm_get_hw_processed_buff_cnt(void *handle, enum direction dir)
+size_t agm_get_hw_processed_buff_cnt(uint64_t handle, enum direction dir)
 {
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -366,7 +366,7 @@ int agm_session_aif_set_cal(uint32_t session_id, uint32_t audio_intf,
     return -EAGAIN;
 }
 
-int agm_session_eos(void *handle)
+int agm_session_eos(uint64_t handle)
 {
     if(!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
@@ -376,7 +376,7 @@ int agm_session_eos(void *handle)
     return -EAGAIN;
 }
 
-int agm_get_session_time(void *handle, uint64_t *timestamp)
+int agm_get_session_time(uint64_t handle, uint64_t *timestamp)
 {
     if(!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
