@@ -59,6 +59,10 @@
  *also uses the same enum values to define a hw
  *interface.
 */
+
+#define TAG_STREAM_SPR       0xC0000013
+#define ALIGN_PAYLOAD(x,a)   x = (((x) + (size_t)(a-1)) & ~(size_t)(a-1))
+
 typedef enum module
 {
     MODULE_STREAM_START = 0,
@@ -86,6 +90,18 @@ typedef enum module
      */
     MODULE_DEVICE_END = MODULE_HW_EP_RX,
 }module_t;
+
+
+enum  channel_num{
+    CHANNEL_1 = 1,
+    CHANNEL_2,
+    CHANNEL_3,
+    CHANNEL_4,
+    CHANNEL_5,
+    CHANNEL_6,
+    CHANNEL_7,
+    CHANNEL_8,
+};
 
 struct module_info;
 
@@ -115,5 +131,24 @@ struct module_info
 };
 
 typedef struct module_info module_info_t;
+
+struct graph_obj {
+    pthread_mutex_t lock;
+    pthread_mutex_t gph_open_thread_lock;
+    pthread_t gph_open_thread;
+    pthread_cond_t gph_opened;
+    bool gph_open_thread_created;
+    graph_state_t state;
+    gsl_handle_t graph_handle;
+    struct listnode tagged_mod_list;
+    struct gsl_cmd_configure_read_write_params buf_config;
+    event_cb cb;
+    void *client_data;
+    struct session_obj *sess_obj;
+    uint32_t spr_miid;
+};
+
+void get_stream_module_list_array(module_info_t **info, size_t *size);
+void get_hw_ep_module_list_array(module_info_t **info, size_t *size);
 
 #endif /*GPH_MODULE_H*/

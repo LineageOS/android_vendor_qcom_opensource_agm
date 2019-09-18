@@ -12,6 +12,7 @@ library_include_HEADERS = $(h_sources)
 library_includedir = $(includedir)/agm
 
 agm_sources = ${top_srcdir}/src/graph.c \
+              ${top_srcdir}/src/graph_module.c \
               ${top_srcdir}/src/device.c \
               ${top_srcdir}/src/device_hw_ep.c \
               ${top_srcdir}/src/metadata.c \
