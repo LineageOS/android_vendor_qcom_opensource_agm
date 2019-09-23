@@ -2266,7 +2266,7 @@ int graph_change(struct graph_obj *graph_obj,
          */
         list_for_each(node, &graph_obj->tagged_mod_list) {
             temp_mod = node_to_item(node, module_info_t, list);
-            if (temp_mod->miid = module_info->module_entry[0].module_iid) {
+            if (temp_mod->miid == module_info->module_entry[0].module_iid) {
                 mod_present = true;
                 break;
             }
@@ -2277,8 +2277,8 @@ int graph_change(struct graph_obj *graph_obj,
              */
             list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
                 temp_mod = node_to_item(node, module_info_t, list);
-                if ((temp_mod->tag = DEVICE_HW_ENDPOINT_TX) ||
-                    (temp_mod->tag = DEVICE_HW_ENDPOINT_RX)) {
+                if ((temp_mod->tag == DEVICE_HW_ENDPOINT_TX) ||
+                    (temp_mod->tag == DEVICE_HW_ENDPOINT_RX)) {
                     list_remove(node);
                     if (temp_mod->gkv) {
                         free(temp_mod->gkv->kv);
@@ -2353,7 +2353,7 @@ int graph_remove(struct graph_obj *graph_obj,
     int ret = 0;
     struct gsl_cmd_remove_graph rm_graph;
 
-    if ((graph_obj == NULL)) {
+    if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object");
         return -EINVAL;
     }
@@ -2461,7 +2461,7 @@ done:
 size_t graph_get_hw_processed_buff_cnt(struct graph_obj *graph_obj,
                                        enum direction dir)
 {
-    if ((graph_obj == NULL)) {
+    if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object or null callback");
         return 0;
     }
