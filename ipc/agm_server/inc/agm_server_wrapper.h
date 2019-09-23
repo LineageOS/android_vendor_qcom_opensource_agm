@@ -39,7 +39,7 @@ class AgmService : public BnAgmService {
         AgmService()
         {
           ALOGE("AGMService constructor");
-          agm_initialized = agm_init();
+          agm_initialized = ((agm_init() == 0)?true:false);
         }
         virtual int ipc_agm_init();
         virtual int ipc_agm_audio_intf_set_metadata(uint32_t audio_intf, uint32_t size, uint8_t *metadata);
@@ -83,6 +83,10 @@ class AgmService : public BnAgmService {
         {
             ALOGE("AGMService destructor");
             agm_deinit();
+        }
+
+        int is_agm_service_initialized() {
+           return agm_initialized;
         }
     private:
          bool agm_initialized = false;

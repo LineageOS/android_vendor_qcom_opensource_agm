@@ -137,9 +137,10 @@ typedef struct clbk_data {
 } clbk_data;
 
 struct AGM : public IAGM {
-
     public :
-    AGM() {agm_init();}
+    AGM() {
+      agm_initialized = agm_init() == 0?true:false;
+    }
     Return<int32_t> ipc_agm_init() override;
     Return<int32_t> ipc_agm_deinit() override;
     Return<int32_t> ipc_agm_aif_set_media_config(uint32_t aif_id,
@@ -216,8 +217,12 @@ struct AGM : public IAGM {
     Return<int32_t> ipc_agm_session_eos(uint64_t hndl) override;
     Return<void> ipc_agm_get_session_time(uint64_t hndl,
                                 ipc_agm_get_session_time_cb _hidl_cb) override;
-    private :
+    
+    int is_agm_initialized() { return agm_initialized;}
+
+private:
     sp<client_death_notifier> Client_death_notifier = NULL;
+    bool agm_initialized;
 };
 
 }  // namespace implementation

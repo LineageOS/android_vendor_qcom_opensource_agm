@@ -43,6 +43,8 @@
 #include <tinyalsa/asoundlib.h>
 
 #define PCM_DEVICE_FILE "/proc/asound/pcm"
+#define MAX_RETRY 20 /*Device will try these many times before return an error*/
+#define RETRY_INTERVAL 5 /*Retry interval in seconds*/
 
 /* Global list to store supported devices */
 struct device_obj **device_list;
@@ -346,8 +348,7 @@ int device_set_metadata(struct device_obj *dev_obj, uint32_t size, uint8_t *meta
    return metadata_copy(&(dev_obj->metadata), size, metadata);
 }
 
-
-int device_init()
+int parse_snd_card()
 {
     char buffer[MAX_BUF_SIZE];
     unsigned int count = 0, i = 0;
@@ -400,6 +401,7 @@ int device_init()
            ALOGE("%s: hw_ep_info parsing failed %s\n", __func__, dev_obj->name);
            free(dev_obj);
            ret = 0;
+           continue;
         }
 
         pthread_mutex_init(&dev_obj->lock, (const pthread_mutexattr_t *) NULL);
@@ -408,16 +410,45 @@ int device_init()
         count++;
         dev_obj = NULL;
     }
+    /*
+     * count 0 indicates that expected sound card was not registered
+     * inform the upper layers to try again after sometime.
+     */
+    if (count == 0) {
+        ret = -EAGAIN;
+        goto free_device;
+    }
 
     num_audio_intfs = count;
     goto close_file;
 
 free_device:
-    for (i = 0; i < count; i++)
-        free(device_list[i]);
-    free(device_list);
+    for (i = 0; i < num_audio_intfs; i++) {
+        if (device_list[i])
+            free(device_list[i]);
+    }
+    if (device_list)
+       free(device_list);
 close_file:
     fclose(fp);
+    return ret;
+}
+
+int device_init()
+{
+    int ret = 0;
+    uint32_t retries = MAX_RETRY;
+
+    do {
+       ret = parse_snd_card();
+       if (ret == -EAGAIN) {
+           AGM_LOGE("no valid snd device found retry %d times\n", retries);
+           retries--;
+           sleep(RETRY_INTERVAL);
+       } else
+           break;
+    } while ( retries > 0);
+
     return ret;
 }
 

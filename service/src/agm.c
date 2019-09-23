@@ -35,8 +35,7 @@
 
 int agm_init()
 {
-	session_obj_init();
-	return 0;
+	return session_obj_init();
 }
 
 int agm_deinit()

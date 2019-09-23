@@ -28,6 +28,7 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/agm
 LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/agm/ipc/HwBinders/agm_ipc_client/
 LOCAL_MODULE := vendor.qti.hardware.AGMIPC@1.0-service
+LOCAL_INIT_RC := vendor.qti.hardware.AGMIPC@1.0-service.rc
 LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_OWNER := qti

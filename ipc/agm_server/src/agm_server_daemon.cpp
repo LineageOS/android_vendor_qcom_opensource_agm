@@ -47,11 +47,16 @@ static void sigint_handler(int sig)
 
 int main() {
     signal(SIGINT, sigint_handler);
-    ALOGE("AgmService initialized \n");
     android::defaultServiceManager()->addService(android::String16("AgmService"), agmServiceInstance);
-    android::ProcessState::self()->startThreadPool();
-    ALOGE("AGM service is now ready\n");
-    android::IPCThreadState::self()->joinThreadPool();
-    ALOGE("AGM service thread joined\n");
-    return 0;
+    if (agmServiceInstance->is_agm_service_initialized()) {
+        ALOGE("AgmService initialized \n");
+        android::ProcessState::self()->startThreadPool();
+        ALOGE("AGM service is now ready\n");
+        android::IPCThreadState::self()->joinThreadPool();
+        ALOGE("AGM service thread joined\n");
+        return 0;
+    } else {
+       ALOGE("AgmService initialization failed");
+       return -1;
+    }
 }
