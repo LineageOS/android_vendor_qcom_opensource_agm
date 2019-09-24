@@ -146,4 +146,5 @@ int session_obj_register_for_events(struct session_obj *sess_obj, struct agm_eve
 int session_obj_set_ec_ref(struct session_obj *sess_obj, uint32_t aif_id, bool state);
 int session_obj_eos(struct session_obj *sess_obj);
 int session_obj_get_timestamp(struct session_obj *sess_obj, uint64_t *timestamp);
+int session_obj_buffer_timestamp(struct session_obj *sess_obj, uint64_t *timestamp);
 #endif

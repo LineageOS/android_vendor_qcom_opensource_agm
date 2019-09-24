@@ -216,3 +216,8 @@ int AgmService::ipc_agm_session_get_params(uint32_t session_id, void *payload, s
     ALOGV("%s called\n", __func__);
     return agm_session_get_params(session_id, payload, size);
 };
+
+int AgmService::ipc_agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp) {
+    ALOGV("%s called\n", __func__);
+    return agm_get_buffer_timestamp(session_id, timestamp);
+};

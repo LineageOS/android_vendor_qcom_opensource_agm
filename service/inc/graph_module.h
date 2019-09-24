@@ -132,6 +132,11 @@ struct module_info
 
 typedef struct module_info module_info_t;
 
+struct graph_buf_info {
+    /* timestamp updated in struct gsl_buff on gsl_read */
+    uint64_t timestamp;
+};
+
 struct graph_obj {
     pthread_mutex_t lock;
     pthread_mutex_t gph_open_thread_lock;
@@ -146,6 +151,7 @@ struct graph_obj {
     void *client_data;
     struct session_obj *sess_obj;
     uint32_t spr_miid;
+    struct graph_buf_info buf_info;
 };
 
 void get_stream_module_list_array(module_info_t **info, size_t *size);

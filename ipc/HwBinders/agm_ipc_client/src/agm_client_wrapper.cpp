@@ -595,3 +595,17 @@ int agm_get_session_time(uint64_t handle, uint64_t *timestamp)
     return -EINVAL;
 }
 
+int agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp)
+{
+    ALOGV("%s: session_id = %x\n", __func__, session_id);
+    int ret = -EINVAL;
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+        agm_client->ipc_agm_get_buffer_timestamp(session_id,
+                                             [&](int _ret, uint64_t ts)
+                                             { ret = _ret;
+                                               *timestamp = ts;
+                                             });
+    }
+    return ret;
+}

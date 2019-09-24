@@ -313,4 +313,13 @@ int graph_eos(struct graph_obj *gph_obj);
  * return CASA_EOK on success or error code otherwise.
  */
 int graph_get_session_time(struct graph_obj *gph_obj, uint64_t *timestamp);
+
+/**
+ *\brief Get timestamp of the last read buffer
+ *\param [in] graph_obj: associated graph obj
+ *\param [out] timestamp: updated timestamp value if success
+ *
+ * return CASA_EOK on success or error code otherwise.
+ */
+int graph_get_buffer_timestamp(struct graph_obj *gph_obj, uint64_t *timestamp);
 #endif /*GPH_OBJ_H*/

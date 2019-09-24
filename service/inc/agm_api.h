@@ -758,6 +758,17 @@ int agm_session_eos(uint64_t handle);
   */
 int agm_get_session_time(uint64_t handle, uint64_t *timestamp);
 
+/**
+  * \brief get timestamp of last read buffer.
+  *
+  * \param[in] session_id - Valid audio session id
+  * \param[out] timestamp - updated with valid timestamp if the
+  * 	  operation is successful.
+  *
+  * \return 0 on success, error code otherwise
+  */
+int agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp);
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif

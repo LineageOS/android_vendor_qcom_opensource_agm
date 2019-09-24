@@ -217,7 +217,8 @@ struct AGM : public IAGM {
     Return<int32_t> ipc_agm_session_eos(uint64_t hndl) override;
     Return<void> ipc_agm_get_session_time(uint64_t hndl,
                                 ipc_agm_get_session_time_cb _hidl_cb) override;
-    
+    Return<void> ipc_agm_get_buffer_timestamp(uint32_t session_id,
+                                ipc_agm_get_buffer_timestamp_cb _hidl_cb) override;
     int is_agm_initialized() { return agm_initialized;}
 
 private:

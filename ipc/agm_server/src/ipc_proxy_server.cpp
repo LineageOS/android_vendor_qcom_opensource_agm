@@ -104,6 +104,7 @@ enum {
     EOS,
     GET_SESSION_TIME,
     GET_PARAMS,
+    BUF_TSTAMP,
 };
 
 class BpAgmService : public ::android::BpInterface<IAgmService> {
@@ -618,6 +619,17 @@ class BpAgmService : public ::android::BpInterface<IAgmService> {
         memcpy(payload, get_param_blob.data(), count);
         blob.release();
         get_param_blob.release();
+        return reply.readInt32();
+    }
+
+    virtual int ipc_agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp)
+    {
+        android::Parcel data, reply;
+        ALOGV("%s:%d\n", __func__, __LINE__);
+        data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
+        data.writeUint32(session_id);
+        remote()->transact(BUF_TSTAMP, data, &reply);
+        *timestamp = reply.readUint64();
         return reply.readInt32();
     }
 };
@@ -1208,6 +1220,16 @@ fail_ses_aud_set_cal_data:
         reply->writeInt32(rc);
         get_param_blob.release();
         blob.release();
+        break; }
+
+    case BUF_TSTAMP : {
+        uint32_t rc, pcm_idx;
+        uint64_t ts = 0;
+
+        pcm_idx = data.readUint32();
+        rc = ipc_agm_get_buffer_timestamp(pcm_idx, &ts);
+        reply->writeUint64(ts);
+        reply->writeInt32(rc);
         break; }
 
     default:

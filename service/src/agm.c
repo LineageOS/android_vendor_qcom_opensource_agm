@@ -548,3 +548,22 @@ int agm_get_session_time(uint64_t handle, uint64_t *timestamp)
 
 	return session_obj_get_timestamp((struct session_obj *) handle, timestamp);
 }
+
+int agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp)
+{
+    struct session_obj *obj = NULL;
+    int ret = 0;
+
+    ret = session_obj_get(session_id, &obj);
+    if (ret) {
+        AGM_LOGE("%s: Error:%d retrieving session obj with session id=%d\n", __func__, ret, session_id);
+        return ret;
+    }
+
+    if (!timestamp) {
+        AGM_LOGE("%s Invalid timestamp pointer\n", __func__);
+        return -EINVAL;
+    }
+
+    return session_obj_buffer_timestamp(obj, timestamp);
+}

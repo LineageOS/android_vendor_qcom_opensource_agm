@@ -704,6 +704,15 @@ Return<void> AGM::ipc_agm_get_session_time(uint64_t hndl,
     return Void();
 }
 
+Return<void> AGM::ipc_agm_get_buffer_timestamp(uint32_t session_id,
+                                          ipc_agm_get_buffer_timestamp_cb _hidl_cb){
+    ALOGV("%s : session_id = %u\n", __func__, session_id);
+    uint64_t ts = 0;
+    int ret = agm_get_buffer_timestamp(session_id, &ts);
+
+    _hidl_cb(ret, ts);
+    return Void();
+}
 }  // namespace implementation
 }  // namespace V1_0
 }  // namespace AGMIPC

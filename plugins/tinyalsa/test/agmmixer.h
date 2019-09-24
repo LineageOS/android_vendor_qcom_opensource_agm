@@ -60,4 +60,5 @@ int agm_mixer_set_param_with_file(struct mixer *mixer, int device,
                                   enum stream_type stype, char *path);
 int agm_mixer_set_ecref_path(struct mixer *mixer, unsigned int device, enum stream_type stype, char *intf_name);
 int agm_mixer_get_event_param(struct mixer *mixer, int device, enum stream_type stype,uint32_t miid);
+int agm_mixer_get_buf_tstamp(struct mixer *mixer, int device, enum stream_type stype, uint64_t *tstamp);
 #endif

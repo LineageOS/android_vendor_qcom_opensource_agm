@@ -1857,3 +1857,23 @@ done:
 	return ret;
 }
 
+int session_obj_buffer_timestamp(struct session_obj *sess_obj, uint64_t *timestamp)
+{
+        int ret = 0;
+
+        pthread_mutex_lock(&sess_obj->lock);
+        if (sess_obj->state != SESSION_STARTED) {
+                AGM_LOGE("%s Cannot get timestamp in state:%d\n", __func__, sess_obj->state);
+                ret = -EINVAL;
+                goto done;
+        }
+
+        ret = graph_get_buffer_timestamp(sess_obj->graph, timestamp);
+        if (ret)
+                AGM_LOGE("%s Error:%d cannot get buffer timestamp\n",
+                          __func__, ret);
+
+done:
+        pthread_mutex_unlock(&sess_obj->lock);
+        return ret;
+}

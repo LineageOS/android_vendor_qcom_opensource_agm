@@ -760,3 +760,43 @@ exit:
     free(payload);
     return ret;
 }
+
+int agm_mixer_get_buf_tstamp(struct mixer *mixer, int device, enum stream_type stype, uint64_t *tstamp)
+{
+    char *stream = "PCM";
+    char *control = "bufTimestamp";
+    char *mixer_str;
+    struct mixer_ctl *ctl;
+    int ctl_len = 0,ret = 0;
+    uint64_t ts = 0;
+
+    if (stype == STREAM_COMPRESS)
+        stream = "COMPRESS";
+
+    ctl_len = strlen(stream) + 4 + strlen(control) + 1;
+    mixer_str = calloc(1, ctl_len);
+    if (!mixer_str)
+        return -ENOMEM;
+
+    snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
+
+    printf("%s - mixer -%s-\n", __func__, mixer_str);
+    ctl = mixer_get_ctl_by_name(mixer, mixer_str);
+    if (!ctl) {
+        printf("Invalid mixer control: %s\n", mixer_str);
+        free(mixer_str);
+        return ENOENT;
+    }
+
+    ret = mixer_ctl_get_array(ctl, &ts, sizeof(uint64_t));
+    if (ret) {
+         printf("%s get failed\n", __func__);
+         goto exit;
+    }
+
+    printf("received timestamp is 0x%lx\n", ts);
+    *tstamp = ts;
+exit:
+    free(mixer_str);
+    return ret;
+}

@@ -81,6 +81,7 @@ class IAgmService: public ::android::IInterface {
         virtual int ipc_agm_session_eos(uint64_t handle)= 0;
         virtual int ipc_agm_get_session_time(uint64_t handle, uint64_t *timestamp)= 0;
         virtual int ipc_agm_session_get_params(uint32_t session_id, void *payload, size_t size) = 0;
+        virtual int ipc_agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp)= 0;
 };
 
 class BnAgmService : public ::android::BnInterface<IAgmService> {

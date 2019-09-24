@@ -99,12 +99,14 @@ static char *amp_pcm_ctl_name_extn[] = {
 enum {
     PCM_TX_CTL_NAME_LOOPBACK = 0,
     PCM_TX_CTL_NAME_ECHOREF,
+    PCM_CTL_NAME_BUF_TSTAMP,
     /* Add new ones here */
 };
 /* strings should be at the index as per the #defines */
 static char *amp_pcm_tx_ctl_names[] = {
     "loopback",
-    "echoReference"
+    "echoReference",
+    "bufTimestamp",
     /* Add new ones here, be sue to update enum as well */
 };
 
@@ -892,6 +894,24 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
     return ret;
 }
 
+static int amp_pcm_buf_tstamp_get(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+{
+    int pcm_idx = ctl->private_value;
+    int ret = 0;
+    uint64_t *timestamp = NULL;
+
+    timestamp = (uint64_t *)ev->value.bytes.data;
+    ret = agm_get_buffer_timestamp(pcm_idx, timestamp);
+    return ret;
+}
+
+static int amp_pcm_buf_tstamp_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+{
+    return 0;
+}
+
 static int amp_pcm_calibration_get(struct mixer_plugin *plugin,
                 struct snd_control *Ctl, struct snd_ctl_elem_value *ev)
 {
@@ -1212,6 +1232,8 @@ static struct snd_value_bytes pcm_event_bytes =
     SND_VALUE_BYTES(512 - 16);
 static struct snd_value_bytes pcm_calibration_bytes =
     SND_VALUE_BYTES(512 - 16);
+static struct snd_value_bytes pcm_buf_tstamp_bytes =
+    SND_VALUE_BYTES(512 - 16);
 static struct snd_value_tlv_bytes be_metadata_bytes =
     SND_VALUE_TLV_BYTES(1024, amp_be_metadata_get, amp_be_metadata_put);
 static struct snd_value_tlv_bytes pcm_metadata_bytes =
@@ -1399,6 +1421,20 @@ static void amp_create_pcm_calibration_ctl(struct amp_priv *amp_priv,
                     pval, pdata);
 }
 
+static void amp_create_pcm_buf_tstamp_ctl(struct amp_priv *amp_priv,
+                char *name, int ctl_idx, int pval, void *pdata)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+             name, amp_pcm_tx_ctl_names[PCM_CTL_NAME_BUF_TSTAMP]);
+
+    INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_pcm_buf_tstamp_get,
+                    amp_pcm_buf_tstamp_put, pcm_buf_tstamp_bytes,
+                    pval, pdata);
+}
+
 /* BE related mixer control creations here */
 static void amp_create_metadata_ctl(struct amp_priv *amp_priv,
                 char *be_name, int ctl_idx, int pval, void *pdata)
@@ -1505,6 +1541,8 @@ static int amp_form_tx_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx)
         /* Echo Reference has backend RX as enum values */
         amp_create_pcm_echoref_ctl(amp_priv, name, (*ctl_idx)++,
                         &be_rx_adi->dev_enum, idx, tx_adi);
+        amp_create_pcm_buf_tstamp_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, tx_adi);
     }
 
     return 0;

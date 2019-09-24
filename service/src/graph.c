@@ -68,7 +68,6 @@ typedef struct module_info_link_list {
    struct listnode tagged_list;
 }module_info_link_list_t;
 
-
 static int get_acdb_files_from_directory(const char* acdb_files_path,
                                          struct gsl_acdb_data_files *data_files)
 {
@@ -904,6 +903,7 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
                       size, size_read, ret);
     }
     *size = size_read;
+    graph_obj->buf_info.timestamp = gsl_buff.timestamp;
 done:
     pthread_mutex_unlock(&graph_obj->lock);
     return ret;
@@ -1294,6 +1294,7 @@ int graph_register_for_events(struct graph_obj *gph_obj,
     }
     pthread_mutex_unlock(&gph_obj->lock);
 
+    gph_obj->buf_info.timestamp = 0;
 done:
     return ret;
 }
@@ -1385,6 +1386,30 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
 
 get_fail:
     free(payload);
+done:
+    pthread_mutex_unlock(&graph_obj->lock);
+    return ret;
+}
+
+int graph_get_buffer_timestamp(struct graph_obj *graph_obj, uint64_t *tstamp)
+{
+    int ret = 0;
+
+    if (graph_obj == NULL || tstamp == NULL) {
+        AGM_LOGE("Invalid Input Params");
+        return -EINVAL;
+    }
+
+    pthread_mutex_lock(&graph_obj->lock);
+    if (!(graph_obj->state & (STARTED))) {
+       AGM_LOGE("graph object is not in correct state, current state %d",
+                    graph_obj->state);
+       ret = -EINVAL;
+       goto done;
+    }
+
+    *tstamp = graph_obj->buf_info.timestamp;
+
 done:
     pthread_mutex_unlock(&graph_obj->lock);
     return ret;

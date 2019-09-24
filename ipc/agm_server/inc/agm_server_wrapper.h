@@ -78,6 +78,7 @@ class AgmService : public BnAgmService {
         virtual int ipc_agm_session_eos(uint64_t handle);
         virtual int ipc_agm_get_session_time(uint64_t handle, uint64_t *timestamp);
         virtual int ipc_agm_session_get_params(uint32_t session_id, void *payload, size_t size);
+        virtual int ipc_agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp);
 
         ~AgmService()
         {
