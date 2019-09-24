@@ -1064,7 +1064,7 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
     void *payload;
     int pcm_idx = ctl->private_value;
     int pcm_control, be_idx, ret = 0;
-    size_t tlv_size, get_size;
+    size_t tlv_size, get_size = 0;
 
     printf("%s: enter\n", __func__);
 
