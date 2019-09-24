@@ -182,6 +182,7 @@ Return<void> AGM::ipc_agm_session_aif_get_tag_module_info(uint32_t session_id,
 
 Return<void> AGM::ipc_agm_session_get_params(uint32_t session_id,
                                      uint32_t size,
+                                     const hidl_vec<uint8_t>& buff,
                                      ipc_agm_session_get_params_cb _hidl_cb) {
     ALOGV("%s : session_id = %d, size = %d\n", __func__, session_id, size);
     uint8_t * payload_local = NULL;
@@ -195,8 +196,9 @@ Return<void> AGM::ipc_agm_session_get_params(uint32_t session_id,
         return Void();
     }
 
+    memcpy(payload_local, buff.data(), size);
     payload_hidl.resize((size_t)size);
-    ret = agm_session_set_params(session_id, payload_local, (size_t)size);
+    ret = agm_session_get_params(session_id, payload_local, (size_t)size);
     if (!ret)
        memcpy(payload_hidl.data(), payload_local, (size_t)size);
 

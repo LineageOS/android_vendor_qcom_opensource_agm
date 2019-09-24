@@ -399,9 +399,12 @@ int agm_session_get_params(uint32_t session_id, void *payload, size_t size)
     ALOGV("%s : sess_id = %d, size = %d\n", __func__, session_id, size);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
+        hidl_vec<uint8_t> buf_hidl;
         int ret = 0;
 
-        agm_client->ipc_agm_session_get_params(session_id, size,
+        buf_hidl.resize(size);
+        memcpy(buf_hidl.data(), payload, size);
+        agm_client->ipc_agm_session_get_params(session_id, size, buf_hidl,
                            [&](int32_t _ret, hidl_vec<uint8_t> payload_ret)
                            { ret = _ret;
                              if (!ret) {
