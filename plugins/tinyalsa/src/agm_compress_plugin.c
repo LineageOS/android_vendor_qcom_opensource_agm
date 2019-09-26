@@ -611,10 +611,12 @@ static int agm_compress_poll(struct compress_plugin *plugin,
     poll_ts.tv_sec += timeout/1000;
     /* Unblock poll wait if avail bytes to write/read is more than one fragment */
     pthread_mutex_lock(&priv->poll_lock);
-    ret = pthread_cond_timedwait(&priv->poll_cond, &priv->poll_lock, &poll_ts);
+    /* If timeout is -1 then its infinite wait */
+    if (timeout < 0)
+        ret = pthread_cond_wait(&priv->poll_cond, &priv->poll_lock);
+    else
+        ret = pthread_cond_timedwait(&priv->poll_cond, &priv->poll_lock, &poll_ts);
     pthread_mutex_unlock(&priv->poll_lock);
-
-    clock_gettime(CLOCK_REALTIME, &poll_ts);
 
     if (ret == ETIMEDOUT) {
         /* Poll() expects 0 return value in case of timeout */
