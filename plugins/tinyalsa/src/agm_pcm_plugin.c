@@ -46,6 +46,7 @@
 /* 2 words of uint32_t = 64 bits of mask */
 #define PCM_MASK_SIZE (2)
 #define PCM_PLUGIN_EOS_TIMEOUT 1 // in seconds
+#define PCM_FORMAT_BIT(x) (1 << x)
 
 struct agm_pcm_priv {
     struct agm_media_config *media_config;
@@ -60,12 +61,12 @@ struct agm_pcm_priv {
 };
 
 struct pcm_plugin_hw_constraints agm_pcm_constrs = {
-    .access = SNDRV_PCM_ACCESS_RW_INTERLEAVED |
-              SNDRV_PCM_ACCESS_RW_NONINTERLEAVED,
-    .format = SNDRV_PCM_FORMAT_S16_LE |
-              SNDRV_PCM_FORMAT_S24_LE |
-              SNDRV_PCM_FORMAT_S24_3LE |
-              SNDRV_PCM_FORMAT_S32_LE,
+    .access = PCM_FORMAT_BIT(SNDRV_PCM_ACCESS_RW_INTERLEAVED) |
+              PCM_FORMAT_BIT(SNDRV_PCM_ACCESS_RW_NONINTERLEAVED),
+    .format = PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S16_LE) |
+              PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S24_LE) |
+              PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S24_3LE) |
+              PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S32_LE),
     .bit_width = {
         .min = 16,
         .max = 32,
@@ -125,7 +126,7 @@ static inline int snd_mask_val(const struct snd_mask *mask)
 	int i;
 	for (i = 0; i < PCM_MASK_SIZE; i++) {
 		if (mask->bits[i])
-			return ffs(mask->bits[i]) + (i << 5);
+			return ffs(mask->bits[i]) + (i << 5) - 1;
 	}
 	return 0;
 }
