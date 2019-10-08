@@ -1061,17 +1061,6 @@ int graph_change(struct graph_obj *graph_obj,
         goto done;
     }
 
-    /**
-     *GSL closes the old graph if CHANGE_GRAPH command is issued.
-     *Hence reset is_configured to ensure that all the modules are
-     *configured once again.
-     *
-     */
-    list_for_each(node, &graph_obj->tagged_mod_list) {
-        mod = node_to_item(node, module_info_t, list);
-        mod->is_configured = false;
-    }
-
     if (dev_obj != NULL) {
         mod = NULL;
         module_info_t *add_module, *temp_mod = NULL;
@@ -1174,7 +1163,7 @@ int graph_change(struct graph_obj *graph_obj,
     /*configure modules again*/
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
-        if (mod->configure) {
+        if (mod->configure && !mod->is_configured) {
             ret = mod->configure(mod, graph_obj);
             if (ret != 0)
                 goto done;
