@@ -770,12 +770,42 @@ int configure_output_media_format(struct module_info *mod,
      */
     pcm_output_fmt_payload->alignment = PCM_LSB_ALIGNED;
     pcm_output_fmt_payload->num_channels = num_channels;
-    pcm_output_fmt_payload->bits_per_sample =
+
+    if (sess_obj->stream_config.dir == TX &&
+            is_format_pcm(sess_obj->media_config.format)) {
+        /*for PCM capture usecase, we want native data to be captured hence
+          configure pcm convertor accordingly*/
+        pcm_output_fmt_payload->bits_per_sample =
                              GET_BITS_PER_SAMPLE(sess_obj->media_config.format,
                                                  pcm_output_fmt_payload->bit_width);
 
-    pcm_output_fmt_payload->q_factor = GET_Q_FACTOR(sess_obj->media_config.format,
-                                                pcm_output_fmt_payload->bit_width);
+        pcm_output_fmt_payload->q_factor =
+                             GET_Q_FACTOR(sess_obj->media_config.format,
+                                          pcm_output_fmt_payload->bit_width);
+    } else {
+        switch (pcm_output_fmt_payload->bit_width) {
+        case 16:
+        case 32:
+             pcm_output_fmt_payload->bits_per_sample =
+                                     pcm_output_fmt_payload->bit_width;
+             pcm_output_fmt_payload->q_factor =
+                                     pcm_output_fmt_payload->bit_width - 1;
+             break;
+        case 24:
+             /*
+              *modules after pcm convertor only work on 16 or 32bit samples hence
+              *even for 24 bit input data configure pcm convertor output with
+              *32 bits per sample.
+              */
+             pcm_output_fmt_payload->bits_per_sample = 32;
+             pcm_output_fmt_payload->q_factor = 27;
+             break;
+        default:
+             AGM_LOGE("wrong bitwidth %d", pcm_output_fmt_payload->bit_width);
+             ret = -EINVAL;
+             goto done;
+        }
+    }
 
     if (sess_obj->stream_config.dir == RX)
         pcm_output_fmt_payload->interleaved = PCM_DEINTERLEAVED_UNPACKED;
@@ -795,6 +825,7 @@ int configure_output_media_format(struct module_info *mod,
         AGM_LOGE("custom_config command for module %d failed with error %d",
                       mod->tag, ret);
     }
+done:
     free(payload);
     AGM_LOGD("exit");
     return ret;
@@ -1150,9 +1181,8 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     media_fmt_payload->bits_per_sample =
                              GET_BITS_PER_SAMPLE(sess_obj->media_config.format,
                                                  media_fmt_payload->bit_width);
-
     media_fmt_payload->q_factor = GET_Q_FACTOR(sess_obj->media_config.format,
-                                                media_fmt_payload->bit_width);
+                                               media_fmt_payload->bit_width);
     /**
      *#TODO:As of now channel_map is not part of media_config
      *ADD channel map part as part of the session/device media config
