@@ -229,20 +229,33 @@ void gsl_callback_func(struct gsl_event_cb_params *event_params,
                        void *client_data)
 {
      struct graph_obj *graph_obj = (struct graph_obj *) client_data;
+     struct agm_event_cb_params *ev;
 
      if (graph_obj == NULL) {
          AGM_LOGE("Invalid graph object");
-         return;
+         goto done;
      }
      if (event_params == NULL) {
          AGM_LOGE("event params NULL");
-         return;
+         goto done;
      }
 
-     if (graph_obj->cb)
-         graph_obj->cb((struct agm_event_cb_params *)event_params,
-                        graph_obj->client_data);
+     ev = calloc(1, sizeof(struct agm_event_cb_params) + event_params->event_payload_size);
+     if (!ev) {
+        AGM_LOGE("Not enough memory for payload\n");
+        goto done;
+     }
 
+     ev->source_module_id = event_params->source_module_id;
+     ev->event_id = event_params->event_id;
+     ev->event_payload_size = event_params->event_payload_size;
+     memcpy(ev->event_payload, event_params->event_payload, event_params->event_payload_size);
+
+     if (graph_obj->cb)
+         graph_obj->cb(ev,
+                       graph_obj->client_data);
+     free(ev);
+done:
      return;
 }
 
