@@ -87,7 +87,8 @@ static int get_acdb_files_from_directory(const char* acdb_files_path,
 
     /* search directory for .acdb files */
     while ((dentry = readdir(dir_fp)) != NULL) {
-        if ((strstr(dentry->d_name, ".acdb") != NULL)) {
+        if ((strstr(dentry->d_name, ".acdb") != NULL) ||
+             (strstr(dentry->d_name, ".qwsp") != NULL)) {
            if (data_files->num_files >= GSL_MAX_NUM_OF_ACDB_FILES) {
                AGM_LOGE("Reached max num of files, %d!\n", i);
                break;
