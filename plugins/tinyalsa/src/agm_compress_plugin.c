@@ -523,12 +523,16 @@ static int agm_compress_stop(struct compress_plugin *plugin)
     }
     pthread_mutex_unlock(&priv->eos_lock);
 
+    /* Signal Poll */
+    pthread_mutex_lock(&priv->poll_lock);
+    pthread_cond_signal(&priv->poll_cond);
+    pthread_mutex_unlock(&priv->poll_lock);
+
     ret = agm_session_stop(handle);
     if (ret)
         return ret;
 
     /* stop will reset all the buffers and it called during seek also */
-    /*TODO: reset bytes_avial and other local variables */
     priv->bytes_avail = priv->total_buf_size;
     priv->bytes_copied = 0;
 
@@ -633,7 +637,7 @@ static int agm_compress_poll(struct compress_plugin *plugin,
     if (ret)
         return ret;
 
-    clock_gettime(CLOCK_REALTIME, &poll_ts);
+    clock_gettime(CLOCK_MONOTONIC, &poll_ts);
     poll_ts.tv_sec += timeout/1000;
     /* Unblock poll wait if avail bytes to write/read is more than one fragment */
     pthread_mutex_lock(&priv->poll_lock);
@@ -680,6 +684,12 @@ void agm_compress_close(struct compress_plugin *plugin)
         priv->eos = false;
     }
     pthread_mutex_unlock(&priv->eos_lock);
+
+    /* Signal Poll */
+    pthread_mutex_lock(&priv->poll_lock);
+    pthread_cond_signal(&priv->poll_cond);
+    pthread_mutex_unlock(&priv->poll_lock);
+
     /* Make sure callbacks are not running at this point */
     free(plugin->priv);
     free(plugin);
