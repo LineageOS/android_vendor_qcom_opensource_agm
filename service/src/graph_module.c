@@ -729,7 +729,7 @@ int configure_output_media_format(struct module_info *mod,
     /*ensure that the payloadszie is byte multiple atleast*/
     ALIGN_PAYLOAD(payload_size, 8);
 
-    payload = malloc((size_t)payload_size);
+    payload = calloc(1, (size_t)payload_size);
     if (!payload) {
         AGM_LOGE("Not enough memory for payload");
         ret = -ENOMEM;
@@ -1082,7 +1082,7 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
     /*ensure that the payloadsize is byte multiple atleast*/
     ALIGN_PAYLOAD(payload_size, 8);
 
-    payload = malloc((size_t)payload_size);
+    payload = calloc(1, (size_t)payload_size);
 
     header = (struct apm_module_param_data_t*)payload;
 
@@ -1102,7 +1102,7 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
         /* If ret is non-zero then shared memory module would be
          * configured by client so return from here.
          */
-        return 0;
+        goto free_payload;
     }
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
@@ -1111,6 +1111,8 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
                       mod->tag, ret);
     }
 
+free_payload:
+    free(payload);
     return ret;
 }
 
@@ -1138,7 +1140,7 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     /*ensure that the payloadszie is byte multiple atleast*/
     ALIGN_PAYLOAD(payload_size, 8);
 
-    payload = malloc((size_t)payload_size);
+    payload = calloc(1,(size_t)payload_size);
     if (!payload) {
         AGM_LOGE("Not enough memory for payload");
         ret = -ENOMEM;
