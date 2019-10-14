@@ -339,8 +339,10 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
             sess_cfg->codec.aac_dec.aac_fmt_flag = 0x04;
         else if (params->codec.format == SND_AUDIOSTREAMFORMAT_ADIF)
             sess_cfg->codec.aac_dec.aac_fmt_flag = 0x02;
-        else
+        else if (params->codec.format == SND_AUDIOSTREAMFORMAT_MP4ADTS)
             sess_cfg->codec.aac_dec.aac_fmt_flag = 0x00;
+        else
+            sess_cfg->codec.aac_dec.aac_fmt_flag = 0x03;
         sess_cfg->codec.aac_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.aac_dec.sample_rate = media_cfg->rate;
 #ifdef COMPRESS_UAPI_DEC_HEADER
