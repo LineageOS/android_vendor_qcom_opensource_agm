@@ -21,6 +21,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/inc
 
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/casa/casa_osal
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/casa/gsl
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/casa/acdb
 LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
 
 LOCAL_CFLAGS     := $(agm-def)
@@ -48,6 +49,7 @@ LOCAL_SHARED_LIBRARIES := \
 	liblog\
 	liblx-osal\
 	libaudioroute\
+	libqts\
 	libtinyalsa
 
 LOCAL_COPY_HEADERS_TO   := mm-audio/agm

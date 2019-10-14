@@ -31,17 +31,34 @@
 #include "device.h"
 #include "session_obj.h"
 #include "utils.h"
+#include "qts.h"
 #include <stdio.h>
 
 int agm_init()
 {
-    return session_obj_init();
+    int ret = 0;
+    ret = session_obj_init();
+    if (0 != ret) {
+        AGM_LOGE("Session_obj_init failed with %d", ret);
+        goto exit;
+    }
+    AGM_LOGD("**** Initializing QTS...\n");
+    ret = qts_init();
+    if (0 != ret) {
+        AGM_LOGE("qts init failed with err = %d", ret);
+    }
+
+exit:
+    return ret;
 }
 
 int agm_deinit()
 {
     //close all sessions first
+    AGM_LOGD("Deinitializing QTS...");
+    qts_deinit();
     session_obj_deinit();
+
     return 0;
 }
 
