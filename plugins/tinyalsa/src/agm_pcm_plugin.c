@@ -64,12 +64,8 @@ struct agm_pcm_priv {
 };
 
 struct pcm_plugin_hw_constraints agm_pcm_constrs = {
-    .access = PCM_FORMAT_BIT(SNDRV_PCM_ACCESS_RW_INTERLEAVED) |
-              PCM_FORMAT_BIT(SNDRV_PCM_ACCESS_RW_NONINTERLEAVED),
-    .format = PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S16_LE) |
-              PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S24_LE) |
-              PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S24_3LE) |
-              PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S32_LE),
+    .access = 0,
+    .format = 0,
     .bit_width = {
         .min = 16,
         .max = 32,
@@ -499,6 +495,13 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
         ret = -EINVAL;
         goto err_card_put;
     }
+
+    agm_pcm_constrs.access = (PCM_FORMAT_BIT(SNDRV_PCM_ACCESS_RW_INTERLEAVED) |
+                              PCM_FORMAT_BIT(SNDRV_PCM_ACCESS_RW_NONINTERLEAVED));
+    agm_pcm_constrs.format = (PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S16_LE) |
+                              PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S24_LE) |
+                              PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S24_3LE) |
+                              PCM_FORMAT_BIT(SNDRV_PCM_FORMAT_S32_LE));
 
     agm_pcm_plugin->card = card;
     agm_pcm_plugin->ops = &agm_pcm_ops;
