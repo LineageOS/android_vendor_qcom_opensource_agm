@@ -542,5 +542,8 @@ err_priv_free:
     free(priv);
 err_plugin_free:
     free(agm_pcm_plugin);
-    return ret;
+    if (ret < 0)
+       return ret;
+    else
+       return -ret;
 }
