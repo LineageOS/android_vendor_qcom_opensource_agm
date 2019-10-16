@@ -460,7 +460,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
             }
         }
 tag_list:
-        gsl_tag_entry  = (char *)gsl_tag_entry + sizeof(gsl_tag_entry) +
+        gsl_tag_entry  = (char *)gsl_tag_entry + sizeof(struct gsl_tag_module_info_entry) +
                                (sizeof(struct gsl_module_id_info_entry) *
                                gsl_tag_entry->num_modules);
     }
