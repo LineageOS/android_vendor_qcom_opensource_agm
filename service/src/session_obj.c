@@ -33,6 +33,12 @@
 #include "session_obj.h"
 #include "utils.h"
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_SESSION_OBJ
+#include <log_utils.h>
+#endif
+
 #define GSL_EVENT_SRC_MODULE_ID_GSL 0x2001 // DO NOT CHANGE
 
 //forward declarations

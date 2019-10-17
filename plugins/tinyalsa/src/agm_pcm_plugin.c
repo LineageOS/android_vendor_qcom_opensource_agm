@@ -43,8 +43,12 @@
 #include <tinyalsa/pcm_plugin.h>
 #include <snd-card-def.h>
 #include <tinyalsa/asoundlib.h>
-
 #include "utils.h"
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_AGM_PCM_PLUGIN
+#include <log_utils.h>
+#endif
 
 /* 2 words of uint32_t = 64 bits of mask */
 #define PCM_MASK_SIZE (2)

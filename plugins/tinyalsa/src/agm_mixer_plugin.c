@@ -50,8 +50,14 @@
 
 #include <agm/agm_api.h>
 #include <snd-card-def.h>
-
 #include "utils.h"
+
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_AGM_MIXER_PLUGIN
+#include <log_utils.h>
+#endif
+
 
 #define ARRAY_SIZE(a)    \
     (sizeof(a) / sizeof(a[0]))

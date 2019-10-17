@@ -34,6 +34,12 @@
 #include "metadata.h"
 #include "utils.h"
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_METADATA
+#include <log_utils.h>
+#endif
+
 /*
  * Payload for metadata is expected in the following form
  *

@@ -54,6 +54,11 @@
                     memcpy(dst, src, MIN(dst_size, bytes_to_copy))
 #endif
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_AGM_CALLBACK
+#include <log_utils.h>
+#endif
 
 using namespace android;
 

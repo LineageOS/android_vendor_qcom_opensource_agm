@@ -39,6 +39,12 @@
 #define ARRAY_SIZE(a) \
         (sizeof(a) / sizeof(a[0]))
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_AGM_DUMMY_IMPL
+#include <log_utils.h>
+#endif
+
 int agm_session_write(struct session_obj *handle, void *buff, size_t count)
 {
     AGM_LOGD("%s %d\n", __func__, __LINE__);

@@ -34,9 +34,21 @@
 #include "qts.h"
 #include <stdio.h>
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_AGM_SRC
+#include <log_utils.h>
+#endif
+
 int agm_init()
 {
     int ret = 0;
+
+#ifdef DYNAMIC_LOG_ENABLED
+    register_for_dynamic_logging("agm");
+    log_utils_init();
+#endif
+
     ret = session_obj_init();
     if (0 != ret) {
         AGM_LOGE("Session_obj_init failed with %d", ret);

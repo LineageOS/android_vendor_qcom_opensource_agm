@@ -64,6 +64,12 @@
                     memcpy(dst, src, MIN(dst_size, bytes_to_copy))
 #endif
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_IPC_PROXY_SERVER
+#include <log_utils.h>
+#endif
+
 struct listnode clbk_data_list;
 pthread_mutex_t clbk_data_list_lock;
 bool clbk_data_list_init = false;

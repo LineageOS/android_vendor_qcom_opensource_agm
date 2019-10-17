@@ -48,6 +48,13 @@
 #include "sound/compress_offload.h"
 #include "utils.h"
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_AGM_COMPRESS_PLUGIN
+#include <log_utils.h>
+#endif
+
+
 /* Default values */
 #define COMPR_PLAYBACK_MIN_FRAGMENT_SIZE (8 * 1024)
 #define COMPR_PLAYBACK_MAX_FRAGMENT_SIZE (128 * 1024)

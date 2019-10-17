@@ -37,6 +37,13 @@
 #include <signal.h>
 #include "utils.h"
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_AGM_SERVER_DAEMON
+#include <log_utils.h>
+#endif
+
+
 static class AgmService *agmServiceInstance = new AgmService();
 
 static void sigint_handler(int sig)

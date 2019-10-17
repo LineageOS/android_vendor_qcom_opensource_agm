@@ -37,6 +37,12 @@
 #include "utils.h"
 #include "device.h"
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_DEVICE_HW_EP
+#include <log_utils.h>
+#endif
+
 #define DEV_ARG_SIZE                 20
 #define DEV_VALUE_SIZE               60
 

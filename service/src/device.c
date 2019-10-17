@@ -47,6 +47,12 @@
 #define MAX_RETRY 20 /*Device will try these many times before return an error*/
 #define RETRY_INTERVAL 5 /*Retry interval in seconds*/
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_DEVICE
+#include <log_utils.h>
+#endif
+
 #define TRUE 1
 #define FALSE 0
 

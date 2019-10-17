@@ -41,6 +41,12 @@
 #include "metadata.h"
 #include "utils.h"
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_GRAPH
+#include <log_utils.h>
+#endif
+
 #define DEVICE_RX 0
 #define DEVICE_TX 1
 

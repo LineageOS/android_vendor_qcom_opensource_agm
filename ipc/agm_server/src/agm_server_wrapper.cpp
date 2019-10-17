@@ -48,6 +48,11 @@
 #include "utils.h"
 #include "agm_server_wrapper.h"
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_AGM_SERVER_WRAPPER
+#include <log_utils.h>
+#endif
 using namespace android;
 
 #if 0

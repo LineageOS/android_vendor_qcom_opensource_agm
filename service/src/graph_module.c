@@ -37,6 +37,12 @@
 #include "metadata.h"
 #include "utils.h"
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_GRAPH_MODULE
+#include <log_utils.h>
+#endif
+
 #define MONO 1
 #define GET_BITS_PER_SAMPLE(format, bit_width) \
                            (format == AGM_FORMAT_PCM_S24_LE? 32 : bit_width)

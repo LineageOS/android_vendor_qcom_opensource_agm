@@ -25,7 +25,16 @@ LOCAL_SHARED_LIBRARIES := \
         libutils \
         libcutils \
         liblog
+
 LOCAL_VENDOR_MODULE := true
+
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DYNAMIC_LOG)), true)
+      LOCAL_CFLAGS += -DDYNAMIC_LOG_ENABLED
+      LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-audio/audio-log-utils
+      LOCAL_C_INCLUDES += $(TOP)/external/expat/lib/expat.h
+      LOCAL_SHARED_LIBRARIES += libaudio_log_utils \
+                                libexpat
+endif
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -53,6 +62,15 @@ LOCAL_SHARED_LIBRARIES := \
         liblog
 
 LOCAL_VENDOR_MODULE := true
+
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DYNAMIC_LOG)), true)
+      LOCAL_CFLAGS += -DDYNAMIC_LOG_ENABLED
+      LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-audio/audio-log-utils
+      LOCAL_C_INCLUDES += $(TOP)/external/expat/lib/expat.h
+      LOCAL_SHARED_LIBRARIES += libaudio_log_utils \
+                                libexpat
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -84,6 +102,15 @@ LOCAL_SHARED_LIBRARIES := \
         liblog
 
 LOCAL_VENDOR_MODULE := true
+
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DYNAMIC_LOG)), true)
+      LOCAL_CFLAGS += -DDYNAMIC_LOG_ENABLED
+      LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-audio/audio-log-utils
+      LOCAL_C_INCLUDES += $(TOP)/external/expat/lib/expat.h
+      LOCAL_SHARED_LIBRARIES += libaudio_log_utils \
+                                libexpat
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 
 endif

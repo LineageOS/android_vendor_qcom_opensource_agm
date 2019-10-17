@@ -46,6 +46,12 @@
 #include "agm_death_notifier.h"
 #include "utils.h"
 
+#ifdef DYNAMIC_LOG_ENABLED
+#include <log_xml_parser.h>
+#define LOG_MASK AGM_MOD_FILE_AGM_DEATH_NOTIFIER
+#include <log_utils.h>
+#endif
+
 using namespace android;
 
 struct listnode g_client_list;
