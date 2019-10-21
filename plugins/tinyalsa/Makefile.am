@@ -14,7 +14,7 @@ endif
 lib_LTLIBRARIES      = libagm_pcm_plugin.la
 libagm_pcm_plugin_la_SOURCES   = src/agm_pcm_plugin.c
 libagm_pcm_plugin_la_CFLAGS := $(AM_CFLAGS)
-libagm_pcm_plugin_la_LDFLAGS = -ltinyalsa -lsndcardparser -avoid-version
+libagm_pcm_plugin_la_LDFLAGS  = -ltinyalsa -lsndcardparser -avoid-version -shared
 if BUILDSYSTEM_OPENWRT
 libagm_pcm_plugin_la_LDFLAGS += -lagm
 else
@@ -26,13 +26,13 @@ if !BUILDSYSTEM_OPENWRT
 lib_LTLIBRARIES      += libagm_compress_plugin.la
 libagm_compress_plugin_la_SOURCES   = src/agm_compress_plugin.c
 libagm_compress_plugin_la_CFLAGS := $(AM_CFLAGS)
-libagm_compress_plugin_la_LDFLAGS   = -ltinyalsa -ltinycompress -lsndcardparser -lpthread  -lagmclient -avoid-version -laudio_log_utils
+libagm_compress_plugin_la_LDFLAGS   = -ltinyalsa -ltinycompress -lsndcardparser -lpthread  -lagmclient -avoid-version -laudio_log_utils -shared
 endif
 
 lib_LTLIBRARIES      += libagm_mixer_plugin.la
 libagm_mixer_plugin_la_SOURCES   = src/agm_mixer_plugin.c
 libagm_mixer_plugin_la_CFLAGS := $(AM_CFLAGS)
-libagm_mixer_plugin_la_LDFLAGS = -ltinyalsa -lsndcardparser -avoid-version
+libagm_mixer_plugin_la_LDFLAGS  = -ltinyalsa -lsndcardparser -avoid-version -shared
 if BUILDSYSTEM_OPENWRT
 libagm_mixer_plugin_la_LDFLAGS += -lagm
 else

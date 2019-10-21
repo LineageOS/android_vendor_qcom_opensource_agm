@@ -43,13 +43,16 @@ endif
 
 lib_LTLIBRARIES = libagm.la
 libagm_la_SOURCES = $(agm_sources)
-libagm_la_LIBADD = -ltinyalsa -lcasa_osal -lgsl
+libagm_la_LIBADD = -ltinyalsa -lcasa_osal -lgsl -lqts
 
 if !BUILDSYSTEM_OPENWRT
 libagm_la_LIBADD += -laudio_log_utils
 endif
 
 libagm_la_CFLAGS := $(AM_CFLAGS) -DACDB_PATH="/etc/acdbdata/MTP" -DACDB_DELTA_FILE_PATH="/data/audio/delta"
+if BUILDSYSTEM_OPENWRT
+libagm_la_LIBADD += -lglib-2.0
+endif
 libagm_la_CFLAGS += -D__unused=__attribute__\(\(__unused__\)\)
 libagm_la_CFLAGS += $(GLIB_CFLAGS) -Dstrlcpy=g_strlcpy -Dstrlcat=g_strlcat -include glib.h
 libagm_la_LDFLAGS = -module -shared -avoid-version
