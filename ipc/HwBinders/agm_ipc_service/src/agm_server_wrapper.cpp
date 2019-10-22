@@ -329,8 +329,11 @@ Return<int32_t> AGM::ipc_agm_session_aif_set_cal(uint32_t session_id,
                                     const hidl_vec<AgmCalConfig>& cal_config) {
     ALOGV("%s : session_id = %d, aif_id = %d\n", __func__, session_id, aif_id);
     struct agm_cal_config *cal_config_local = NULL;
+
     cal_config_local =
-              (struct agm_cal_config*) calloc(1, sizeof(struct agm_cal_config));
+              (struct agm_cal_config*) calloc(1, sizeof(struct agm_cal_config) +
+               cal_config.data()->num_ckvs * sizeof(struct agm_key_value));
+
     if (cal_config_local == NULL) {
             ALOGE("%s: Cannot allocate memory for cal_config_local\n", __func__);
             return -ENOMEM;
