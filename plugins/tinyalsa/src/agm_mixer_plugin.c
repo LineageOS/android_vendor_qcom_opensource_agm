@@ -1501,6 +1501,10 @@ static int amp_form_common_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx,
 {
     int i;
 
+    pcm_adi->pcm_mtd_ctl = calloc(pcm_adi->count, sizeof(int));
+    if (!pcm_adi->pcm_mtd_ctl)
+        return -ENOMEM;
+
     for (i = 1; i < pcm_adi->count; i++) {
         char *name = pcm_adi->names[i];
         int idx = pcm_adi->idx_arr[i];
@@ -1508,9 +1512,6 @@ static int amp_form_common_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx,
                         &be_adi->dev_enum, idx, pcm_adi);
         amp_create_disconnect_ctl(amp_priv, name, (*ctl_idx)++,
                         &be_adi->dev_enum, idx, pcm_adi);
-        pcm_adi->pcm_mtd_ctl = calloc(pcm_adi->count, sizeof(int));
-        if (!pcm_adi->pcm_mtd_ctl)
-            return -ENOMEM;
         amp_create_mtd_control_ctl(amp_priv, name, (*ctl_idx)++,
                         &be_adi->dev_enum, i, pcm_adi);
         amp_create_pcm_metadata_ctl(amp_priv, name, (*ctl_idx)++,

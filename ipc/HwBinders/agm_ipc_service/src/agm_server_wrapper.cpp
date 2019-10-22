@@ -50,11 +50,17 @@ void client_death_notifier::serviceDied(uint64_t cookie,
     pthread_mutex_lock(&clbk_data_list_lock);
     list_for_each_safe(node, tempnode, &clbk_data_list) {
         clbk_data_hndl = node_to_item(node,
-              ::vendor::qti::hardware::AGMIPC::V1_0::implementation::clbk_data,
-              list);
+             ::vendor::qti::hardware::AGMIPC::V1_0::implementation::clbk_data, list);
         if (clbk_data_hndl->srv_clt_data->pid == cookie) {
             ALOGV("%s : Matched pid with cookie = \" %d \" ", __func__,
                                                clbk_data_hndl->srv_clt_data->pid);
+            ::vendor::qti::hardware::AGMIPC::V1_0::implementation::SrvrClbk *tmp_sr_clbk_data =
+                                                                   clbk_data_hndl->srv_clt_data;
+            /*Unregister this callback from session_obj*/
+            agm_session_register_cb(tmp_sr_clbk_data->session_id,
+                                    NULL,
+                                    (enum event_type)tmp_sr_clbk_data->event,
+                                    tmp_sr_clbk_data),
             list_remove(node);
             free(clbk_data_hndl);
         }
@@ -422,7 +428,8 @@ Return<void> AGM::ipc_agm_session_open(uint32_t session_id,
     handle_ret.resize(sizeof(uint64_t));
     *handle_ret.data() = handle;
     _hidl_cb(ret, handle_ret);
-    add_handle_to_list(handle);
+    if (!ret)
+        add_handle_to_list(handle);
     ALOGV("%s : handle received is : %x",__func__, handle);
     return Void();
 }
