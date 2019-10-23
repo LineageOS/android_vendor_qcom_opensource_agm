@@ -54,7 +54,7 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_COPY_HEADERS_TO   := mm-audio/agm
 LOCAL_COPY_HEADERS      := inc/agm_api.h
-LOCAL_COPY_HEADERS      := inc/utils.h
+LOCAL_COPY_HEADERS      += inc/utils.h
 
 LOCAL_VENDOR_MODULE := true
 
