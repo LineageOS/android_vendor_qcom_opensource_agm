@@ -33,6 +33,9 @@
 #include "utils.h"
 #include "qts.h"
 #include <stdio.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include <unistd.h>
 
 #ifdef DYNAMIC_LOG_ENABLED
 #include <log_xml_parser.h>
@@ -40,25 +43,53 @@
 #include <log_utils.h>
 #endif
 
+static bool agm_initialized = 0;
+static pthread_t qts_thread;
+
+static void *qts_init_thread(void *obj)
+{
+    int ret = 0;
+    while(1) {
+        if (agm_initialized) {
+            sleep(2);
+            ret = qts_init();
+            if (0 != ret)
+                AGM_LOGE("qts init failed with err = %d", ret);
+            AGM_LOGD("QTS initialized\n");
+            break;
+        }
+        sleep(5);
+    }
+    return NULL;
+}
+
 int agm_init()
 {
     int ret = 0;
+    pthread_attr_t tattr;
+    struct sched_param param;
 
 #ifdef DYNAMIC_LOG_ENABLED
     register_for_dynamic_logging("agm");
     log_utils_init();
 #endif
 
+    pthread_attr_init (&tattr);
+    pthread_attr_getschedparam (&tattr, &param);
+    param.sched_priority = SCHED_FIFO;
+    pthread_attr_setschedparam (&tattr, &param);
+
+    ret = pthread_create(&qts_thread, (const pthread_attr_t *) &tattr,
+                                               qts_init_thread, NULL);
+    if (ret)
+        AGM_LOGE(" qts init thread creation failed\n");
+
     ret = session_obj_init();
     if (0 != ret) {
         AGM_LOGE("Session_obj_init failed with %d", ret);
         goto exit;
     }
-    AGM_LOGD("**** Initializing QTS...\n");
-    ret = qts_init();
-    if (0 != ret) {
-        AGM_LOGE("qts init failed with err = %d", ret);
-    }
+    agm_initialized = 1;
 
 exit:
     return ret;
