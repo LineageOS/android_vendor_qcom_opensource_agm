@@ -66,15 +66,7 @@ static struct pcm_config config;
 #define DEFAULT_PERIOD_SIZE          960
 #define DEFAULT_PERIOD_COUNT         2
 
-static struct pcm_config config = {
-     .channels = 2,
-     .rate = DEFAULT_SAMPLING_RATE,
-     .period_size = DEFAULT_PERIOD_SIZE,
-     .period_count = DEFAULT_PERIOD_COUNT,
-     .format = PCM_FORMAT_S16_LE,
-     .start_threshold = DEFAULT_PERIOD_SIZE / 4,
-     .stop_threshold = INT_MAX,
-};
+static struct pcm_config config;
 
 enum pcm_format agm_to_pcm_format(enum agm_media_format format)
 {
@@ -110,9 +102,14 @@ int device_open(struct device_obj *dev_obj)
         goto done;
     }
 
+    memset(&config, 0, sizeof(config));
     config.channels = dev_obj->media_config.channels;
     config.rate = dev_obj->media_config.rate;
     config.format = agm_to_pcm_format(dev_obj->media_config.format);
+    config.period_size = DEFAULT_PERIOD_SIZE;
+    config.period_count = DEFAULT_PERIOD_COUNT;
+    config.start_threshold = DEFAULT_PERIOD_SIZE / 4;
+    config.stop_threshold = INT_MAX;
 
     pcm = pcm_open(dev_obj->card_id, dev_obj->pcm_id, dev_obj->pcm_flags,
                 &config);
