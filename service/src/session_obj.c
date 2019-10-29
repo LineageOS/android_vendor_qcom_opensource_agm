@@ -442,7 +442,7 @@ static int session_set_ec_ref(struct session_obj *sess_obj, uint32_t aif_id,
         goto done;
     }
 
-    merged_metadata = metadata_merge(2, capture_metadata, dev_obj->metadata);
+    merged_metadata = metadata_merge(2, capture_metadata, &dev_obj->metadata);
     if (!merged_metadata) {
         ret = -ENOMEM;
         AGM_LOGE("%s: Error:%d, merging metadata with capture \
