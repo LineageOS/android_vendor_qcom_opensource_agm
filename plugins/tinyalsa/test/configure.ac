@@ -38,6 +38,12 @@ if (test "x${with_glib}" = "xyes"); then
 fi
 
 AM_CONDITIONAL(USE_GLIB, test "x${with_glib}" = "xyes")
-		
+
+AC_ARG_WITH([openwrt],
+    AS_HELP_STRING([use openwrt (default is no)]),
+    [with_openwrt=$withval],
+    [with_openwrt=no])
+AM_CONDITIONAL([BUILDSYSTEM_OPENWRT], [test "x${with_openwrt}" = "xyes"])
+
 AC_CONFIG_FILES([ Makefile agmtest.pc ])
 AC_OUTPUT

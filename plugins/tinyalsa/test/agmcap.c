@@ -66,6 +66,7 @@ int capturing = 1;
 char *audio_interface_name[] = {
     "CODEC_DMA-LPAIF_VA-TX-0",
     "CODEC_DMA-LPAIF_VA-TX-1",
+    "CODEC_DMA-LPAIF_RXTX-TX-3",
     "MI2S-LPAIF_AXI-TX-PRIMARY",
     "AUXPCM-LPAIF_AXI-TX-PRIMARY",
     "SLIM-DEV1-TX-0",
