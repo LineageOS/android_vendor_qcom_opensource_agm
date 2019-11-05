@@ -1119,7 +1119,9 @@ int graph_change(struct graph_obj *graph_obj,
         list_for_each(node, &graph_obj->tagged_mod_list) {
             temp_mod = node_to_item(node, module_info_t, list);
             if (temp_mod->miid == module_info->module_entry[0].module_iid) {
+                AGM_LOGV("info for module %x, config flag = %d\n", temp_mod->tag, temp_mod->is_configured);
                 mod_present = true;
+                temp_mod->is_configured = false;
                 break;
             }
         }

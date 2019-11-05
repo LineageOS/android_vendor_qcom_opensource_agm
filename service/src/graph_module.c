@@ -531,7 +531,7 @@ static int configure_slimbus_ep(struct module_info *mod,
     int i = 0;
     char print_ch_map[SB_MAX_CHAN_CNT+1] = {0};
 
-    AGM_LOGV("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
+    AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
 
     if (dev_obj->media_config.channels > SB_MAX_CHAN_CNT) {
         AGM_LOGE("device channels %d exceed max supported ch %d for Slimbus",
@@ -587,7 +587,7 @@ static int configure_slimbus_ep(struct module_info *mod,
 
     slimbus_cfg->slimbus_dev_id = hw_ep_info.ep_config.slim_config.dev_id;
 
-    AGM_LOGV("slimbus intf cfg dev id %d ch %d", slimbus_cfg->slimbus_dev_id,
+    AGM_LOGD("slimbus intf cfg dev id %d ch %d", slimbus_cfg->slimbus_dev_id,
              dev_obj->media_config.channels);
     for (i = 0; i < dev_obj->media_config.channels; i++)
          print_ch_map[i] = slimbus_cfg->shared_channel_mapping[i];
@@ -621,7 +621,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
     struct param_id_hw_ep_mf_t* hw_ep_media_conf;
     struct agm_media_config media_config = dev_obj->media_config;
 
-    AGM_LOGV("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
+    AGM_LOGD("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
     payload_size = sizeof(struct apm_module_param_data_t) +
                    sizeof(struct param_id_hw_ep_mf_t);
 
@@ -654,7 +654,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
      */
     hw_ep_media_conf->data_format = DATA_FORMAT_FIXED_POINT;
 
-    AGM_LOGV("rate %d bw %d ch %d", media_config.rate,
+    AGM_LOGD("rate %d bw %d ch %d", media_config.rate,
                     hw_ep_media_conf->bit_width, media_config.channels);
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
