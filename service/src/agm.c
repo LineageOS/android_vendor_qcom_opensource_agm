@@ -66,6 +66,10 @@ static void *qts_init_thread(void *obj)
 int agm_init()
 {
     int ret = 0;
+
+    if (agm_initialized)
+        goto exit;
+
     pthread_attr_t tattr;
     struct sched_param param;
 
@@ -80,7 +84,7 @@ int agm_init()
     pthread_attr_setschedparam (&tattr, &param);
 
     ret = pthread_create(&qts_thread, (const pthread_attr_t *) &tattr,
-                                               qts_init_thread, NULL);
+                                           qts_init_thread, NULL);
     if (ret)
         AGM_LOGE(" qts init thread creation failed\n");
 
@@ -98,19 +102,18 @@ exit:
 int agm_deinit()
 {
     //close all sessions first
-    AGM_LOGD("Deinitializing QTS...");
-    qts_deinit();
-    session_obj_deinit();
-    agm_initialized = 0;
+    if (agm_initialized) {
+        AGM_LOGD("Deinitializing QTS...");
+        qts_deinit();
+        session_obj_deinit();
+        agm_initialized = 0;
+    }
 
     return 0;
 }
 
 int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info)
 {
-    if (!agm_initialized)
-        agm_init();
-
     if (!num_aif_info || ((*num_aif_info != 0) && !aif_list)) {
         AGM_LOGE("%s: Error Invalid params\n", __func__);
         return -EINVAL;
