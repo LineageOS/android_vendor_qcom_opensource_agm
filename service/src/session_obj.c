@@ -658,6 +658,9 @@ static int session_connect_aif(struct session_obj *sess_obj,
                 __func__, ret, sess_obj->sess_id);
             goto graph_cleanup;
         }
+        free(sess_obj->params);
+        sess_obj->params = NULL;
+        sess_obj->params_size = 0;
     }
 
     //step 2.c set cached device(streamdevice + device) params
@@ -668,6 +671,9 @@ static int session_connect_aif(struct session_obj *sess_obj,
                 __func__, ret, sess_obj->sess_id);
             goto graph_cleanup;
         }
+        free(aif_obj->params);
+        aif_obj->params = NULL;
+        aif_obj->params_size = 0;
     }
 
     goto done;
@@ -1136,10 +1142,10 @@ int session_obj_set_sess_params(struct session_obj *sess_obj,
        if (ret) {
            AGM_LOGE("%s:Error:%d setting for sess params on sess_id:%d\n",
                    __func__, ret, sess_obj->sess_id);
-           free(sess_obj->params);
-           sess_obj->params = NULL;
-           sess_obj->params_size = 0;
        }
+       free(sess_obj->params);
+       sess_obj->params = NULL;
+       sess_obj->params_size = 0;
    }
 
 done:
@@ -1185,10 +1191,10 @@ int session_obj_set_sess_aif_params(struct session_obj *sess_obj,
            AGM_LOGE("%s:Error:%d setting for sess_aif params on sess_id:%d, \
                      aif_id:%d\n", __func__, ret,
                      sess_obj->sess_id, aif_obj->aif_id);
-           free(aif_obj->params);
-           aif_obj->params = NULL;
-           aif_obj->params_size = 0;
        }
+       free(aif_obj->params);
+       aif_obj->params = NULL;
+       aif_obj->params_size = 0;
    }
 
 done:
