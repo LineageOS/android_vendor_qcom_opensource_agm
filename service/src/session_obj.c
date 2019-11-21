@@ -792,7 +792,7 @@ static int session_prepare(struct session_obj *sess_obj)
         return -1; //-EINVALID;
     }
 
-    if (dir == TX) {
+    if ((dir == TX) && (sess_obj->state != SESSION_STARTED)) {
         ret = graph_prepare(sess_obj->graph);
         if (ret) {
             AGM_LOGE("%s Error:%d preparing graph\n", __func__, ret);
@@ -819,7 +819,7 @@ static int session_prepare(struct session_obj *sess_obj)
         }
     }
 
-    if (dir == RX) {
+    if ((dir == RX) && (sess_obj->state != SESSION_STARTED)) {
         ret = graph_prepare(sess_obj->graph);
         if (ret) {
             AGM_LOGE("%s Error:%d preparing graph\n", __func__, ret);
