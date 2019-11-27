@@ -369,14 +369,20 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     if (ret)
         return ret;
 
-    if (stype == STREAM_COMPRESS)
+    if (stype == STREAM_COMPRESS){
         stream = "COMPRESS";
+        gkv[index].key = STREAMRX;
+    }
 
-    if (val == PCM_LL_PLAYBACK || val == COMPRESS_PLAYBACK)
+    if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK){
         num_gkv = 2;
+        gkv[index].key = STREAMRX;
+    }
 
-    if (val == VOICE_UI && intf_name)
+    if (val == VOICE_UI && intf_name){
         num_gkv = 2;
+        gkv[index].key = STREAMTX;
+    }
 
     gkv_size = num_gkv * sizeof(struct agm_key_value);
     ckv_size = num_ckv * sizeof(struct agm_key_value);
@@ -398,22 +404,21 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
         return -ENOMEM;
     }
 
-    gkv[index].key = STREAM_TYPE;
     gkv[index].value = val;
 
     index++;
-    if (val == PCM_LL_PLAYBACK || val == COMPRESS_PLAYBACK) {
+    if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK) {
         gkv[index].key = INSTANCE;
         gkv[index].value = INSTANCE_1;
     }
 
     if (val == VOICE_UI && intf_name) {
         gkv[index].key = DEVICEPP_TX;
-        gkv[index].value = VOICE_FLUENCE_FFECNS;
+        gkv[index].value = DEVICEPP_TX_VOICE_UI_FLUENCE_FFECNS;
     }
 
     index = 0;
-    ckv[index].key = STREAM_TYPE;
+    ckv[index].key = STREAMTX;
     ckv[index].value = val;
 
     prop->prop_id = 0;  //Update prop_id here
