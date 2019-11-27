@@ -1041,19 +1041,25 @@ int graph_add(struct graph_obj *graph_obj,
             ADD_MODULE(*mod, dev_obj);
         }
     }
-    /*configure the newly added modules*/
-    list_for_each(node, &graph_obj->tagged_mod_list) {
-        mod = node_to_item(node, module_info_t, list);
-        /* Need to configure SPR module again for the new device */
-        if (mod->is_configured && !(mod->tag == TAG_STREAM_SPR))
-            continue;
-        if (mod->configure) {
-            ret = mod->configure(mod, graph_obj);
-            if (ret != 0)
-                goto done;
-            mod->is_configured = true;
+    /* Configure the newly added modules only if graph is in start state,
+     * in all other states, graph_prepare will take care of configuring
+     * modules.
+     */
+    if (graph_obj->state & (STARTED|PREPARED)) {
+        list_for_each(node, &graph_obj->tagged_mod_list) {
+            mod = node_to_item(node, module_info_t, list);
+            /* Need to configure SPR module again for the new device */
+            if (mod->is_configured && !(mod->tag == TAG_STREAM_SPR))
+                continue;
+            if (mod->configure) {
+                ret = mod->configure(mod, graph_obj);
+                if (ret != 0)
+                    goto done;
+                mod->is_configured = true;
+            }
         }
     }
+
 done:
     pthread_mutex_unlock(&graph_obj->lock);
     AGM_LOGD("exit\n");
