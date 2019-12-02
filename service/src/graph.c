@@ -645,12 +645,7 @@ int graph_start(struct graph_obj *graph_obj)
 
     pthread_mutex_lock(&graph_obj->lock);
     AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
-    if (!(graph_obj->state & (PREPARED | STOPPED))) {
-       AGM_LOGE("graph object is not in correct state, current state %d\n",
-                    graph_obj->state);
-       ret = -EINVAL;
-       goto done;
-    }
+
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_START, NULL, 0);
     if (ret !=0) {
         AGM_LOGE("graph_start failed %d\n", ret);
@@ -1009,6 +1004,12 @@ int graph_add(struct graph_obj *graph_obj,
             temp_mod = node_to_item(node, module_info_t, list);
             if (temp_mod->miid == mod->miid) {
                 mod_present = true;
+                /**
+                 * Module might have configured previously as we don't reset in
+                 * graph_remove() API. Reset is_configured flag here.
+                 * Ex: back to back device switch scenario.
+                 */
+                temp_mod->is_configured = false;
                 break;
             }
         }
