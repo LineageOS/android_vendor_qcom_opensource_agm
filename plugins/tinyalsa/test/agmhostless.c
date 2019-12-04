@@ -258,7 +258,7 @@ void play_loopback(unsigned int card, unsigned int p_device, unsigned int c_devi
         goto err_close_mixer;
     }
 
-    if (set_agm_stream_metadata(mixer, c_device, PCM_LOOPBACK, STREAM_PCM, NULL)) {
+    if (set_agm_stream_metadata(mixer, c_device, PCM_RX_LOOPBACK, STREAM_PCM, NULL)) {
         printf("Failed to capture stream metadata\n");
         goto err_close_mixer;
     }
