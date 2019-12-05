@@ -336,7 +336,7 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 		}
 
 		codec.id = SND_AUDIOCODEC_MP3;
-#ifdef COMPRESS_UAPI_DEC_HEADER
+#ifdef SND_COMPRESS_DEC_HDR
 	} else if (format == AAC_ADTS_FORMAT) {
 		uint16_t protection_absent, crc;
 		fread(&adts_header, sizeof(adts_header), 1, file);
