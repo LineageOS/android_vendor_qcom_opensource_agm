@@ -661,15 +661,11 @@ int configure_hw_ep_media_config(struct module_info *mod,
     hw_ep_media_conf->bit_width = get_pcm_bit_width(media_config.format);
 
     hw_ep_media_conf->num_channels = media_config.channels;
-    /*
-     *TODO:Expose a parameter to client to update this as, this will change
-     *once we move to supporting compress data through hw ep
-     *
-     */
-    hw_ep_media_conf->data_format = DATA_FORMAT_FIXED_POINT;
+    hw_ep_media_conf->data_format = media_config.data_format;
 
-    AGM_LOGD("rate %d bw %d ch %d", media_config.rate,
-                    hw_ep_media_conf->bit_width, media_config.channels);
+    AGM_LOGE("rate %d bw %d ch %d, data_fmt %d", media_config.rate,
+                    hw_ep_media_conf->bit_width, media_config.channels,
+                    media_config.data_format);
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
@@ -775,7 +771,7 @@ int configure_output_media_format(struct module_info *mod,
     header->error_code = 0x0;
     header->param_size = (uint32_t)payload_size;
 
-    media_fmt_hdr->data_format = DATA_FORMAT_FIXED_POINT;
+    media_fmt_hdr->data_format = AGM_DATA_FORMAT_FIXED_POINT;
     media_fmt_hdr->fmt_id = MEDIA_FMT_ID_PCM;
     media_fmt_hdr->payload_size =
                       (uint32_t)(sizeof(payload_pcm_output_format_cfg_t) +
@@ -921,7 +917,7 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
     switch (fmt_id) {
     case AGM_FORMAT_MP3:
     {
-        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED ;
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_MP3;
         media_fmt_hdr->payload_size = 0;
         break;
@@ -930,7 +926,7 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
     {
         struct payload_media_fmt_aac_t *fmt_pl;
         fmt_size = sizeof(struct payload_media_fmt_aac_t);
-        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED ;
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_AAC;
         media_fmt_hdr->payload_size = fmt_size;
 
@@ -946,7 +942,7 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
     {
         struct payload_media_fmt_flac_t *fmt_pl;
         fmt_size = sizeof(struct payload_media_fmt_flac_t);
-        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED ;
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_FLAC;
         media_fmt_hdr->payload_size = fmt_size;
 
@@ -961,7 +957,7 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
     {
         struct payload_media_fmt_alac_t *fmt_pl;
         fmt_size = sizeof(struct payload_media_fmt_alac_t);
-        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED ;
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_ALAC;
         media_fmt_hdr->payload_size = fmt_size;
 
@@ -977,7 +973,7 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
     {
         struct payload_media_fmt_ape_t *fmt_pl;
         fmt_size = sizeof(struct payload_media_fmt_ape_t);
-        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED ;
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_ALAC;
         media_fmt_hdr->payload_size = fmt_size;
 
@@ -993,7 +989,7 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
     {
         struct payload_media_fmt_wmastd_t *fmt_pl;
         fmt_size = sizeof(struct payload_media_fmt_wmastd_t);
-        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED ;
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_WMASTD;
         media_fmt_hdr->payload_size = fmt_size;
 
@@ -1009,7 +1005,7 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
     {
         struct payload_media_fmt_wmapro_t *fmt_pl;
         fmt_size = sizeof(struct payload_media_fmt_wmapro_t);
-        media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED ;
+        media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED ;
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_WMAPRO;
         media_fmt_hdr->payload_size = fmt_size;
 
@@ -1194,7 +1190,7 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     header->error_code = 0x0;
     header->param_size = (uint32_t)payload_size;
 
-    media_fmt_hdr->data_format = DATA_FORMAT_FIXED_POINT;
+    media_fmt_hdr->data_format = AGM_DATA_FORMAT_FIXED_POINT;
     media_fmt_hdr->fmt_id = MEDIA_FMT_ID_PCM;
     media_fmt_hdr->payload_size = (uint32_t)(sizeof(payload_media_fmt_pcm_t) +
                                      sizeof(uint8_t) * num_channels);

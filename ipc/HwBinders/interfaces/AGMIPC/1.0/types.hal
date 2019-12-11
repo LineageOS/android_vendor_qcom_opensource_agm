@@ -179,6 +179,7 @@ struct AgmMediaConfig {
     uint32_t rate;
     uint32_t channels;
     AgmMediaFormat format;
+    uint32_t data_format;
 };
 
 /**

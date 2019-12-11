@@ -83,6 +83,7 @@ int agm_aif_set_media_config(uint32_t audio_intf,
         media_config_hidl.data()->rate = media_config->rate;
         media_config_hidl.data()->channels = media_config->channels;
         media_config_hidl.data()->format = (::vendor::qti::hardware::AGMIPC::V1_0::AgmMediaFormat) media_config->format;
+        media_config_hidl.data()->data_format = media_config->data_format;
         return agm_client->ipc_agm_aif_set_media_config(audio_intf,
                                                         media_config_hidl);
     }
@@ -107,6 +108,7 @@ int agm_session_set_config(uint64_t handle,
         media_config_hidl.data()->rate = media_config->rate;
         media_config_hidl.data()->channels = media_config->channels;
         media_config_hidl.data()->format = (::vendor::qti::hardware::AGMIPC::V1_0::AgmMediaFormat) media_config->format;
+        media_config_hidl.data()->data_format = media_config->data_format;
 
         hidl_vec<AgmBufferConfig> buffer_config_hidl;
         buffer_config_hidl.resize(sizeof(struct agm_buffer_config));

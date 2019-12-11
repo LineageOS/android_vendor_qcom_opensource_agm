@@ -85,6 +85,23 @@ enum agm_media_format
 };
 
 /**
+ * Data format
+ * MUST stay in sync with media_fmt_api.h
+ */
+enum agm_data_format
+{
+    AGM_DATA_FORMAT_INVALID,
+    AGM_DATA_FORMAT_FIXED_POINT,                    /**< fixed point */
+    AGM_DATA_FORMAT_IEC61937_PACKETIZED,            /**< IEC61937 packetized stream */
+    AGM_DATA_FORMAT_IEC60958_PACKETIZED,            /**< IEC60958 packetized stream for PCM only */
+    AGM_DATA_FORMAT_DSD_OVER_PCM,                   /**< DSD over PCM stream */
+    AGM_DATA_FORMAT_GENERIC_COMPRESSED,             /**< generic compressed stream */
+    AGM_DATA_FORMAT_RAW_COMPRESSED,                 /**< raw compressed stream */
+    AGM_DATA_FORMAT_COMPR_OVER_PCM_PACKETIZED,      /**< Compressed bitstreams packetized */
+    AGM_DATA_FORMAT_IEC60958_PACKETIZED_NON_LINEAR, /**< IEC60958 packetized stream for compressed streams */
+};
+
+/**
  * Compress codec format ID
  */
 enum agm_data_mode
@@ -204,6 +221,7 @@ struct agm_media_config {
     uint32_t rate;                 /**< sample rate */
     uint32_t channels;             /**< number of channels */
     enum agm_media_format format;  /**< format */
+    uint32_t data_format;          /**< data format */
 };
 
 /**

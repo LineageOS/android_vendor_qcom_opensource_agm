@@ -98,7 +98,7 @@ int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
     char *control = "rate ch fmt";
     char *mixer_str;
     struct mixer_ctl *ctl;
-    long media_config[3];
+    long media_config[4];
     int ctl_len = 0;
     int ret = 0;
 
@@ -117,6 +117,7 @@ int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
     media_config[0] = rate;
     media_config[1] = channels;
     media_config[2] = bits_to_alsa_format(bits);
+    media_config[3] = AGM_DATA_FORMAT_FIXED_POINT;
 
     printf("%s - %d - %d - %d\n", __func__, media_config[0],  media_config[1], media_config[2]);
     ret = mixer_ctl_set_array(ctl, &media_config, sizeof(media_config)/sizeof(media_config[0]));

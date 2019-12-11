@@ -689,6 +689,7 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
     amp_priv->media_fmt.rate = (uint32_t)ev->value.integer.value[0];
     amp_priv->media_fmt.channels = (uint32_t)ev->value.integer.value[1];
     amp_priv->media_fmt.format = alsa_to_agm_fmt(ev->value.integer.value[2]);
+    amp_priv->media_fmt.data_format = (uint32_t)ev->value.integer.value[3];
 
     ret = agm_aif_set_media_config(audio_intf_id,
                                    &amp_priv->media_fmt);
@@ -697,9 +698,10 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
 
     if (ret)
         AGM_LOGE("%s: set_media_config failed, err %d, aif_id %u rate %u \
-                 channels %u fmt %u\n",
+                 channels %u fmt %u, data_fmt %u\n",
                  __func__, ret, audio_intf_id, amp_priv->media_fmt.rate,
-                 amp_priv->media_fmt.channels, amp_priv->media_fmt.format);
+                 amp_priv->media_fmt.channels, amp_priv->media_fmt.format,
+                 amp_priv->media_fmt.data_format);
     return ret;
 }
 
@@ -1262,7 +1264,7 @@ static struct snd_value_tlv_bytes pcm_getparam_bytes =
     SND_VALUE_TLV_BYTES(64 * 1024, amp_pcm_get_param_get, amp_pcm_get_param_put);
 
 static struct snd_value_int media_fmt_int =
-    SND_VALUE_INTEGER(3, 0, 384000, 1);
+    SND_VALUE_INTEGER(4, 0, 384000, 1);
 
 /* PCM related mixer controls here */
 static void amp_create_connect_ctl(struct amp_priv *amp_priv,

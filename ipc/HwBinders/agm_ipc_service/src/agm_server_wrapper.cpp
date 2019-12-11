@@ -198,6 +198,7 @@ Return<int32_t> AGM::ipc_agm_aif_set_media_config(uint32_t aif_id,
     med_config_l->rate = media_config.data()->rate;
     med_config_l->channels = media_config.data()->channels;
     med_config_l->format = (enum agm_media_format) media_config.data()->format;
+    med_config_l->data_format = media_config.data()->data_format;
     int32_t ret = agm_aif_set_media_config (aif_id, med_config_l);
     return ret;
 }
@@ -450,6 +451,7 @@ Return<int32_t> AGM::ipc_agm_session_set_config(uint64_t hndl,
     media_config_local->rate = media_config.data()->rate;
     media_config_local->channels = media_config.data()->channels;
     media_config_local->format = (enum agm_media_format) media_config.data()->format;
+    media_config_local->data_format = (enum agm_media_format) media_config.data()->data_format;
     struct agm_session_config *session_config_local = NULL;
     session_config_local = (struct agm_session_config*)
                                   calloc(1, sizeof(struct agm_session_config));

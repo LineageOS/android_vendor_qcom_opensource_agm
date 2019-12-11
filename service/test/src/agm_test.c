@@ -34,7 +34,7 @@
 typedef int(*testcase)(void);
 
 struct agm_session_config stream_config = { 1, false, true, 0, 0 };
-struct agm_media_config media_config = { 48000, 2, 16 };
+struct agm_media_config media_config = { 48000, 2, 16, 1};
 struct agm_buffer_config buffer_config = { 4, 320 };
 
 uint32_t session_id_rx1 = 1;

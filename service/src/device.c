@@ -351,6 +351,7 @@ int device_set_media_config(struct device_obj *dev_obj,
    dev_obj->media_config.channels = device_media_config->channels;
    dev_obj->media_config.rate = device_media_config->rate;
    dev_obj->media_config.format = device_media_config->format;
+   dev_obj->media_config.data_format = device_media_config->data_format;
 
    return 0;
 }
