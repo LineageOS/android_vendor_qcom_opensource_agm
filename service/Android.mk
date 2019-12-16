@@ -34,6 +34,7 @@ LOCAL_SRC_FILES  := src/agm.c\
                     src/metadata.c\
                     src/session_obj.c\
                     src/device.c \
+                    src/utils.c \
                     src/device_hw_ep.c
 
 LOCAL_MODULE               := libagm

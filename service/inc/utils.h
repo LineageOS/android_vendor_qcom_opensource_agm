@@ -41,4 +41,9 @@
 #define AGM_LOGI(arg,...) ALOGI("%s: %d "  arg, __func__, __LINE__, ##__VA_ARGS__)
 #define AGM_LOGV(arg,...) ALOGV("%s: %d "  arg, __func__, __LINE__, ##__VA_ARGS__)
 
+/*convert osal error codes to lnx error codes*/
+int cass_err_get_lnx_err_code(uint32_t error);
+/*helper to print errors in string form*/
+char *casa_err_get_err_str(uint32_t error);
+
 #endif /*__UTILS_H*/

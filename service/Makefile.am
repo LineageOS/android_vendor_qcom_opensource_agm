@@ -18,6 +18,7 @@ agm_sources = ./src/graph.c \
               ./src/device_hw_ep.c \
               ./src/metadata.c \
               ./src/session_obj.c \
+              ./src/utils.c \
               ./src/agm.c
 
 else
