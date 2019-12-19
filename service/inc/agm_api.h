@@ -499,6 +499,18 @@ int agm_session_aif_get_tag_module_info(uint32_t session_id,
                                         size_t *size);
 
 /**
+ * \brief Set parameters for modules in audio interface
+ *
+ * \param[in] aif_id - Valid audio interface id
+ * \param[in] payload - payload
+ * \param[in] size - payload size in bytes
+ *
+ *  \return 0 on success, error code on failure.
+ */
+int agm_aif_set_params(uint32_t aif_id,
+                        void* payload, size_t size);
+
+/**
  * \brief Set parameters for modules in b/w stream and audio interface
  *
  * \param[in] session_id - Valid audio session id

@@ -53,6 +53,9 @@ interface IAGM
     ipc_agm_session_get_params(uint32_t session_id,
                     uint32_t size, vec<uint8_t> buff)
                     generates (int32_t ret, vec<uint8_t> payload_ret);
+    ipc_agm_aif_set_params(uint32_t aif_id,
+                    vec<uint8_t> payload, uint32_t size)
+                    generates (int32_t ret);
     ipc_agm_session_aif_set_params(uint32_t session_id, uint32_t aif_id,
                     vec<uint8_t> payload, uint32_t size)
                     generates (int32_t ret);

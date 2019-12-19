@@ -311,6 +311,23 @@ Return<void> AGM::ipc_agm_session_get_params(uint32_t session_id,
     return Void();
 }
 
+Return<int32_t> AGM::ipc_agm_aif_set_params(uint32_t aif_id,
+                                            const hidl_vec<uint8_t>& payload,
+                                            uint32_t size)
+{
+    size_t size_local = (size_t) size;
+    void * payload_local = NULL;
+
+    ALOGV("%s : aif_id =%d, size = %d\n", __func__, aif_id, size);
+    payload_local = (void*) calloc (1,size);
+    if (payload_local == NULL) {
+        ALOGE("%s: calloc failed for payload_local\n", __func__);
+        return -ENOMEM;
+    }
+    memcpy(payload_local, payload.data(), size);
+    return agm_aif_set_params(aif_id, payload_local, size_local);
+}
+
 Return<int32_t> AGM::ipc_agm_session_aif_set_params(uint32_t session_id,
                                                uint32_t aif_id,
                                                const hidl_vec<uint8_t>& payload,

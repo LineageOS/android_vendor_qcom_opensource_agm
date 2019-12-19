@@ -271,6 +271,31 @@ done:
 return ret;
 }
 
+/* This does not support runtime update of device param  payload */
+int agm_aif_set_params(uint32_t aif_id,
+                        void* payload, size_t size)
+{
+    struct device_obj *obj = NULL;
+    int32_t ret = 0;
+
+    ret = device_get_obj(aif_id, &obj);
+    if (ret) {
+        AGM_LOGE("%s: Error:%d retrieving device obj with audio_intf id=%d\n",
+                                         __func__, ret, aif_id);
+        goto done;
+    }
+
+    ret = device_set_params(obj, payload, size);
+    if (ret) {
+        AGM_LOGE("%s: Error:%d set params for aif_id=%d\n",
+                        __func__, ret, aif_id);
+        goto done;
+    }
+
+done:
+    return ret;
+}
+
 int agm_session_aif_set_params(uint32_t session_id,
                         uint32_t aif_id,
                         void* payload, size_t size)

@@ -68,13 +68,17 @@
 #define AMP_PRIV_GET_CTL_NAME_PTR(p, idx) \
     (p->ctl_names[idx])
 
-#define BE_CTL_NAME_MEDIA_CONFIG 0
-#define BE_CTL_NAME_METADATA 1
+enum {
+    BE_CTL_NAME_MEDIA_CONFIG = 0,
+    BE_CTL_NAME_METADATA,
+    BE_CTL_NAME_SET_PARAM,
+};
 
 /* strings should be at the index as per the #defines */
 static char *amp_be_ctl_name_extn[] = {
     "rate ch fmt",
     "metadata",
+    "setParam",
 };
 
 enum {
@@ -693,8 +697,6 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
 
     ret = agm_aif_set_media_config(audio_intf_id,
                                    &amp_priv->media_fmt);
-    if (ret == -EALREADY)
-        ret = 0;
 
     if (ret)
         AGM_LOGE("%s: set_media_config failed, err %d, aif_id %u rate %u \
@@ -702,6 +704,33 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
                  __func__, ret, audio_intf_id, amp_priv->media_fmt.rate,
                  amp_priv->media_fmt.channels, amp_priv->media_fmt.format,
                  amp_priv->media_fmt.data_format);
+    return ret;
+}
+
+static int amp_be_set_param_get(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_tlv *ev)
+{
+    /* get of set_param not implemented */
+    return 0;
+}
+
+static int amp_be_set_param_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
+{
+    uint32_t audio_intf_id = ctl->private_value;
+    void *payload = NULL;
+    size_t tlv_size = 0;
+    int ret;
+
+    AGM_LOGD("%s: enter\n", __func__);
+    payload = &tlv->tlv[0];
+    tlv_size = tlv->length;
+
+    ret = agm_aif_set_params(audio_intf_id, payload, tlv_size);
+    if (ret)
+        AGM_LOGE("%s: set_params failed, err %d, aif_id %u\n",
+               __func__, ret, audio_intf_id);
+
     return ret;
 }
 
@@ -1266,6 +1295,9 @@ static struct snd_value_tlv_bytes pcm_getparam_bytes =
 static struct snd_value_int media_fmt_int =
     SND_VALUE_INTEGER(4, 0, 384000, 1);
 
+static struct snd_value_tlv_bytes be_setparam_bytes =
+    SND_VALUE_TLV_BYTES(64 * 1024, amp_be_set_param_get, amp_be_set_param_put);
+
 /* PCM related mixer controls here */
 static void amp_create_connect_ctl(struct amp_priv *amp_priv,
             char *pname, int ctl_idx, struct snd_value_enum *e,
@@ -1477,6 +1509,18 @@ static void amp_create_media_fmt_ctl(struct amp_priv *amp_priv,
                     amp_be_media_fmt_put, media_fmt_int, pval, pdata);
 }
 
+static void amp_create_be_set_param_ctl(struct amp_priv *amp_priv,
+                char *be_name, int ctl_idx, int pval, void *pdata)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+         be_name, amp_be_ctl_name_extn[BE_CTL_NAME_SET_PARAM]);
+    INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, be_setparam_bytes,
+                pval, pdata);
+}
+
 static int amp_form_be_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt)
 {
     struct amp_dev_info *rx_adi = &amp_priv->rx_be_devs;
@@ -1490,6 +1534,9 @@ static int amp_form_be_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt)
         amp_create_metadata_ctl(amp_priv, rx_adi->names[i], ctl_idx,
                                 rx_adi->idx_arr[i], rx_adi);
         ctl_idx++;
+        amp_create_be_set_param_ctl(amp_priv, rx_adi->names[i], ctl_idx,
+                                rx_adi->idx_arr[i], rx_adi);
+        ctl_idx++;
     }
 
     for (i = 1; i < tx_adi->count; i++) {
@@ -1497,6 +1544,9 @@ static int amp_form_be_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt)
                                  tx_adi->idx_arr[i], tx_adi);
         ctl_idx++;
         amp_create_metadata_ctl(amp_priv, tx_adi->names[i], ctl_idx,
+                                tx_adi->idx_arr[i], tx_adi);
+        ctl_idx++;
+        amp_create_be_set_param_ctl(amp_priv, tx_adi->names[i], ctl_idx,
                                 tx_adi->idx_arr[i], tx_adi);
         ctl_idx++;
     }

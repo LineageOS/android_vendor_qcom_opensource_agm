@@ -362,6 +362,35 @@ int device_set_metadata(struct device_obj *dev_obj, uint32_t size,
    return metadata_copy(&(dev_obj->metadata), size, metadata);
 }
 
+int device_set_params(struct device_obj *dev_obj,
+                      void *payload, size_t size)
+{
+   int ret = 0;
+
+   pthread_mutex_unlock(&dev_obj->lock);
+
+   if (dev_obj->params) {
+       free(dev_obj->params);
+       dev_obj->params = NULL;
+       dev_obj->params_size = 0;
+   }
+
+   dev_obj->params = calloc(1, size);
+   if (!dev_obj->params) {
+       AGM_LOGE("%s: No memory for dev params on dev_id:%d\n",
+                                   __func__, dev_obj->pcm_id);
+       ret = -EINVAL;
+       goto done;
+   }
+
+   memcpy(dev_obj->params, payload, size);
+   dev_obj->params_size = size;
+
+done:
+   pthread_mutex_unlock(&dev_obj->lock);
+   return ret;
+}
+
 int parse_snd_card()
 {
     char buffer[MAX_BUF_SIZE];
@@ -474,10 +503,18 @@ int device_init()
 void device_deinit()
 {
     unsigned int list_count = 0;
+    struct device_obj *dev_obj = NULL;
+
     AGM_LOGE("%s:device deinit called\n", __func__);
     for (list_count = 0; list_count < num_audio_intfs; list_count++) {
-        metadata_free(&device_list[list_count]->metadata);
-        free(device_list[list_count]);
+        dev_obj = device_list[list_count];
+        metadata_free(&dev_obj->metadata);
+
+        if (dev_obj->params)
+            free(dev_obj->params);
+
+        free(dev_obj);
+        dev_obj = NULL;
     }
     free(device_list);
     device_list = NULL;

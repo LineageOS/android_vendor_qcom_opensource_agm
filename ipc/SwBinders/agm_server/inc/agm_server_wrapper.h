@@ -79,6 +79,8 @@ class AgmService : public BnAgmService
         virtual int ipc_agm_session_aif_set_params(uint32_t session_id,
                                      uint32_t aif_id, void *payload,
                                      size_t size);
+        virtual int ipc_agm_aif_set_params(uint32_t aif_id,
+                                    void* payload, size_t size);
         virtual int ipc_agm_session_set_params(uint32_t session_id,
                                      void *payload, size_t size);
         virtual int ipc_agm_set_params_with_tag(uint32_t session_id,

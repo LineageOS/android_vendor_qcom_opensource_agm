@@ -103,7 +103,7 @@ enum {
     REG_EVENT,
     REG_CB,
     GET_TAG_MODULE_INFO,
-    AIF_SET_PARAMS,
+    SESSION_AIF_SET_PARAMS,
     SESSION_SET_PARAMS,
     SET_PARAMS_WITH_TAG,
     SET_ECREF,
@@ -112,6 +112,7 @@ enum {
     GET_SESSION_TIME,
     GET_PARAMS,
     BUF_TSTAMP,
+    AIF_SET_PARAMS,
 };
 
 class BpAgmService : public ::android::BpInterface<IAgmService>
@@ -537,6 +538,23 @@ class BpAgmService : public ::android::BpInterface<IAgmService>
 
         data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
         data.writeUint32(session_id);
+        data.writeUint32(aif_id);
+        data.writeUint32(count);
+        data.writeBlob(count, false, &blob);
+        memset(blob.data(), 0x0, count);
+        memcpy(blob.data(), payload, count);
+        remote()->transact(SESSION_AIF_SET_PARAMS, data, &reply);
+        blob.release();
+        return reply.readInt32();
+    }
+
+    virtual int ipc_agm_aif_set_params(uint32_t aif_id,
+                                 void *payload, size_t count)
+    {
+        android::Parcel data, reply;
+        android::Parcel::WritableBlob blob;
+
+        data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
         data.writeUint32(aif_id);
         data.writeUint32(count);
         data.writeBlob(count, false, &blob);
@@ -1144,7 +1162,7 @@ android::status_t BnAgmService::onTransact(uint32_t code,
         }
         break; }
 
-    case AIF_SET_PARAMS: {
+    case SESSION_AIF_SET_PARAMS: {
         uint32_t rc, pcm_idx, be_idx;
         size_t count = 0;
         android::Parcel::ReadableBlob blob;
@@ -1164,6 +1182,30 @@ android::status_t BnAgmService::onTransact(uint32_t code,
 
         memcpy(bn_payload, blob.data(), count);
         rc = ipc_agm_session_aif_set_params(pcm_idx, be_idx, bn_payload, count);
+        blob.release();
+        free(bn_payload);
+        reply->writeInt32(rc);
+        break; }
+
+    case AIF_SET_PARAMS: {
+        uint32_t rc, be_idx;
+        size_t count = 0;
+        android::Parcel::ReadableBlob blob;
+        void *bn_payload;
+
+        be_idx = data.readUint32();
+        count = (size_t) data.readUint32();
+        data.readBlob(count, &blob);
+
+        bn_payload = calloc(count, sizeof(uint8_t));
+        if (!bn_payload) {
+            AGM_LOGE("calloc failed\n");
+            reply->writeInt32(-ENOMEM);
+            return -ENOMEM;
+        }
+
+        memcpy(bn_payload, blob.data(), count);
+        rc = ipc_agm_aif_set_params(be_idx, bn_payload, count);
         blob.release();
         free(bn_payload);
         reply->writeInt32(rc);

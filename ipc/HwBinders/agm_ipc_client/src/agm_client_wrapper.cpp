@@ -421,6 +421,23 @@ int agm_session_get_params(uint32_t session_id, void *payload, size_t size)
     return -EINVAL;
 }
 
+int agm_aif_set_params(uint32_t aif_id, void *payload, size_t size)
+{
+    ALOGV("%s : aif_id = %d\n", __func__, aif_id);
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+
+        uint32_t size_hidl = (uint32_t) size;
+        hidl_vec<uint8_t> payload_hidl;
+        payload_hidl.resize(size_hidl);
+        memcpy(payload_hidl.data(), payload, size_hidl);
+
+        return agm_client->ipc_agm_aif_set_params(aif_id,
+                                            payload_hidl, size_hidl);
+    }
+    return -EINVAL;
+}
+
 int agm_session_aif_set_params(uint32_t session_id, uint32_t aif_id,
                                                     void *payload, size_t size)
 {

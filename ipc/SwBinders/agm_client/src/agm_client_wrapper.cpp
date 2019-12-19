@@ -318,6 +318,16 @@ int agm_session_aif_get_tag_module_info(uint32_t session_id, uint32_t aif_id,
     return -EAGAIN;
 }
 
+int agm_aif_set_params(uint32_t aif_id,void *payload, size_t size)
+{
+    if (!agm_server_died) {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_aif_set_params(aif_id,
+                                                          payload, size);
+    }
+    AGM_LOGE("%s: agm service is not running\n", __func__);
+    return -EAGAIN;
+}
 
 int agm_session_aif_set_params(uint32_t session_id, uint32_t aif_id,
                                          void *payload, size_t size)

@@ -99,7 +99,7 @@ typedef struct hw_ep_info
 }hw_ep_info_t;
 
 struct device_obj {
-    /* 
+    /*
      * name of the device object populated from /proc/asound/pcm
      * <Interface_type>-<LPAIF_TYPE>-<DIRECTION>-<IDX>
      * <SLIM>-<DEVICEID>-<DIRECTION>-<IDX>
@@ -123,6 +123,8 @@ struct device_obj {
     bool prepare_thread_created;
     struct refcount refcnt;
     int state;
+    void *params;
+    size_t params_size;
 };
 
 /* Initializes device_obj, enumerate and fill device related information */
@@ -148,5 +150,8 @@ int device_set_media_config(struct device_obj *obj,
 /* api to set device meta graph keys + cal keys */
 int device_set_metadata(struct device_obj *obj, uint32_t size,
                  uint8_t *payload);
+/* api to set device setparam payload */
+int device_set_params(struct device_obj *obj, void *payload, size_t size);
+
 int populate_device_hw_ep_info(struct device_obj *dev_obj);
 #endif

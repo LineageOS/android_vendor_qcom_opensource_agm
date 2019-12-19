@@ -165,6 +165,13 @@ int AgmService::ipc_agm_session_aif_get_tag_module_info(uint32_t session_id,
                                payload, size);
 };
 
+int AgmService::ipc_agm_aif_set_params(uint32_t aif_id,
+                                    void* payload, size_t size)
+{
+    AGM_LOGV("%s called\n", __func__);
+    return agm_aif_set_params(aif_id, payload, size);
+}
+
 int AgmService::ipc_agm_session_aif_set_params(uint32_t session_id,
                                uint32_t aif_id, void *payload, size_t size)
 {
