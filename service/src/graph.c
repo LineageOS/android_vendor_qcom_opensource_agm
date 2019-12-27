@@ -645,12 +645,7 @@ int graph_start(struct graph_obj *graph_obj)
 
     pthread_mutex_lock(&graph_obj->lock);
     AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
-    if (!(graph_obj->state & (PREPARED | STOPPED))) {
-       AGM_LOGE("graph object is not in correct state, current state %d\n",
-                    graph_obj->state);
-       ret = -EINVAL;
-       goto done;
-    }
+
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_START, NULL, 0);
     if (ret !=0) {
         AGM_LOGE("graph_start failed %d\n", ret);
@@ -1009,6 +1004,12 @@ int graph_add(struct graph_obj *graph_obj,
             temp_mod = node_to_item(node, module_info_t, list);
             if (temp_mod->miid == mod->miid) {
                 mod_present = true;
+                /**
+                 * Module might have configured previously as we don't reset in
+                 * graph_remove() API. Reset is_configured flag here.
+                 * Ex: back to back device switch scenario.
+                 */
+                temp_mod->is_configured = false;
                 break;
             }
         }
@@ -1041,19 +1042,25 @@ int graph_add(struct graph_obj *graph_obj,
             ADD_MODULE(*mod, dev_obj);
         }
     }
-    /*configure the newly added modules*/
-    list_for_each(node, &graph_obj->tagged_mod_list) {
-        mod = node_to_item(node, module_info_t, list);
-        /* Need to configure SPR module again for the new device */
-        if (mod->is_configured && !(mod->tag == TAG_STREAM_SPR))
-            continue;
-        if (mod->configure) {
-            ret = mod->configure(mod, graph_obj);
-            if (ret != 0)
-                goto done;
-            mod->is_configured = true;
+    /* Configure the newly added modules only if graph is in start state,
+     * in all other states, graph_prepare will take care of configuring
+     * modules.
+     */
+    if (graph_obj->state & (STARTED|PREPARED)) {
+        list_for_each(node, &graph_obj->tagged_mod_list) {
+            mod = node_to_item(node, module_info_t, list);
+            /* Need to configure SPR module again for the new device */
+            if (mod->is_configured && !(mod->tag == TAG_STREAM_SPR))
+                continue;
+            if (mod->configure) {
+                ret = mod->configure(mod, graph_obj);
+                if (ret != 0)
+                    goto done;
+                mod->is_configured = true;
+            }
         }
     }
+
 done:
     pthread_mutex_unlock(&graph_obj->lock);
     AGM_LOGD("exit\n");
