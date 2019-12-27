@@ -43,7 +43,7 @@ int main() {
     sp<IAGM> service = new AGM();
     AGM *temp = static_cast<AGM *>(service.get());
     if (temp->is_agm_initialized()) {
-        configureRpcThreadpool(1, true /*callerWillJoin*/);
+        configureRpcThreadpool(16, true /*callerWillJoin*/);
         if(android::OK !=  service->registerAsService())
            return 1;
         joinRpcThreadpool();
