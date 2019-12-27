@@ -119,6 +119,15 @@ static bool is_format_pcm(enum agm_media_format fmt_id)
     return false;
 }
 
+static bool is_format_bypassed(enum agm_media_format fmt_id)
+{
+    if (fmt_id == AGM_FORMAT_VORBIS) {
+        return true;
+    }
+
+    return false;
+}
+
 static int get_pcm_bit_width(enum agm_media_format fmt_id)
 {
     int bit_width = 16;
@@ -1073,6 +1082,12 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
     struct apm_module_param_data_t *header;
     uint8_t *payload = NULL;
     size_t payload_size = 0, real_fmt_id = 0;
+
+    if (is_format_bypassed(sess_obj->media_config.format)) {
+        AGM_LOGI("%s: bypass shared mem ep config for format %x",
+                    __func__, sess_obj->media_config.format);
+        return 0;
+    }
 
     ret = get_media_fmt_id_and_size(sess_obj->media_config.format,
                                     &payload_size, &real_fmt_id);
