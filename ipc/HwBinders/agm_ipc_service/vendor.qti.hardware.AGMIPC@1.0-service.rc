@@ -28,7 +28,7 @@
 service vendor.agm-1-0 /vendor/bin/hw/vendor.qti.hardware.AGMIPC@1.0-service
   class hal
   user system
-  interface vendor.qti.hardware.AGMIPC@1.0::AGM default
+  interface vendor.qti.hardware.AGMIPC@1.0::IAGM default
   # media gid needed for /dev/fm (radio) and for /data/misc/media (tee)
   group audio media mediadrm oem_2901 wakelock
   capabilities BLOCK_SUSPEND
