@@ -170,6 +170,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     ret = gsl_ioctl(gph_obj->graph_handle, cmd_id, &buf_config, size);
 
     if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("Buffer configuration failed error %d\n", ret);
     } else {
        gph_obj->buf_config  = buf_config;
@@ -217,6 +218,7 @@ int graph_init()
     init_data.ready_check_interval_ms = 100;
     ret = gsl_init(&init_data);
     if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("gsl_init failed error %d \n", ret);
         goto deinit_gsl;
     }
@@ -270,8 +272,10 @@ done:
 int graph_get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
                                      void *payload, size_t *size)
 {
-    return gsl_get_tags_with_module_info((struct gsl_key_vector *) gkv,
+    int ret;
+    ret = gsl_get_tags_with_module_info((struct gsl_key_vector *) gkv,
                                          payload, size);
+    return cass_err_get_lnx_err_code(ret);
 }
 
 static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
@@ -281,6 +285,7 @@ static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
 
     ret = gsl_get_tags_with_module_info((struct gsl_key_vector *)gkv, NULL, size);
     if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("cannot get tags size info\n");
         goto done;
     }
@@ -294,9 +299,12 @@ static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
 
     ret = gsl_get_tags_with_module_info((struct gsl_key_vector *)gkv, *payload,
                                          size);
-    if (ret != 0)
+    if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("Failed to  get tags info with error no %d\n",ret);
+    }
 done:
+    ret = cass_err_get_lnx_err_code(ret);
     return ret;
 }
 
@@ -477,6 +485,7 @@ tag_list:
                    (struct gsl_key_vector *)&meta_data_kv->ckv,
                    &graph_obj->graph_handle);
     if (ret != 0) {
+       ret = cass_err_get_lnx_err_code(ret);
        AGM_LOGE("Failed to open the graph with error %d\n", ret);
        goto free_graph_obj;
     }
@@ -484,6 +493,7 @@ tag_list:
     ret = gsl_register_event_cb(graph_obj->graph_handle,
                                 gsl_callback_func, graph_obj);
     if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("failed to register callback\n");
         goto close_graph;
     }
@@ -527,8 +537,10 @@ int graph_close(struct graph_obj *graph_obj)
     AGM_LOGD("entry handle %x\n", graph_obj->graph_handle);
 
     ret = gsl_close(graph_obj->graph_handle);
-    if (ret !=0)
+    if (ret !=0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("gsl close failed error %d\n", ret);
+    }
     /*free the list of modules associated with this graph_object*/
     list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
         list_remove(node);
@@ -623,6 +635,7 @@ int graph_prepare(struct graph_obj *graph_obj)
 
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_PREPARE, NULL, 0);
     if (ret !=0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("graph_prepare failed %d\n", ret);
         goto done;
     }
@@ -648,6 +661,7 @@ int graph_start(struct graph_obj *graph_obj)
 
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_START, NULL, 0);
     if (ret !=0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("graph_start failed %d\n", ret);
         goto done;
     }
@@ -692,6 +706,7 @@ int graph_stop(struct graph_obj *graph_obj,
         ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP, NULL, 0);
     }
     if (ret !=0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("graph stop failed %d\n", ret);
         goto done;
     }
@@ -747,8 +762,10 @@ int graph_pause_resume(struct graph_obj *graph_obj, bool pause)
             pthread_mutex_lock(&graph_obj->lock);
             ret = gsl_set_custom_config(graph_obj->graph_handle,
                                          payload, payload_size);
-            if (ret !=0)
+            if (ret !=0) {
+                ret = cass_err_get_lnx_err_code(ret);
                 AGM_LOGE("graph_set_custom_config failed %d\n", ret);
+            }
             pthread_mutex_unlock(&graph_obj->lock);
             free(payload);
             break;
@@ -782,8 +799,10 @@ int graph_set_config(struct graph_obj *graph_obj, void *payload,
     pthread_mutex_lock(&graph_obj->lock);
     AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
-    if (ret !=0)
+    if (ret !=0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("%s: graph_set_config failed %d\n", __func__, ret);
+    }
 
     pthread_mutex_unlock(&graph_obj->lock);
 
@@ -802,9 +821,10 @@ int graph_get_config(struct graph_obj *graph_obj, void *payload,
     pthread_mutex_lock(&graph_obj->lock);
     AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
     ret = gsl_get_custom_config(graph_obj->graph_handle, payload, payload_size);
-    if (ret !=0)
+    if (ret !=0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("%s: graph_get_config failed %d", __func__, ret);
-
+    }
     pthread_mutex_unlock(&graph_obj->lock);
 
     return ret;
@@ -825,8 +845,10 @@ int graph_set_config_with_tag(struct graph_obj *graph_obj,
      ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)gkv,
                           tag_config->tag_id,
                           (struct gsl_key_vector *)&tag_config->tkv);
-     if (ret)
+     if (ret) {
+         ret = cass_err_get_lnx_err_code(ret);
          AGM_LOGE("graph_set_config failed %d\n", ret);
+     }
 
      pthread_mutex_unlock(&graph_obj->lock);
 
@@ -847,8 +869,10 @@ int graph_set_cal(struct graph_obj *graph_obj,
      ret = gsl_set_cal(graph_obj->graph_handle,
                        (struct gsl_key_vector *)&metadata->gkv,
                        (struct gsl_key_vector *)&metadata->ckv);
-     if (ret)
+     if (ret) {
+         ret = cass_err_get_lnx_err_code(ret);
          AGM_LOGE("graph_set_cal failed %d\n", ret);
+     }
 
      pthread_mutex_unlock(&graph_obj->lock);
 
@@ -882,6 +906,7 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
     ret = gsl_write(graph_obj->graph_handle,
                     SHMEM_ENDPOINT, &gsl_buff, &size_written);
     if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("gsl_write for size %d failed with error %d\n", size, ret);
         goto done;
     }
@@ -916,6 +941,7 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
     ret = gsl_read(graph_obj->graph_handle,
                     SHMEM_ENDPOINT, &gsl_buff, &size_read);
     if ((ret != 0) || (size_read == 0)) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("size_requested %d size_read %d error %d\n",
                       size, size_read, ret);
     }
@@ -966,6 +992,7 @@ int graph_add(struct graph_obj *graph_obj,
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_ADD_GRAPH, &add_graph,
                     sizeof(struct gsl_cmd_graph_select));
     if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("graph add failed with error %d\n", ret);
         goto done;
     }
@@ -987,9 +1014,9 @@ int graph_add(struct graph_obj *graph_obj,
                                            mod->tag,
                                            &module_info, &module_info_size);
         if (ret != 0) {
+            ret = cass_err_get_lnx_err_code(ret);
             AGM_LOGE("cannot get tagged module info for module %x\n",
                           mod->tag);
-            ret = -EINVAL;
             goto done;
         }
         mod->miid = module_info->module_entry[0].module_iid;
@@ -1110,9 +1137,9 @@ int graph_change(struct graph_obj *graph_obj,
                                            mod->tag,
                                            &module_info, &module_info_size);
         if (ret != 0) {
+            ret = cass_err_get_lnx_err_code(ret);
             AGM_LOGE("cannot get tagged module info for module %x\n",
                           mod->tag);
-            ret = -EINVAL;
             goto done;
         }
         /**
@@ -1189,6 +1216,7 @@ int graph_change(struct graph_obj *graph_obj,
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_CHANGE_GRAPH, &change_graph,
                     sizeof(struct gsl_cmd_graph_select));
     if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("graph add failed with error %d\n", ret);
         goto done;
     }
@@ -1233,6 +1261,7 @@ int graph_remove(struct graph_obj *graph_obj,
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_REMOVE_GRAPH, &rm_graph,
                     sizeof(struct gsl_cmd_remove_graph));
     if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("graph add failed with error %d\n", ret);
     }
 
@@ -1313,6 +1342,7 @@ int graph_register_for_events(struct graph_obj *gph_obj,
     ret = gsl_ioctl(gph_obj->graph_handle, GSL_CMD_REGISTER_CUSTOM_EVENT,
                                            reg_ev_payload, payload_size);
     if (ret != 0) {
+       ret = cass_err_get_lnx_err_code(ret);
        AGM_LOGE("event registration failed with error %d\n", ret);
     }
     pthread_mutex_unlock(&gph_obj->lock);
@@ -1336,12 +1366,14 @@ size_t graph_get_hw_processed_buff_cnt(struct graph_obj *graph_obj,
 
 int graph_eos(struct graph_obj *graph_obj)
 {
+    int ret = 0;
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
-        AGM_LOGE("enter\n");
-    return gsl_ioctl(graph_obj->graph_handle, GSL_CMD_EOS, NULL, 0);
+    AGM_LOGE("enter\n");
+    ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_EOS, NULL, 0);
+    return cass_err_get_lnx_err_code(ret);
 }
 
 int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
@@ -1392,6 +1424,7 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
 
     ret = gsl_get_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
+        ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("gsl_get_custom_config command failed with error %d\n", ret);
         goto get_fail;
     }
