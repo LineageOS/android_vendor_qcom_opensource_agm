@@ -75,6 +75,7 @@ class IAgmService: public ::android::IInterface
         virtual int ipc_agm_get_aif_info_list(struct aif_info *aif_list,
                                     size_t *num_aif_info) = 0;
         virtual int ipc_agm_session_open(uint32_t session_id,
+                                    enum agm_session_mode sess_mode,
                                     uint64_t *handle) = 0;
         virtual int ipc_agm_session_register_for_events(uint32_t session_id,
                                     struct agm_event_reg_cfg *evt_reg_cfg) = 0;

@@ -281,13 +281,16 @@ class BpAgmService : public ::android::BpInterface<IAgmService>
             return reply.readInt32();
         }
 
-        virtual int ipc_agm_session_open(uint32_t session_id, uint64_t *handle)
+        virtual int ipc_agm_session_open(uint32_t session_id,
+                                         enum agm_session_mode sess_mode,
+                                         uint64_t *handle)
         {
             android::Parcel data, reply;
 
             AGM_LOGV("%s:%d\n", __func__, __LINE__);
             data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
             data.writeUint32(session_id);
+            data.writeUint32(sess_mode);
             remote()->transact(OPEN, data, &reply);
             *handle = (uint64_t)reply.readInt64();
             return reply.readInt32();
@@ -754,9 +757,11 @@ android::status_t BnAgmService::onTransact(uint32_t code,
 
    case OPEN : {
         uint32_t session_id;
+        enum agm_session_mode sess_mode;
         uint64_t handle = 0;
         session_id = data.readUint32();
-        rc = ipc_agm_session_open(session_id, &handle);
+        sess_mode = data.readUint32();
+        rc = ipc_agm_session_open(session_id, sess_mode, &handle);
         if (handle != 0)
             agm_add_session_obj_handle(handle);reply->writeInt64((long)handle);
         reply->writeInt32(rc);

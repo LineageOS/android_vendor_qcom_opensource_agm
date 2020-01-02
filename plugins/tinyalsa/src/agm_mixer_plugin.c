@@ -993,7 +993,7 @@ static int amp_pcm_calibration_put(struct mixer_plugin *plugin,
     struct amp_dev_info *be_adi;
     struct agm_cal_config *cal_config;
     int pcm_idx = ctl->private_value;
-    int pcm_control, ret, be_idx;
+    int pcm_control, ret, be_idx = -1;
 
     cal_config = (struct agm_cal_config *) ev->value.bytes.data;
 
@@ -1001,10 +1001,12 @@ static int amp_pcm_calibration_put(struct mixer_plugin *plugin,
     if (pcm_control < 0)
         return pcm_control;
 
-    be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
-    if (!be_adi)
-        return -EINVAL;
-    be_idx = be_adi->idx_arr[pcm_control];
+    if (pcm_control > 0) {
+        be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
+        if (!be_adi)
+            return -EINVAL;
+        be_idx = be_adi->idx_arr[pcm_control];
+    }
 
 
     AGM_LOGV("%s: enter sesid:%d audif:%d\n", __func__, pcm_idx, be_idx);
@@ -1029,7 +1031,7 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
     struct amp_dev_info *be_adi;
     void *payload;
     int pcm_idx = ctl->private_value;
-    int pcm_control, be_idx, ret = 0;
+    int pcm_control, be_idx = -1, ret = 0;
     size_t tlv_size;
     bool is_param_tag = false;
 
@@ -1044,28 +1046,23 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
     if (pcm_control < 0)
         return pcm_control;
 
-    if (pcm_control == 0) {
-        if (is_param_tag) {
-            AGM_LOGE("%s: aif not provided for setParamTag\n",
-                    __func__);
-            return -EINVAL;
-        }
-
-        ret = agm_session_set_params(pcm_idx, payload, tlv_size);
-        if (ret)
-            AGM_LOGE("%s: session_set_params failed err %d for %s\n",
-                   __func__, ret, ctl->name);
-        return ret;
+    if (pcm_control > 0) {
+        /* control is not 0, set the (session + be) set_param */
+        be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
+        be_idx = be_adi->idx_arr[pcm_control];
     }
 
-    /* control is not 0, set the (session + be) set_param */
-    be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
-    be_idx = be_adi->idx_arr[pcm_control];
-    if (is_param_tag)
-            ret = agm_set_params_with_tag(pcm_idx, be_idx, payload);
-    else
-        ret = agm_session_aif_set_params(pcm_idx, be_idx,
+    if (is_param_tag) {
+          ret = agm_set_params_with_tag(pcm_idx, be_idx, payload);
+    } else {
+        if (pcm_control == 0) {
+            ret = agm_session_set_params(pcm_idx, payload, tlv_size);
+        } else {
+            ret = agm_session_aif_set_params(pcm_idx, be_idx,
                             payload, tlv_size);
+        }
+    }
+
     if (ret == -EALREADY)
         ret = 0;
 
@@ -1146,7 +1143,7 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
     struct amp_dev_info *be_adi;
     void *payload;
     int pcm_idx = ctl->private_value;
-    int pcm_control, be_idx, ret = 0;
+    int pcm_control, be_idx = -1, ret = 0;
     size_t tlv_size, get_size = 0;
 
     AGM_LOGD("%s: enter\n", __func__);
@@ -1155,17 +1152,14 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
     if (pcm_control < 0)
         return pcm_control;
 
-    if (pcm_control == 0) {
-        AGM_LOGE("%s: cannot get tag info for session only\n",
-                __func__);
-        return -EINVAL;
-    }
-
-    /* control is not 0, get the (session + be) get_tag_info */
     payload = &tlv->tlv[0];
     tlv_size = tlv->length;
-    be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
-    be_idx = be_adi->idx_arr[pcm_control];
+
+    if (pcm_control > 0) {
+        /* control is not 0, get the (session + be) get_tag_info */
+        be_adi = amp_get_be_adi(plugin->priv, pcm_adi->dir);
+        be_idx = be_adi->idx_arr[pcm_control];
+    }
 
     ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
                     NULL, &get_size);

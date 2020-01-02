@@ -194,9 +194,11 @@ int AgmService::ipc_agm_set_params_with_tag(uint32_t session_id,
     return agm_set_params_with_tag(session_id, aif_id, tag_config);
 };
 
-int AgmService::ipc_agm_session_open(uint32_t session_id, uint64_t *handle){
+int AgmService::ipc_agm_session_open(uint32_t session_id,
+                                     enum agm_session_mode sess_mode,
+                                     uint64_t *handle){
     AGM_LOGV("%s called\n", __func__);
-    return agm_session_open(session_id, handle);
+    return agm_session_open(session_id, sess_mode, handle);
 };
 
 int AgmService::ipc_agm_session_set_config(uint64_t handle,

@@ -751,7 +751,7 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     struct agm_compress_priv *priv;
     uint64_t handle;
     int ret = 0, session_id = device;
-    int is_playback = 0, is_capture = 0, is_hostless = 0;
+    int is_playback = 0, is_capture = 0, sess_mode = 0;
     void *card_node, *compr_node;
 
     AGM_LOGV("%s: session_id: %d \n", __func__, device);
@@ -793,12 +793,12 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     if (ret)
        goto err_card_put;
 
-    ret = snd_card_def_get_int(agm_compress_plugin->node, "hostless",
-                                                       &is_hostless);
+    ret = snd_card_def_get_int(agm_compress_plugin->node, "session_mode",
+                                                       &sess_mode);
     if (ret)
        goto err_card_put;
 
-    priv->session_config.is_hostless = !!is_hostless;
+    priv->session_config.sess_mode = sess_mode;
     priv->session_config.dir = (flags & COMPRESS_IN) ? RX : TX;
     priv->session_id = session_id;
 
@@ -813,11 +813,9 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
         goto err_card_put;
     }
 
-    ret = agm_session_open(session_id, &handle);
-    if (ret) {
-        errno = ret;
+    ret = agm_session_open(session_id, sess_mode, &handle);
+    if (ret)
         goto err_card_put;
-    }
     ret = agm_session_register_cb(session_id, &agm_compress_event_cb,
                                   AGM_EVENT_DATA_PATH, agm_compress_plugin);
     if (ret)

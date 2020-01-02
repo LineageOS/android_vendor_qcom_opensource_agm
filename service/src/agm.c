@@ -475,7 +475,9 @@ done:
 return ret;
 }
 
-int agm_session_open(uint32_t session_id, uint64_t *hndl)
+int agm_session_open(uint32_t session_id,
+                     enum agm_session_mode sess_mode,
+                     uint64_t *hndl)
 {
 
     struct session_obj **handle = (struct session_obj**) hndl;
@@ -483,7 +485,7 @@ int agm_session_open(uint32_t session_id, uint64_t *hndl)
         AGM_LOGE("Invalid handle\n");
         return -EINVAL;
     }
-    return session_obj_open(session_id, handle);
+    return session_obj_open(session_id, sess_mode, handle);
 }
 
 int agm_session_set_config(uint64_t hndl,

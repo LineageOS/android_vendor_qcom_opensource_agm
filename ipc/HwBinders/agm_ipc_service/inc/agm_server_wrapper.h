@@ -186,6 +186,7 @@ struct AGM : public IAGM {
     Return<int32_t> ipc_agm_session_register_for_events(uint32_t session_id,
                          const hidl_vec<AgmEventRegCfg>& evt_reg_cfg) override;
     Return<void> ipc_agm_session_open(uint32_t session_id,
+                                    AgmSessionMode sess_mode,
                                     ipc_agm_session_open_cb _hidl_cb) override;
     Return<int32_t> ipc_agm_session_set_config(uint64_t hndl,
                        const hidl_vec<AgmSessionConfig>& session_config,

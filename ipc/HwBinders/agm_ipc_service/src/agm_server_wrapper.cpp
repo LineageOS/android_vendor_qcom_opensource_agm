@@ -468,10 +468,13 @@ Return<int32_t> AGM::ipc_agm_session_register_for_events(uint32_t session_id,
 }
 
 Return<void> AGM::ipc_agm_session_open(uint32_t session_id,
-                                            ipc_agm_session_open_cb _hidl_cb) {
-    ALOGV("%s : session_id = %d\n", __func__, session_id);
+                                       AgmSessionMode sess_mode,
+                                       ipc_agm_session_open_cb _hidl_cb) {
     uint64_t handle;
-    int32_t ret = agm_session_open(session_id, &handle);
+    enum agm_session_mode session_mode = (enum agm_session_mode) sess_mode;
+    ALOGV("%s: session_id=%d session_mode=%d\n", __func__, session_id,
+              session_mode);
+    int32_t ret = agm_session_open(session_id, session_mode, &handle);
     hidl_vec<uint64_t> handle_ret;
     handle_ret.resize(sizeof(uint64_t));
     *handle_ret.data() = handle;

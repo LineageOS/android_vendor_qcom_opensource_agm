@@ -105,8 +105,10 @@ struct session_pool *sess_pool;
 int session_obj_init();
 int session_obj_deinit();
 int session_obj_get(int session_id, struct session_obj **sess_obj);
-int session_obj_open(uint32_t session_id, struct session_obj **sess_obj);
-int session_obj_set_config(struct session_obj *session, 
+int session_obj_open(uint32_t session_id,
+                     enum agm_session_mode sess_mode,
+                     struct session_obj **sess_obj);
+int session_obj_set_config(struct session_obj *session,
                              struct agm_session_config *stream_config,
                              struct agm_media_config *media_config,
                              struct agm_buffer_config *buffer_config);

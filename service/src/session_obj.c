@@ -99,7 +99,7 @@ int aif_obj_get(struct session_obj *sess_obj, int aif_id, struct aif **aif_obj)
         //                                                          __func__);
 
         tobj = aif_obj_create(sess_obj, aif_id);
-        if (!tobj) {
+        if (!tobj || !tobj->dev_obj) {
             AGM_LOGE("%s: Couldnt create an aif object\n", __func__);
             ret = -ENOMEM;
             return ret;
@@ -142,18 +142,23 @@ static struct agm_meta_data_gsl* session_get_merged_metadata(struct session_obj 
 {
     struct agm_meta_data_gsl *merged = NULL;
     struct agm_meta_data_gsl *temp = NULL;
+    enum agm_session_mode sess_mode = sess_obj->stream_config.sess_mode;
     struct listnode *node;
     struct aif *aif_node;
 
-    list_for_each(node, &sess_obj->aif_pool) {
-        aif_node = node_to_item(node, struct aif, node);
-        merged = metadata_merge(4, temp, &sess_obj->sess_meta,
-                       &aif_node->sess_aif_meta, &aif_node->dev_obj->metadata);
-        if (temp) {
-            metadata_free(temp);
-            free(temp);
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        list_for_each(node, &sess_obj->aif_pool) {
+            aif_node = node_to_item(node, struct aif, node);
+            merged = metadata_merge(4, temp, &sess_obj->sess_meta,
+                           &aif_node->sess_aif_meta, &aif_node->dev_obj->metadata);
+            if (temp) {
+                metadata_free(temp);
+                free(temp);
+            }
+            temp = merged;
         }
-        temp = merged;
+    } else {
+        merged = &sess_obj->sess_meta;
     }
 
     return merged;
@@ -799,20 +804,67 @@ unwind:
     return ret;
 }
 
+static int session_open_without_device(struct session_obj *sess_obj)
+{
+    int ret = 0;
+    struct graph_obj *graph = sess_obj->graph;
+
+    if (sess_obj->state == SESSION_CLOSED) {
+        ret = graph_open(&sess_obj->sess_meta, sess_obj, NULL, &sess_obj->graph);
+        graph = sess_obj->graph;
+        if (ret) {
+                AGM_LOGE("Error:%d graph open failed session_id: %d\n",
+                          ret, sess_obj->sess_id);
+                goto done;
+            }
+            /*register callback*/
+            ret = graph_register_cb(graph, graph_event_cb,
+                                    (void *)((uintptr_t) sess_obj->sess_id));
+            if (ret) {
+                AGM_LOGE("Error:%d graph callback registration failed \
+                         session_id: %d\n", ret, sess_obj->sess_id);
+                goto graph_cleanup;
+            }
+    }
+    //step 2.c set cached params for stream only in closed
+    if (sess_obj->state == SESSION_CLOSED && sess_obj->params != NULL) {
+        ret = graph_set_config(graph, sess_obj->params, sess_obj->params_size);
+        if (ret) {
+            AGM_LOGE("%s: Error:%d setting session cached params: %d\n",
+                __func__, ret, sess_obj->sess_id);
+            goto graph_cleanup;
+        }
+        free(sess_obj->params);
+        sess_obj->params = NULL;
+        sess_obj->params_size = 0;
+    }
+
+    goto done;
+
+graph_cleanup:
+        graph_close(sess_obj->graph);
+done:
+    return ret;
+}
+
 static int session_prepare(struct session_obj *sess_obj)
 {
     int ret = 0;
     struct aif *aif_obj = NULL;
     enum direction dir = sess_obj->stream_config.dir;
+    enum agm_session_mode sess_mode = sess_obj->stream_config.sess_mode;
     struct listnode *node = NULL;
     uint32_t count = 0;
 
-    count = aif_obj_get_count_with_state(sess_obj, AIF_OPENED, false);
-    if (count == 0) {
-        AGM_LOGE("%s Error:%d No aif in right state to proceed with \
-                   session start for sessionid :%d\n",
-                   __func__, ret, sess_obj->sess_id);
-        return -1; //-EINVALID;
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        count = aif_obj_get_count_with_state(sess_obj, AIF_OPENED, false);
+        if (count == 0) {
+            AGM_LOGE("%s Error:%d No aif in right state to proceed with \
+                       session start for sessionid :%d\n",
+                       __func__, ret, sess_obj->sess_id);
+           ret = -EINVAL;
+           goto done;
+        }
     }
 
     if ((dir == TX) && (sess_obj->state != SESSION_STARTED)) {
@@ -823,22 +875,23 @@ static int session_prepare(struct session_obj *sess_obj)
         }
     }
 
-    list_for_each(node, &sess_obj->aif_pool) {
-        aif_obj = node_to_item(node, struct aif, node);
-        if (!aif_obj) {
-            AGM_LOGE("%s Error:%d could not find aif node\n", __func__, ret);
-            goto done;
-        }
-
-        //TODO 1: in device switch cases, only the aif not prepared
-        //should be prepared.
-        if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_STOPPED) {
-            ret = device_prepare(aif_obj->dev_obj);
-            if (ret) {
-                AGM_LOGE("%s Error:%d preparing device\n", __func__, ret);
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        list_for_each(node, &sess_obj->aif_pool) {
+            aif_obj = node_to_item(node, struct aif, node);
+            if (!aif_obj) {
+                AGM_LOGE("%s Error:%d could not find aif node\n", __func__, ret);
                 goto done;
             }
-            aif_obj->state = AIF_PREPARED;
+            //TODO 1: in device switch cases, only the aif not prepared
+            //should be prepared.
+            if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_STOPPED) {
+                ret = device_prepare(aif_obj->dev_obj);
+                if (ret) {
+                    AGM_LOGE("%s Error:%d preparing device\n", __func__, ret);
+                    goto done;
+                }
+                aif_obj->state = AIF_PREPARED;
+            }
         }
     }
 
@@ -862,17 +915,21 @@ static int session_start(struct session_obj *sess_obj)
     int ret = 0;
     struct aif *aif_obj = NULL;
     enum direction dir = sess_obj->stream_config.dir;
+    enum agm_session_mode sess_mode = sess_obj->stream_config.sess_mode;
     struct listnode *node = NULL;
     uint32_t count = 0;
     struct session_obj *pb_obj = NULL;
     struct device_obj *ec_ref_dev_obj = NULL;
 
-    count = aif_obj_get_count_with_state(sess_obj, AIF_OPENED, false);
-    if (count == 0) {
-        AGM_LOGE("%s Error:%d No aif in right state to proceed with \
-                  session start for session id :%d\n",
-                __func__, ret, sess_obj->sess_id);
-        return -EINVAL;
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        count = aif_obj_get_count_with_state(sess_obj, AIF_OPENED, false);
+        if (count == 0) {
+            AGM_LOGE("%s Error:%d No aif in right state to proceed with \
+                      session start for session id :%d\n",
+                     __func__, ret, sess_obj->sess_id);
+            ret = -EINVAL;
+            goto done;
+        }
     }
 
     if (dir == TX) {
@@ -929,22 +986,24 @@ static int session_start(struct session_obj *sess_obj)
         }
     }
 
-    list_for_each(node, &sess_obj->aif_pool) {
-        aif_obj = node_to_item(node, struct aif, node);
-        if (!aif_obj) {
-            AGM_LOGE("%s Error:%d could not find aif node\n", __func__, ret);
-            goto unwind;
-        }
-
-        if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_PREPARED ||
-                                             aif_obj->state == AIF_STOPPED ) {
-            ret = device_start(aif_obj->dev_obj);
-            if (ret) {
-                AGM_LOGE("%s Error:%d starting device id:%d\n",
-                               __func__, ret, aif_obj->aif_id);
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        list_for_each(node, &sess_obj->aif_pool) {
+            aif_obj = node_to_item(node, struct aif, node);
+            if (!aif_obj) {
+                AGM_LOGE("%s Error:%d could not find aif node\n", __func__, ret);
                 goto unwind;
             }
-            aif_obj->state = AIF_STARTED;
+
+            if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_PREPARED ||
+                                                 aif_obj->state == AIF_STOPPED ) {
+                ret = device_start(aif_obj->dev_obj);
+                if (ret) {
+                    AGM_LOGE("%s Error:%d starting device id:%d\n",
+                                   __func__, ret, aif_obj->aif_id);
+                    goto unwind;
+                }
+                aif_obj->state = AIF_STARTED;
+            }
         }
     }
 
@@ -957,23 +1016,24 @@ static int session_start(struct session_obj *sess_obj)
     }
 
     sess_obj->state = SESSION_STARTED;
-    return ret;
+    goto done;
 
 unwind:
 
     if (dir == TX)
         graph_stop(sess_obj->graph, NULL);
 
-    list_for_each(node, &sess_obj->aif_pool) {
-        aif_obj = node_to_item(node, struct aif, node);
-        if (aif_obj && (aif_obj->state == AIF_STARTED)) {
-            device_stop(aif_obj->dev_obj);
-            //If start fails, client will retry with a prepare call,
-            //so moving to opened state will allow prepare to go through
-            aif_obj->state = AIF_OPENED;
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        list_for_each(node, &sess_obj->aif_pool) {
+            aif_obj = node_to_item(node, struct aif, node);
+            if (aif_obj && (aif_obj->state == AIF_STARTED)) {
+                device_stop(aif_obj->dev_obj);
+                //If start fails, client will retry with a prepare call,
+                //so moving to opened state will allow prepare to go through
+                aif_obj->state = AIF_OPENED;
+            }
         }
     }
-
 done:
     return ret;
 }
@@ -983,12 +1043,14 @@ static int session_stop(struct session_obj *sess_obj)
     int ret = 0;
     struct aif *aif_obj = NULL;
     enum direction dir = sess_obj->stream_config.dir;
+    enum agm_session_mode sess_mode = sess_obj->stream_config.sess_mode;
     struct listnode *node = NULL;
 
     if (sess_obj->state != SESSION_STARTED) {
         AGM_LOGE("%s session not in STARTED state, current state:%d\n",
                                            __func__, sess_obj->state);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto done;
     }
 
     if (dir == RX) {
@@ -999,21 +1061,22 @@ static int session_stop(struct session_obj *sess_obj)
         }
     }
 
-    list_for_each(node, &sess_obj->aif_pool) {
-        aif_obj = node_to_item(node, struct aif, node);
-        if (!aif_obj) {
-            AGM_LOGE("%s Error:%d could not find aif node\n", __func__, ret);
-            continue;
-        }
-
-        if (aif_obj->state == AIF_STARTED) {
-            ret = device_stop(aif_obj->dev_obj);
-            if (ret) {
-                AGM_LOGE("%s Error:%d stopping device id:%d\n",
-                               __func__, ret, aif_obj->aif_id);
-
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        list_for_each(node, &sess_obj->aif_pool) {
+            aif_obj = node_to_item(node, struct aif, node);
+            if (!aif_obj) {
+                AGM_LOGE("%s Error:%d could not find aif node\n", __func__, ret);
+                continue;
             }
-            aif_obj->state = AIF_STOPPED;
+
+            if (aif_obj->state == AIF_STARTED) {
+                ret = device_stop(aif_obj->dev_obj);
+                if (ret) {
+                    AGM_LOGE("%s Error:%d stopping device id:%d\n",
+                                   __func__, ret, aif_obj->aif_id);
+                }
+                aif_obj->state = AIF_STOPPED;
+            }
         }
     }
 
@@ -1025,7 +1088,6 @@ static int session_stop(struct session_obj *sess_obj)
     }
 
     sess_obj->state = SESSION_STOPPED;
-    return ret;
 
 done:
     return ret;
@@ -1035,6 +1097,7 @@ static int session_close(struct session_obj *sess_obj)
 {
     int ret = 0;
     struct aif *aif_obj = NULL;
+    enum agm_session_mode sess_mode = sess_obj->stream_config.sess_mode;
     struct listnode *node = NULL;
 
     if (sess_obj->state == SESSION_CLOSED) {
@@ -1055,28 +1118,28 @@ static int session_close(struct session_obj *sess_obj)
     }
     sess_obj->graph = NULL;
 
-    list_for_each(node, &sess_obj->aif_pool) {
-        aif_obj = node_to_item(node, struct aif, node);
-        if (!aif_obj) {
-            AGM_LOGE("%s Error:%d could not find aif node\n", __func__, ret);
-            continue;
-        }
-
-        if (aif_obj->state >= AIF_OPENED) {
-            ret = device_close(aif_obj->dev_obj);
-            if (ret) {
-                AGM_LOGE("%s Error:%d stopping device id:%d\n",
-                               __func__, ret, aif_obj->aif_id);
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        list_for_each(node, &sess_obj->aif_pool) {
+            aif_obj = node_to_item(node, struct aif, node);
+            if (!aif_obj) {
+                AGM_LOGE("%s Error:%d could not find aif node\n", __func__, ret);
+                continue;
             }
-            aif_obj->state = AIF_CLOSED;
+
+            if (aif_obj->state >= AIF_OPENED) {
+                ret = device_close(aif_obj->dev_obj);
+                if (ret) {
+                    AGM_LOGE("%s Error:%d stopping device id:%d\n",
+                                   __func__, ret, aif_obj->aif_id);
+                }
+                aif_obj->state = AIF_CLOSED;
+            }
         }
     }
-
     sess_obj->state = SESSION_CLOSED;
-        AGM_LOGE("exit");
+    AGM_LOGE("exit");
     return ret;
 }
-
 
 int session_obj_deinit()
 {
@@ -1235,39 +1298,58 @@ int session_obj_set_sess_aif_params_with_tag(struct session_obj *sess_obj,
     struct agm_tag_config_gsl tag_config_gsl;
 
     pthread_mutex_lock(&sess_obj->lock);
-    ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
-    if (ret) {
-        AGM_LOGE("%s: Error obtaining aif object with sess_id:%d,  aif id:%d\n",
-            __func__, sess_obj->sess_id, aif_id);
-        goto done;
-    }
+    if (aif_id < UINT_MAX) {
+        ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
+        if (ret) {
+            AGM_LOGE("%s: Error obtaining aif object with sess_id:%d,  aif id:%d\n",
+                __func__, sess_obj->sess_id, aif_id);
+            goto done;
+        }
 
-    if (sess_obj->state == SESSION_CLOSED && aif_obj->state < AIF_OPENED) {
-        AGM_LOGE("%s: Invalid state on sess_id:%d, aif_id:%d\n",
-                 __func__, sess_obj->sess_id, aif_obj->aif_id);
-        ret = -EINVAL;
-        goto done;
-    }
+        if (sess_obj->state == SESSION_CLOSED && aif_obj->state < AIF_OPENED) {
+            AGM_LOGE("%s: Invalid state on sess_id:%d, aif_id:%d\n",
+                     __func__, sess_obj->sess_id, aif_obj->aif_id);
+            ret = -EINVAL;
+            goto done;
+        }
 
-    merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
-                      &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
-    if (!merged_metadata) {
-        AGM_LOGE("%s: Error merging metadata session_id:%d aif_id:%d\n",
-            __func__, sess_obj->sess_id, aif_obj->aif_id);
-        ret = -ENOMEM;
-        goto done;
-    }
+        merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
+                          &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
+        if (!merged_metadata) {
+            AGM_LOGE("%s: Error merging metadata session_id:%d aif_id:%d\n",
+                __func__, sess_obj->sess_id, aif_obj->aif_id);
+            ret = -ENOMEM;
+            goto done;
+        }
 
-    tag_config_gsl.tag_id = tag_config->tag;
-    tag_config_gsl.tkv.num_kvs = tag_config->num_tkvs;
-    tag_config_gsl.tkv.kv = tag_config->kv;
+        tag_config_gsl.tag_id = tag_config->tag;
+        tag_config_gsl.tkv.num_kvs = tag_config->num_tkvs;
+        tag_config_gsl.tkv.kv = tag_config->kv;
 
-    ret = graph_set_config_with_tag(sess_obj->graph, &merged_metadata->gkv,
-                                                &tag_config_gsl);
-    if (ret) {
-        AGM_LOGE("%s:Error:%d setting for sess_aif params with tags \
-                  on sess_id:%d, aif_id:%d\n",
-                  __func__, ret, sess_obj->sess_id, aif_obj->aif_id);
+        ret = graph_set_config_with_tag(sess_obj->graph, &merged_metadata->gkv,
+                                                    &tag_config_gsl);
+        if (ret) {
+            AGM_LOGE("%s:Error:%d setting for sess_aif params with tags \
+                      on sess_id:%d, aif_id:%d\n",
+                      __func__, ret, sess_obj->sess_id, aif_obj->aif_id);
+        }
+    } else {
+        if (sess_obj->state == SESSION_CLOSED) {
+            AGM_LOGE("%s: Invalid state on sess_id:%d\n", __func__, sess_obj->sess_id);
+            ret = -EINVAL;
+            goto done;
+        }
+        tag_config_gsl.tag_id = tag_config->tag;
+        tag_config_gsl.tkv.num_kvs = tag_config->num_tkvs;
+        tag_config_gsl.tkv.kv = tag_config->kv;
+
+        ret = graph_set_config_with_tag(sess_obj->graph, &sess_obj->sess_meta.gkv,
+                                                    &tag_config_gsl);
+        if (ret) {
+            AGM_LOGE("%s:Error:%d setting for sess params with tags \
+                      on sess_id:%d\n",
+                      __func__, ret, sess_obj->sess_id);
+        }
     }
 
 done:
@@ -1291,39 +1373,57 @@ int session_obj_set_sess_aif_cal(struct session_obj *sess_obj,
     struct agm_key_vector_gsl ckv;
 
     pthread_mutex_lock(&sess_obj->lock);
-    ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
-    if (ret) {
-        AGM_LOGE("%s: Error obtaining aif object with sess_id:%d,  aif id:%d\n",
-            __func__, sess_obj->sess_id, aif_id);
-        goto done;
-    }
+    if (aif_id < UINT_MAX) {
+        ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
+        if (ret) {
+            AGM_LOGE("%s: Error obtaining aif object with sess_id:%d,  aif id:%d\n",
+                __func__, sess_obj->sess_id, aif_id);
+            goto done;
+        }
 
-    if (sess_obj->state == SESSION_CLOSED || aif_obj->state < AIF_OPENED) {
-        AGM_LOGE("%s: Invalid state on sess_id:%d, aif_id:%d\n",
-                 __func__, sess_obj->sess_id, aif_obj->aif_id);
-        ret = -EINVAL;
-        goto done;
-    }
+        if (sess_obj->state == SESSION_CLOSED || aif_obj->state < AIF_OPENED) {
+            AGM_LOGE("%s: Invalid state on sess_id:%d, aif_id:%d\n",
+                     __func__, sess_obj->sess_id, aif_obj->aif_id);
+            ret = -EINVAL;
+            goto done;
+        }
 
-    ckv.kv = cal_config->kv;
-    ckv.num_kvs = cal_config->num_ckvs;
-    metadata_update_cal(&sess_obj->sess_meta, &ckv);
-    metadata_update_cal(&aif_obj->sess_aif_meta, &ckv);
-    metadata_update_cal(&aif_obj->dev_obj->metadata, &ckv);
+        ckv.kv = cal_config->kv;
+        ckv.num_kvs = cal_config->num_ckvs;
+        metadata_update_cal(&sess_obj->sess_meta, &ckv);
+        metadata_update_cal(&aif_obj->sess_aif_meta, &ckv);
+        metadata_update_cal(&aif_obj->dev_obj->metadata, &ckv);
 
-    merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
-                      &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
-    if (!merged_metadata) {
-        AGM_LOGE("%s: Error merging metadata session_id:%d aif_id:%d\n",
-            __func__, sess_obj->sess_id, aif_obj->aif_id);
-        ret = -ENOMEM;
-        goto done;
-    }
+        merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
+                          &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
+        if (!merged_metadata) {
+            AGM_LOGE("%s: Error merging metadata session_id:%d aif_id:%d\n",
+                __func__, sess_obj->sess_id, aif_obj->aif_id);
+            ret = -ENOMEM;
+            goto done;
+        }
 
-    ret = graph_set_cal(sess_obj->graph, merged_metadata);
-    if (ret) {
-        AGM_LOGE("%s:Error:%d setting calibration on sess_id:%d, aif_id:%d\n",
-                __func__, ret, sess_obj->sess_id, aif_obj->aif_id);
+        ret = graph_set_cal(sess_obj->graph, merged_metadata);
+        if (ret) {
+            AGM_LOGE("%s:Error:%d setting calibration on sess_id:%d, aif_id:%d\n",
+                    __func__, ret, sess_obj->sess_id, aif_obj->aif_id);
+        }
+    } else {
+        if (sess_obj->state == SESSION_CLOSED) {
+            AGM_LOGE("%s: Invalid state on sess_id:%d\n", __func__, sess_obj->sess_id);
+            ret = -EINVAL;
+            goto done;
+        }
+
+        ckv.kv = cal_config->kv;
+        ckv.num_kvs = cal_config->num_ckvs;
+        metadata_update_cal(&sess_obj->sess_meta, &ckv);
+
+        ret = graph_set_cal(sess_obj->graph, &sess_obj->sess_meta);
+        if (ret) {
+            AGM_LOGE("%s:Error:%d setting calibration on sess_id:%d\n",
+                    __func__, ret, sess_obj->sess_id);
+        }
     }
 
 done:
@@ -1392,22 +1492,38 @@ int session_obj_get_tag_with_module_info(struct session_obj *sess_obj,
     int ret = 0;
     struct aif *aif_obj = NULL;
     struct agm_meta_data_gsl *merged_metadata = NULL;
+    enum agm_session_mode sess_mode = sess_obj->stream_config.sess_mode;
 
     pthread_mutex_lock(&sess_obj->lock);
-    ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
-    if (ret) {
-        AGM_LOGE("%s: Error obtaining aif object with sess_id:%d,  aif id:%d\n",
-            __func__, sess_obj->sess_id, aif_id);
-        goto done;
-    }
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        if (aif_id < UINT_MAX) {
+            ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
+            if (ret) {
+                AGM_LOGE("%s: Error obtaining aif object with sess_id:%d,  aif id:%d\n",
+                        __func__, sess_obj->sess_id, aif_id);
+                goto done;
+            }
 
-    merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
-                        &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
-    if (!merged_metadata) {
-        AGM_LOGE("%s: Error merging metadata session_id:%d aif_id:%d\n",
-            __func__, sess_obj->sess_id, aif_obj->aif_id);
-        ret = -ENOMEM;
-        goto done;
+            merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
+                                &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
+            if (!merged_metadata) {
+                AGM_LOGE("%s: Error merging metadata session_id:%d aif_id:%d\n",
+                    __func__, sess_obj->sess_id, aif_obj->aif_id);
+                ret = -ENOMEM;
+                goto done;
+            }
+        } else {
+            ret = -EINVAL;
+            goto done;
+        }
+    } else {
+        merged_metadata = metadata_merge(1, &sess_obj->sess_meta);
+        if (!merged_metadata) {
+            AGM_LOGE("%s: Error merging metadata session_id:%d aif_id:%d\n",
+                __func__, sess_obj->sess_id, aif_obj->aif_id);
+            ret = -ENOMEM;
+            goto done;
+        }
     }
 
     ret = graph_get_tags_with_module_info(&merged_metadata->gkv, payload, size);
@@ -1617,7 +1733,9 @@ done:
     return ret;
 }
 
-int session_obj_open(uint32_t session_id, struct session_obj **session)
+int session_obj_open(uint32_t session_id,
+                     enum agm_session_mode sess_mode,
+                     struct session_obj **session)
 {
 
     struct session_obj *sess_obj = NULL;
@@ -1637,41 +1755,55 @@ int session_obj_open(uint32_t session_id, struct session_obj **session)
         goto done;
     }
 
-/*
-    1. get first device obj from the list for the session
-    2. concatenate stream+dev metadata
-    3. for playback, open alsa first, open graph
-    4. get rest of the devices, call add graph
-    5. update state as opened
-*/
+    if (sess_mode == AGM_SESSION_NON_TUNNEL) {
+        /**
+         *AGM session can be opened in any one of the agm_session_modes
+         *If it is a AGM_SESSUION_NON_TUNNEL mode, then that indicates
+         *there is no device leg associated with this session, and hence
+         *we skip setting up the same.
+         */
+        ret = session_open_without_device(sess_obj);
+        if (ret) {
+            AGM_LOGE("%s: Unable to open a session with Session ID:%d\n",
+                                            __func__, sess_obj->sess_id);
+            goto done;
+        }
+    } else {
+        /**
+         *1. get first device obj from the list for the session
+         *2. concatenate stream+dev metadata
+         *3. for playback, open alsa first, open graph
+         *4. get rest of the devices, call add graph
+         *5. update state as opened
+         **/
+        ret = session_open_with_first_device(sess_obj);
+        if (ret) {
+            AGM_LOGE("%s: Unable to open a session with Session ID:%d\n",
+                                            __func__, sess_obj->sess_id);
+            goto done;
+        }
 
-    ret = session_open_with_first_device(sess_obj);
-    if (ret) {
-        AGM_LOGE("%s: Unable to open a session with Session ID:%d\n",
-                                        __func__, sess_obj->sess_id);
-        goto done;
+        ret = session_connect_reminder_devices(sess_obj);
+        if (ret) {
+            AGM_LOGE("%s: Unable to open a session with Session ID:%d\n",
+                                            __func__, sess_obj->sess_id);
+            goto done;
+        }
+
+
+        //configure ecref if valid session id has been set
+        if (sess_obj->ec_ref_state == true) {
+            ret = session_set_ec_ref(sess_obj, sess_obj->ec_ref_aif_id,
+                                               sess_obj->ec_ref_state);
+            if (ret) {
+                goto done;
+            }
+        }
     }
-
-    ret = session_connect_reminder_devices(sess_obj);
-    if (ret) {
-        AGM_LOGE("%s: Unable to open a session with Session ID:%d\n",
-                                        __func__, sess_obj->sess_id);
-        goto done;
-    }
-
     //configure loopback if loopback state is true
     if (sess_obj->loopback_state == true) {
         ret = session_set_loopback(sess_obj, sess_obj->loopback_sess_id,
                                               sess_obj->loopback_state);
-        if (ret) {
-            goto done;
-        }
-    }
-
-    //configure ecref if valid session id has been set
-    if (sess_obj->ec_ref_state == true) {
-        ret = session_set_ec_ref(sess_obj, sess_obj->ec_ref_aif_id,
-                                           sess_obj->ec_ref_state);
         if (ret) {
             goto done;
         }

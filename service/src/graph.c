@@ -662,7 +662,8 @@ int graph_prepare(struct graph_obj *graph_obj)
         mod = node_to_item(node, module_info_t, list);
         if (mod->is_configured)
             continue;
-        if ((mod->tag == STREAM_INPUT_MEDIA_FORMAT) && stream_config.is_hostless) {
+        if ((mod->tag == STREAM_INPUT_MEDIA_FORMAT) &&
+             (stream_config.sess_mode == AGM_SESSION_NO_HOST)) {
             AGM_LOGE("Shared mem mod present for a hostless session error out\n");
             ret = -EINVAL;
             goto done;
@@ -700,7 +701,8 @@ int graph_prepare(struct graph_obj *graph_obj)
     }
 
     /*Configure buffers only if it is not a hostless session*/
-    if (sess_obj != NULL && !stream_config.is_hostless) {
+    if ((sess_obj != NULL) &&
+        (stream_config.sess_mode != AGM_SESSION_NO_HOST)) {
         ret = configure_buffer_params(graph_obj, sess_obj);
         if (ret != 0) {
             AGM_LOGE("buffer configuration failed \n");

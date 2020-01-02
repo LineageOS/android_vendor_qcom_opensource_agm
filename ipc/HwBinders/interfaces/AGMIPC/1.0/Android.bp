@@ -36,6 +36,7 @@ hidl_interface {
         "AgmTagInfo",
         "AgmTagModuleInfoList",
         "AifInfo",
+        "AgmSessionMode",
         "Direction",
         "EventType",
         "MmapBufInfo",

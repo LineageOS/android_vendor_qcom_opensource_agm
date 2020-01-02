@@ -102,7 +102,7 @@ enum agm_data_format
 };
 
 /**
- * Compress codec format ID
+ * AGM data modes
  */
 enum agm_data_mode
 {
@@ -111,6 +111,16 @@ enum agm_data_mode
     AGM_DATA_NON_BLOCKING,  /**< Non blocking mode */
     AGM_DATA_PUSH_PULL,     /**< Push Pull mode */
     AGM_DATA_MODE_MAX,
+};
+
+/**
+ *AGM session modes
+ */
+enum agm_session_mode
+{
+    AGM_SESSION_DEFAULT,         /**< Normal agm tunnel session*/
+    AGM_SESSION_NO_HOST,         /**< Hostless mode */
+    AGM_SESSION_NON_TUNNEL,      /**< Non tunnel mode */
 };
 
 /**
@@ -270,7 +280,7 @@ struct aif_info {
  */
 struct agm_session_config {
     enum direction dir;        /**< TX or RX */
-    bool is_hostless;          /**< no data exchange on this session, e.g loopback */
+    enum agm_session_mode sess_mode;  /**< indicates mode of agm sesison, non-tunnel, or hostless */
     uint32_t start_threshold;  /**< start_threshold: number of buffers * buffer size */
     uint32_t stop_threshold;   /**< stop_th6reshold: number of buffers * buffer size */
     union agm_session_codec codec; /**< codec configuration */
@@ -637,12 +647,15 @@ int agm_session_register_for_events(uint32_t session_id,
   * \brief Open the session with specified session id.
   *
   * \param[in] session_id - Valid audio session id
+  * \param[in] sess_mode - Mode in which this agm session is to be opened
   * \param[out] handle - updated with valid session
   *       handle if the operation is successful.
   *
   * \return 0 on success, error code otherwise
   */
-int agm_session_open(uint32_t session_id, uint64_t *handle);
+int agm_session_open(uint32_t session_id,
+                     enum agm_session_mode sess_mode,
+                     uint64_t *handle);
 
 /**
   * \brief Set Session config

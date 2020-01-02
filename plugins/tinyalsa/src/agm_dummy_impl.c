@@ -91,7 +91,8 @@ int agm_session_set_config(struct session_obj *handle,
     return 0;
 }
 
-int agm_session_open(uint32_t session_id, struct session_obj **handle)
+int agm_session_open(uint32_t session_id, enum agm_session_mode sess_mode,
+                     struct session_obj **handle)
 {
     struct session_obj *h = malloc(sizeof(100));
     AGM_LOGD("%s %d\n", __func__, __LINE__);

@@ -69,7 +69,7 @@ interface IAGM
                     vec<AgmTagConfig> tag_config) generates (int32_t ret);
     ipc_agm_session_register_for_events(uint32_t session_id,
                     vec<AgmEventRegCfg> evt_reg_cfg) generates (int32_t ret);
-    ipc_agm_session_open(uint32_t session_id)
+    ipc_agm_session_open(uint32_t session_id, AgmSessionMode sess_mode)
                     generates (int32_t ret, vec<uint64_t> hndl);
     ipc_agm_session_set_config(uint64_t hndl,
                     vec<AgmSessionConfig> session_config,

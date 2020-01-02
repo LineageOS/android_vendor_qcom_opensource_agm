@@ -253,7 +253,7 @@ int setup_playback_stream_open_prepare_start_with_device_rx()
 		goto done;
 	}
 
-	ret = agm_session_open(session_id_rx1, &sess_handle_rx1);
+	ret = agm_session_open(session_id_rx1, AGM_SESSION_DEFAULT, &sess_handle_rx1);
 	if (ret) {
 		goto done;
 	}
@@ -315,7 +315,7 @@ int setup_playback_stream_2_open_prepare_start_with_device_rx()
 		goto done;
 	}
 
-	ret = agm_session_open(session_id_rx2, &sess_handle_rx2);
+	ret = agm_session_open(session_id_rx2, AGM_SESSION_DEFAULT, &sess_handle_rx2);
 	if (ret) {
 		goto done;
 	}
@@ -380,7 +380,7 @@ int setup_capture_stream_open_prepare_start_with_device_tx()
 		goto done;
 	}
 
-	ret = agm_session_open(session_id_tx1, &sess_handle_tx1);
+	ret = agm_session_open(session_id_tx1, AGM_SESSION_DEFAULT, &sess_handle_tx1);
 	if (ret) {
 		goto done;
 	}
@@ -439,7 +439,7 @@ int test_stream_open_without_aif_connected(void) {
 	}
 
 	// stream open with no device connected state
-	ret = agm_session_open(session_id_rx1, &sess_handle_rx1);
+	ret = agm_session_open(session_id_rx1, AGM_SESSION_DEFAULT, &sess_handle_rx1);
 	if (ret == 0) {
 		goto fail;
 	}

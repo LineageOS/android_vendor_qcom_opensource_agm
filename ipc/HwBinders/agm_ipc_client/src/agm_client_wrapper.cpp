@@ -272,12 +272,14 @@ int agm_session_resume(uint64_t handle){
     return -EINVAL;
 }
 
-int agm_session_open(uint32_t session_id, uint64_t *handle) {
-    ALOGE("%s called with handle = %p , *handle = %llx\n", __func__, handle, (unsigned long long) *handle);
+int agm_session_open(uint32_t session_id, enum agm_session_mode sess_mode ,
+                     uint64_t *handle) {
+    ALOGE("%s called with handle = %x , *handle = %x\n", __func__, handle, *handle);
     int ret = -EINVAL;
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        agm_client->ipc_agm_session_open(session_id,
+        AgmSessionMode sess_mode_hidl = (AgmSessionMode) sess_mode;
+        agm_client->ipc_agm_session_open(session_id, sess_mode_hidl,
                               [&](int32_t _ret, hidl_vec<uint64_t> handle_hidl)
                               {  ret = _ret;
                                  *handle = *handle_hidl.data();

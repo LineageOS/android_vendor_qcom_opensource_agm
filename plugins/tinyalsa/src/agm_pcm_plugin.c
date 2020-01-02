@@ -336,7 +336,7 @@ static int agm_pcm_hw_params(struct pcm_plugin *plugin,
     struct agm_buffer_config *buffer_config;
     struct agm_session_config *session_config = NULL;
     uint64_t handle;
-    int ret = 0, is_hostless = 0;
+    int ret = 0, sess_mode = 0;
 
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
@@ -358,9 +358,9 @@ static int agm_pcm_hw_params(struct pcm_plugin *plugin,
     priv->total_size_frames = buffer_config->count *
             priv->period_size; /* in frames */
 
-    snd_card_def_get_int(plugin->node, "hostless", &is_hostless);
+    snd_card_def_get_int(plugin->node, "hostless", &sess_mode);
     session_config->dir = (plugin->mode & PCM_IN) ? TX : RX;
-    session_config->is_hostless = !!is_hostless;
+    session_config->sess_mode = sess_mode;
     AGM_LOGD("%s: mode: %d\n", __func__, plugin->mode);
     if ((plugin->mode & PCM_MMAP) && (plugin->mode & PCM_NOIRQ))
         session_config->data_mode = AGM_DATA_PUSH_PULL;
@@ -376,7 +376,7 @@ static int agm_pcm_sw_params(struct pcm_plugin *plugin,
     struct agm_pcm_priv *priv = plugin->priv;
     struct agm_session_config *session_config = NULL;
     uint64_t handle = 0;
-    int ret = 0;
+    int ret = 0, sess_mode = 0;
 
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
@@ -384,6 +384,10 @@ static int agm_pcm_sw_params(struct pcm_plugin *plugin,
 
     session_config = priv->session_config;
 
+    snd_card_def_get_int(plugin->node, "session_mode", &sess_mode);
+
+    session_config->dir = (plugin->mode == 0 || plugin->mode == 3) ? RX : TX;
+    session_config->sess_mode = sess_mode;
     session_config->start_threshold = (uint32_t)sparams->start_threshold;
     session_config->stop_threshold = (uint32_t)sparams->stop_threshold;
 
@@ -721,6 +725,7 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
     struct agm_media_config *media_config;
     struct agm_buffer_config *buffer_config;
     uint64_t handle;
+    enum agm_session_mode sess_mode = AGM_SESSION_DEFAULT;
     int ret = 0, session_id = device;
     void *card_node, *pcm_node;
 
@@ -783,9 +788,9 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
     priv->session_config = session_config;
     priv->card_node = card_node;
     priv->session_id = session_id;
+    snd_card_def_get_int(pcm_node, "session_mode", &sess_mode);
 
-    ret = agm_session_open(session_id, &handle);
-    errno = ret;
+    ret = agm_session_open(session_id, sess_mode, &handle);
     if (ret)
         goto err_card_put;
 

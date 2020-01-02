@@ -64,13 +64,22 @@ enum AgmMediaFormat : uint32_t {
 };
 
 /**
- * Compress codec format ID
+ * AGM Data modes
  */
 enum AgmDataMode : uint32_t {
     AGM_DATAINVALID,
     AGM_DATABLOCKING,      /**< Blocking mode */
     AGM_DATANON_BLOCKING,  /**< Non blocking mode */
     AGM_DATAMODE_MAX,
+};
+
+/**
+ * AGM session modes
+ */
+enum AgmSessionMode : uint32_t {
+    AGM_SESSION_DEFAULT,    /**< Normal agm tunnel session*/
+    AGM_SESSION_NO_HOST,    /**< Hostless mode */
+    AGM_SESSION_NON_TUNNEL, /**< Non tunnel mode */
 };
 
 /**
@@ -208,7 +217,7 @@ struct AifInfo {
  */
 struct AgmSessionConfig {
     Direction dir;
-    bool is_hostless;
+    AgmSessionMode session_mode;
     uint32_t start_threshold;
     uint32_t stop_threshold;
     AgmSessionCodec codec;
