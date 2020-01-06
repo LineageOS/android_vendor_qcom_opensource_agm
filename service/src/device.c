@@ -145,7 +145,7 @@ static void *device_prepare_thread(void *obj)
     pthread_mutex_lock(&dev_obj->lock);
     ret = pcm_prepare(dev_obj->pcm);
     if (ret) {
-        AGM_LOGE("PCM device %u prepare failed, ret = %d\n",
+        AGM_LOGE("%s: PCM device %u prepare failed, ret = %d\n",
               __func__, dev_obj->pcm_id, ret);
         goto done;
     }
@@ -359,6 +359,7 @@ int device_set_media_config(struct device_obj *dev_obj,
 int device_set_metadata(struct device_obj *dev_obj, uint32_t size,
                                                 uint8_t *metadata)
 {
+   metadata_free(&dev_obj->metadata);
    return metadata_copy(&(dev_obj->metadata), size, metadata);
 }
 

@@ -304,13 +304,16 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size,
 void metadata_free(struct agm_meta_data_gsl *metadata)
 {
     if (metadata) {
-        free(metadata->ckv.kv);
+        if (metadata->ckv.kv)
+            free(metadata->ckv.kv);
         metadata->ckv.kv = NULL;
 
-        free(metadata->gkv.kv);
+        if (metadata->gkv.kv)
+            free(metadata->gkv.kv);
         metadata->gkv.kv = NULL;
 
-        free(metadata->sg_props.values);
+        if (metadata->sg_props.values)
+            free(metadata->sg_props.values);
 
         memset(metadata, 0, sizeof(struct agm_meta_data_gsl));
     }
