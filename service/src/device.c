@@ -262,14 +262,15 @@ int device_stop(struct device_obj *dev_obj)
         goto done;
     }
 
-    ret = pcm_stop(dev_obj->pcm);
-    if (ret) {
-        AGM_LOGE("%s: PCM device %u stop failed, ret = %d\n",
-                __func__, dev_obj->pcm_id, ret);
-        goto done;
-    }
-    dev_obj->state = DEV_STOPPED;
     dev_obj->refcnt.start--;
+    if (dev_obj->refcnt.start == 0) {
+        ret = pcm_stop(dev_obj->pcm);
+        if (ret) {
+            AGM_LOGE("%s: PCM device %u stop failed, ret = %d\n",
+                    __func__, dev_obj->pcm_id, ret);
+        }
+        dev_obj->state = DEV_STOPPED;
+    }
 
 done:
     pthread_mutex_unlock(&dev_obj->lock);
