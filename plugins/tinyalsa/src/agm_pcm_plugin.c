@@ -38,8 +38,6 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <stdio.h>
-#include <pthread.h>
-#include <time.h>
 #include <tinyalsa/pcm_plugin.h>
 #include <snd-card-def.h>
 #include <tinyalsa/asoundlib.h>
@@ -52,7 +50,6 @@
 
 /* 2 words of uint32_t = 64 bits of mask */
 #define PCM_MASK_SIZE (2)
-#define PCM_PLUGIN_EOS_TIMEOUT 1 // in seconds
 #define PCM_FORMAT_BIT(x) (1 << x)
 
 struct agm_pcm_priv {
@@ -61,9 +58,6 @@ struct agm_pcm_priv {
     struct agm_session_config *session_config;
     uint64_t handle;
     void *card_node;
-    pthread_cond_t eos_cond;
-    pthread_mutex_t eos_lock;
-    bool eos_cmd_sent;
     int session_id;
 };
 
@@ -189,36 +183,6 @@ static int agm_get_session_handle(struct agm_pcm_priv *priv,
         return -EINVAL;
 
     return 0;
-}
-
-void agm_pcm_event_cb(uint32_t session_id,
-                           struct agm_event_cb_params *event_params,
-                           void *client_data)
-{
-    struct pcm_plugin *agm_pcm_plugin = client_data;
-    struct agm_pcm_priv *priv;
-
-    if (!agm_pcm_plugin) {
-        AGM_LOGE("%s: client_data is NULL\n", __func__);
-        return;
-    }
-    priv = agm_pcm_plugin->priv;
-    if (!priv) {
-        AGM_LOGE("%s: Private data is NULL\n", __func__);
-        return;
-    }
-    if (!event_params) {
-        AGM_LOGE("%s: event params is NULL\n", __func__);
-        return;
-    }
-    if (event_params->event_id == AGM_EVENT_EOS_RENDERED) {
-        pthread_mutex_lock(&priv->eos_lock);
-        pthread_cond_signal(&priv->eos_cond);
-        pthread_mutex_unlock(&priv->eos_lock);
-    } else {
-        AGM_LOGE("%s: error: Invalid event params id: %d\n", __func__,
-           event_params->event_id);
-    }
 }
 
 static int agm_pcm_hw_params(struct pcm_plugin *plugin,
@@ -368,45 +332,15 @@ static int agm_pcm_start(struct pcm_plugin *plugin)
     return agm_session_start(handle);
 }
 
-static void agm_pcm_eos(struct pcm_plugin *plugin, uint64_t handle)
-{
-    struct agm_pcm_priv *priv = plugin->priv;
-    int ret = 0;
-    struct timespec eos_ts;
-
-    /*
-     * closing sequence can be either agm_pcm_close() or
-     * agm_pcm_drop() -> gm_pcm_close() but we should send
-     * eos only once so below check is needed.
-     */
-    if (priv->eos_cmd_sent)
-        return;
-
-    clock_gettime(CLOCK_REALTIME, &eos_ts);
-    eos_ts.tv_sec += PCM_PLUGIN_EOS_TIMEOUT;
-
-    pthread_mutex_lock(&priv->eos_lock);
-    ret = agm_session_eos(handle);
-    if (ret)
-        AGM_LOGE("%s: EOS cmd fail\n", __func__);
-    else
-        pthread_cond_timedwait(&priv->eos_cond, &priv->eos_lock, &eos_ts);
-    pthread_mutex_unlock(&priv->eos_lock);
-    priv->eos_cmd_sent = true;
-}
-
 static int agm_pcm_drop(struct pcm_plugin *plugin)
 {
     struct agm_pcm_priv *priv = plugin->priv;
     uint64_t handle;
     int ret;
-    struct timespec eos_ts;
 
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
         return ret;
-
-    agm_pcm_eos(plugin, handle);
 
     return agm_session_stop(handle);
 }
@@ -421,9 +355,6 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
     if (ret)
         return ret;
 
-    agm_pcm_eos(plugin, handle);
-    ret = agm_session_register_cb(priv->session_id, NULL,
-                                  AGM_EVENT_DATA_PATH, plugin);
     ret = agm_session_close(handle);
 
     snd_card_def_put_card(priv->card_node);
@@ -524,19 +455,11 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
     if (ret)
         goto err_card_put;
 
-    ret = agm_session_register_cb(session_id, &agm_pcm_event_cb,
-                                  AGM_EVENT_DATA_PATH, agm_pcm_plugin);
-    if (ret)
-        goto err_sess_cls;
-
     priv->handle = handle;
     *plugin = agm_pcm_plugin;
-    pthread_mutex_init(&priv->eos_lock, (const pthread_mutexattr_t *) NULL);
 
     return 0;
 
-err_sess_cls:
-    agm_session_close(handle);
 err_card_put:
     snd_card_def_put_card(card_node);
 err_session_free:
