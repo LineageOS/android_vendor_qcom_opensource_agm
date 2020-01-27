@@ -605,22 +605,24 @@ int graph_prepare(struct graph_obj *graph_obj)
              goto done;
         }
 
-        if ((mod->dev_obj != NULL) && (mod->dev_obj->refcnt.start == 0)) {
-            if (((mod->tag == DEVICE_HW_ENDPOINT_RX) &&
-                (mod->dev_obj->hw_ep_info.dir == AUDIO_INPUT)) ||
-               ((mod->tag == DEVICE_HW_ENDPOINT_TX) &&
-                (mod->dev_obj->hw_ep_info.dir == AUDIO_OUTPUT))) {
-               AGM_LOGE("device cfg (dir = %d) does not match dev module %x\n",
-                         mod->dev_obj->hw_ep_info.dir, mod->module);
-               ret = -EINVAL;
-               goto done;
-            }
-        }
         if (mod->configure) {
-            ret = mod->configure(mod, graph_obj);
-            if (ret != 0)
-                goto done;
-            mod->is_configured = true;
+            if ((mod->dev_obj != NULL) &&
+                ((mod->tag == DEVICE_HW_ENDPOINT_RX)|| (mod->tag == DEVICE_HW_ENDPOINT_TX)) &&
+                (mod->dev_obj->refcnt.start > 0)) {
+                AGM_LOGE("device obj:%s in started state, start ref_cnt:%d miid %x mid %x tag %x\n",
+                             mod->dev_obj->name, mod->dev_obj->refcnt.start, mod->miid, mod->mid, mod->tag);
+                mod->is_configured = true;
+                continue;
+            } else {
+                ret = mod->configure(mod, graph_obj);
+                if (ret != 0) {
+                    AGM_LOGE("Module configuration for mod->miid, mod->mid, mod->tag failed:%d \n",
+                             mod->miid, mod->mid, mod->tag, ret);
+                    goto done;
+                }
+                mod->is_configured = true;
+            }
+
         }
     }
 
