@@ -499,6 +499,7 @@ tag_list:
     }
     graph_obj->state = OPENED;
     *gph_obj = graph_obj;
+    AGM_LOGD("graph_handle %x\n", graph_obj->graph_handle);
 
     goto done;
 
@@ -688,6 +689,10 @@ int graph_stop(struct graph_obj *graph_obj,
 
     pthread_mutex_lock(&graph_obj->lock);
     AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
+    if (graph_obj->state & (STOPPED)) {
+       AGM_LOGE("graph object is already in STOP state\n");
+       goto done;
+    }
     if (!(graph_obj->state & (STARTED))) {
        AGM_LOGE("graph object is not in correct state, current state %d\n",
                     graph_obj->state);
