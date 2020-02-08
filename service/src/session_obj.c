@@ -990,7 +990,7 @@ static int session_stop(struct session_obj *sess_obj)
     if (dir == RX) {
         ret = graph_stop(sess_obj->graph, NULL);
         if (ret) {
-            AGM_LOGE("%s Error:%d starting graph\n", __func__, ret);
+            AGM_LOGE("%s Error:%d stopping graph\n", __func__, ret);
             goto done;
         }
     }
