@@ -891,7 +891,6 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
         AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
-    pthread_mutex_lock(&graph_obj->lock);
     // TODO: update below check
    /* if (!(graph_obj->state & (PREPARED|STARTED))) {
         AGM_LOGE("Cannot add a graph in start state");
@@ -914,7 +913,6 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
     }
     *size = size_written;
 done:
-    pthread_mutex_unlock(&graph_obj->lock);
     return ret;
 }
 
@@ -931,6 +929,7 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
     if (!(graph_obj->state & STARTED)) {
         AGM_LOGE("Cannot add a graph in start state\n");
         ret = -EINVAL;
+        pthread_mutex_unlock(&graph_obj->lock);
         goto done;
     }
 
@@ -940,6 +939,8 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
     gsl_buff.flags = 0;
     gsl_buff.size = *size;
     gsl_buff.addr = (uint8_t *)(buffer);
+    pthread_mutex_unlock(&graph_obj->lock);
+
     ret = gsl_read(graph_obj->graph_handle,
                     SHMEM_ENDPOINT, &gsl_buff, &size_read);
     if ((ret != 0) || (size_read == 0)) {
@@ -950,7 +951,6 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
     *size = size_read;
     graph_obj->buf_info.timestamp = gsl_buff.timestamp;
 done:
-    pthread_mutex_unlock(&graph_obj->lock);
     return ret;
 }
 
