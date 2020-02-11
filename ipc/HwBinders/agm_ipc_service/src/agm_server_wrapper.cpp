@@ -69,23 +69,23 @@ void client_death_notifier::serviceDied(uint64_t cookie,
     }
     pthread_mutex_lock(&client_list_lock);
     if (client_list_init) {
-    list_for_each_safe(node, tempnode, &client_list) {
-        handle = node_to_item(node, client_info, list);
-        if (handle->pid == cookie) {
-            ALOGV("%s: MATCHED pid = %d\n", __func__, cookie);
-            list_for_each_safe(sess_node, sess_tempnode,
-                                              &handle->agm_client_hndl_list) {
-                hndl = node_to_item(sess_node, agm_client_session_handle, list);
-                   if (hndl->handle != NULL) {
-                       agm_session_close(hndl->handle);
-                       list_remove(sess_node);
-                       free(hndl);
-                   }
+        list_for_each_safe(node, tempnode, &client_list) {
+            handle = node_to_item(node, client_info, list);
+            if (handle->pid == cookie) {
+                ALOGV("%s: MATCHED pid = %d\n", __func__, cookie);
+                list_for_each_safe(sess_node, sess_tempnode,
+                                          &handle->agm_client_hndl_list) {
+                    hndl = node_to_item(sess_node, agm_client_session_handle, list);
+                    if (hndl->handle != NULL) {
+                        agm_session_close(hndl->handle);
+                        list_remove(sess_node);
+                        free(hndl);
+                    }
                 }
                 list_remove(node);
                 free(handle);
+            }
         }
-    }
     }
     pthread_mutex_unlock(&client_list_lock);
     ALOGV("%s: exit\n", __func__);
@@ -123,6 +123,7 @@ void add_handle_to_list(uint64_t handle)
                     goto exit;
                 }
                 hndl->handle = handle;
+                ALOGV("%s: Adding node to client handle list \n", __func__);
                 list_add_tail(&client_handle_temp->agm_client_hndl_list, &hndl->list);
                 flag = 1;
                 break;
@@ -130,6 +131,7 @@ void add_handle_to_list(uint64_t handle)
         }
         if (flag == 0) {
             client_handle->pid = pid;
+            list_init(&client_handle->list);
             list_add_tail(&client_list, &client_handle->list);
             list_init(&client_handle->agm_client_hndl_list);
             hndl = (agm_client_session_handle *)calloc(1, sizeof(agm_client_session_handle));
@@ -138,6 +140,7 @@ void add_handle_to_list(uint64_t handle)
                 goto exit;
             }
             hndl->handle = handle;
+            ALOGV("%s: Adding 1st node to client handle list \n", __func__);
             list_add_tail(&client_handle->agm_client_hndl_list, &hndl->list);
         }
     }
@@ -517,8 +520,11 @@ Return<int32_t> AGM::ipc_agm_session_close(uint64_t hndl) {
                        free(hndle);
                    }
                 }
-                list_remove(node);
-                free(handle);
+                if (list_empty(&handle->agm_client_hndl_list)) {
+                    ALOGV("%s Deleting the client handle list \n", __func__);
+                    list_remove(node);
+                    free(handle);
+                }
     }
     pthread_mutex_unlock(&client_list_lock);
     return agm_session_close(hndl);
