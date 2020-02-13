@@ -1230,7 +1230,8 @@ int graph_change(struct graph_obj *graph_obj,
     /*configure modules again*/
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
-        if (mod->configure && !mod->is_configured) {
+        if (mod->configure && !mod->is_configured &&
+            mod->dev_obj->refcnt.start == 0) {
             ret = mod->configure(mod, graph_obj);
             if (ret != 0)
                 goto done;
