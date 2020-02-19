@@ -235,7 +235,7 @@ int graph_init()
     if (access(filename, F_OK) != -1) {
         file = fopen(filename, "r");
         if (file < 0) {
-            printf("open %s: failed\n", filename);
+            AGM_LOGE("open %s: failed\n", filename);
             ret = -EIO;
             goto err;
         } else {
@@ -1655,4 +1655,71 @@ int graph_get_buf_info(struct graph_obj *graph_obj, struct agm_buf_info *buf_inf
 		ret = graph_fill_buf_info(graph_obj, buf_info, cmd_id, POS_BUF);
 	}
 	return ret;
+}
+
+int graph_set_gapless_metadata(struct graph_obj *graph_obj,
+                               enum agm_gapless_silence_type type,
+                               uint32_t silence)
+{
+    int ret = 0;
+    struct listnode *node = NULL;
+    struct module_info *mod;
+    struct apm_module_param_data_t *header;
+    struct param_id_remove_initial_silence_t *pid_is;
+    struct param_id_remove_trailing_silence_t *pid_ts;
+    uint8_t *payload = NULL;
+    size_t payload_size = 0;
+    uint32_t decoder_miid = 0;
+
+    pthread_mutex_lock(&graph_obj->lock);
+
+    list_for_each(node, &graph_obj->tagged_mod_list) {
+        mod = node_to_item(node, module_info_t, list);
+        if (mod->tag == TAG_STREAM_PLACEHOLDER_DECODER) {
+            AGM_LOGD("Decoder module IID %x", mod->miid);
+            decoder_miid = mod->miid;
+            break;
+        }
+    }
+    if (decoder_miid == 0) {
+        AGM_LOGE("Decoder MIID not found");
+        ret = -EINVAL;
+        goto done;
+    }
+    /* Send initial/trailing silence information */
+    payload_size = sizeof(struct apm_module_param_data_t) +
+                    sizeof(struct param_id_remove_initial_silence_t);
+    if (payload_size % 8 != 0)
+        payload_size = payload_size + (8 - payload_size % 8);
+
+    payload = calloc(1, (size_t)payload_size);
+    if (!payload) {
+        AGM_LOGE("No memory to allocate for payload");
+        ret = -ENOMEM;
+        goto done;
+    }
+    header = (struct apm_module_param_data_t*)payload;
+    pid_is = (struct param_id_remove_initial_silence_t *)(payload
+                          + sizeof(struct apm_module_param_data_t));
+    header->error_code = 0x0;
+    header->param_size = payload_size;
+    header->module_instance_id = decoder_miid;
+    if (type == INITIAL_SILENCE) {
+        header->param_id = PARAM_ID_REMOVE_INITIAL_SILENCE;
+    } else if (type == TRAILING_SILENCE) {
+       header->param_id = PARAM_ID_REMOVE_TRAILING_SILENCE;
+    } else {
+        AGM_LOGE("Invalid gapless silence type %d", type);
+        goto error;
+    }
+    pid_is->samples_per_ch_to_remove = silence;
+    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
+    if (ret !=0)
+        AGM_LOGE("failed to set %d type silence with ret = %d", type, ret);
+
+error:
+    free(payload);
+done:
+    pthread_mutex_unlock(&graph_obj->lock);
+    return ret;
 }

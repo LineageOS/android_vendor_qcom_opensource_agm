@@ -47,6 +47,7 @@
 #include "pcm_tdm_api.h"
 #include "slimbus_api.h"
 #include "spr_api.h"
+#include "gapless_api.h"
 
 /*
  *Internal enum to identify different modules
@@ -74,12 +75,13 @@ typedef enum module
     MODULE_PLACEHOLDER_DECODER,
     MODULE_STREAM_PAUSE,
     MODULE_STREAM_SPR,
+    MODULE_STREAM_GAPLESS,
     /*
      *Ensure that whenever a new stream module is added it
      *is added in the end of stream module list and the end
      *is updated with the same entry.
      */
-    MODULE_STREAM_END = MODULE_STREAM_SPR,
+    MODULE_STREAM_END = MODULE_STREAM_GAPLESS,
     MODULE_DEVICE_START = 0,
     MODULE_HW_EP_RX = MODULE_DEVICE_START,
     MODULE_HW_EP_TX,

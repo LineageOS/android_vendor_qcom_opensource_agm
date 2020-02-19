@@ -2160,41 +2160,63 @@ done:
 
 int session_obj_buffer_timestamp(struct session_obj *sess_obj, uint64_t *timestamp)
 {
-        int ret = 0;
+    int ret = 0;
 
-        pthread_mutex_lock(&sess_obj->lock);
-        if (sess_obj->state != SESSION_STARTED) {
-                AGM_LOGE("Cannot get timestamp in state:%d\n", sess_obj->state);
-                ret = -EINVAL;
-                goto done;
-        }
+    pthread_mutex_lock(&sess_obj->lock);
+    if (sess_obj->state != SESSION_STARTED) {
+        AGM_LOGE("Cannot get timestamp in state:%d\n", sess_obj->state);
+        ret = -EINVAL;
+        goto done;
+    }
 
-        ret = graph_get_buffer_timestamp(sess_obj->graph, timestamp);
-        if (ret)
-                AGM_LOGE("Error:%d cannot get buffer timestamp\n",
-                          ret);
+    ret = graph_get_buffer_timestamp(sess_obj->graph, timestamp);
+    if (ret)
+        AGM_LOGE("Error:%d cannot get buffer timestamp\n",
+                  ret);
 
 done:
-        pthread_mutex_unlock(&sess_obj->lock);
-        return ret;
+    pthread_mutex_unlock(&sess_obj->lock);
+    return ret;
 }
 
 int session_obj_get_sess_buf_info(struct session_obj *sess_obj, struct agm_buf_info *buf_info, uint32_t flag)
 {
-	int ret = 0;
+    int ret = 0;
 
-	pthread_mutex_lock(&sess_obj->lock);
-	if (sess_obj->state == SESSION_CLOSED) {
-		AGM_LOGE("Cannot get timestamp in state:%d\n", sess_obj->state);
-		ret = -EINVAL;
-		goto done;
-	}
+    pthread_mutex_lock(&sess_obj->lock);
+    if (sess_obj->state == SESSION_CLOSED) {
+        AGM_LOGE("Cannot get timestamp in state:%d\n", sess_obj->state);
+        ret = -EINVAL;
+        goto done;
+    }
 
-	ret = graph_get_buf_info(sess_obj->graph, buf_info, flag);
-	if (ret)
-		AGM_LOGE("graph_get_buf_info failed %d\n", ret);
+    ret = graph_get_buf_info(sess_obj->graph, buf_info, flag);
+    if (ret)
+        AGM_LOGE("graph_get_buf_info failed %d\n", ret);
 
 done:
-	pthread_mutex_unlock(&sess_obj->lock);
-	return ret;
+    pthread_mutex_unlock(&sess_obj->lock);
+    return ret;
+}
+
+int session_obj_set_gapless_metadata(struct session_obj *sess_obj,
+                                     enum agm_gapless_silence_type type,
+                                     uint32_t silence)
+{
+    int ret = 0;
+
+    pthread_mutex_lock(&sess_obj->lock);
+    if (sess_obj->state == SESSION_CLOSED) {
+        AGM_LOGE("Cannot set gapless data in state:%d\n", sess_obj->state);
+        ret = -EINVAL;
+        goto done;
+    }
+
+    ret = graph_set_gapless_metadata(sess_obj->graph, type,
+                                     silence);
+    if (ret)
+        AGM_LOGE("failed to set gapless metadata :%d\n", ret);
+done:
+    pthread_mutex_unlock(&sess_obj->lock);
+    return ret;
 }

@@ -47,6 +47,7 @@ using AgmCalConfig = ::vendor::qti::hardware::AGMIPC::V1_0::AgmCalConfig;
 using IAGMCallback = ::vendor::qti::hardware::AGMIPC::V1_0::IAGMCallback;
 using AgmEventCbParams = ::vendor::qti::hardware::AGMIPC::V1_0::AgmEventCbParams;
 using AgmSessionMode = ::vendor::qti::hardware::AGMIPC::V1_0::AgmSessionMode;
+using AgmGaplessSilenceType = ::vendor::qti::hardware::AGMIPC::V1_0::AgmGaplessSilenceType;
 
 class server_death_notifier : public android::hardware::hidl_death_recipient
 {

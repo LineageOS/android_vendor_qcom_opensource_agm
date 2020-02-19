@@ -823,6 +823,13 @@ Return<void> AGM::ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t fla
 
     return Void();
 }
+
+Return<int32_t> AGM::ipc_agm_set_gapless_session_metadata(uint64_t hndl,
+                     AgmGaplessSilenceType type, uint32_t silence) {
+    enum agm_gapless_silence_type type_local = (enum agm_gapless_silence_type)type;
+    ALOGV("%s : handle = %lu \n", __func__, hndl);
+    return agm_set_gapless_session_metadata(hndl, type_local, silence);
+}
 }  // namespace implementation
 }  // namespace V1_0
 }  // namespace AGMIPC

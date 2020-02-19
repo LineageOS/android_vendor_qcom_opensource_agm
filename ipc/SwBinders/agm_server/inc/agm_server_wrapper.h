@@ -109,7 +109,8 @@ class AgmService : public BnAgmService
         virtual int ipc_agm_session_get_params(uint32_t session_id,
                                       void *payload, size_t size);
         virtual int ipc_agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp);
-
+        virtual int ipc_agm_set_gapless_session_metadata(uint64_t handle,
+                         enum agm_gapless_silence_type type, uint32_t silence);
         ~AgmService()
         {
             AGM_LOGV("AGMService destructor");

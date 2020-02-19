@@ -695,3 +695,16 @@ int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
     return ret;
 }
 
+int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_type type,
+                                     uint32_t silence)
+{
+    ALOGV("%s called with handle = %x \n", __func__, handle);
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+        AgmGaplessSilenceType type_hidl = (AgmGaplessSilenceType) type;
+        return agm_client->ipc_agm_set_gapless_session_metadata(handle,
+                                                 type_hidl,
+                                                 silence);
+    }
+    return -EINVAL;
+}

@@ -711,3 +711,16 @@ int agm_register_service_crash_callback(agm_service_crash_cb cb __unused,
     AGM_LOGE("client directly communicating with agm need not call this api");
     return -ENOSYS;
 }
+
+int agm_set_gapless_session_metadata(uint64_t handle,
+                         enum agm_gapless_silence_type type,
+                         uint32_t silence)
+{
+    if (!handle) {
+        AGM_LOGE("%s Invalid handle\n", __func__);
+        return -EINVAL;
+    }
+
+    return session_obj_set_gapless_metadata((struct session_obj *) handle, type,
+                                             silence);
+}

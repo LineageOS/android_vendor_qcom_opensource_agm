@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <poll.h>
 #include <string.h>
+#include <stdarg.h>
 #include <pthread.h>
 #include <tinycompress/compress_plugin.h>
 #include <tinycompress/tinycompress.h>
@@ -77,6 +78,10 @@ struct agm_compress_priv {
     uint64_t bytes_read;  /* Consumed by client */
     bool start_drain;
     bool eos;
+    bool early_eos;
+
+    enum agm_gapless_silence_type type;   /* Silence Type (Initial/Trailing) */
+    uint32_t silence;  /* Samples to remove */
 
     void *client_data;
     void *card_node;
@@ -85,6 +90,8 @@ struct agm_compress_priv {
     pthread_mutex_t drain_lock;
     pthread_cond_t eos_cond;
     pthread_mutex_t eos_lock;
+    pthread_cond_t early_eos_cond;
+    pthread_mutex_t early_eos_lock;
     pthread_mutex_t lock;
     pthread_cond_t poll_cond;
     pthread_mutex_t poll_lock;
@@ -150,6 +157,7 @@ void agm_compress_event_cb(uint32_t session_id __unused,
         priv->bytes_avail += priv->buffer_config.size;
         priv->bytes_received += priv->buffer_config.size;
     } else if (event_params->event_id == AGM_EVENT_EOS_RENDERED) {
+        AGM_LOGD("%s: EOS event received \n", __func__);
         /* Unblock eos wait if all the buffers are rendered */
         pthread_mutex_lock(&priv->eos_lock);
         if (priv->eos) {
@@ -157,6 +165,15 @@ void agm_compress_event_cb(uint32_t session_id __unused,
             priv->eos = false;
         }
         pthread_mutex_unlock(&priv->eos_lock);
+    } else if (event_params->event_id == AGM_EVENT_EARLY_EOS) {
+        AGM_LOGD("%s: Early EOS event received \n", __func__);
+        /* Unblock early eos wait */
+        pthread_mutex_lock(&priv->early_eos_lock);
+        if (priv->early_eos) {
+            priv->early_eos = false;
+            pthread_cond_signal(&priv->early_eos_cond);
+        }
+        pthread_mutex_unlock(&priv->early_eos_lock);
     } else {
         AGM_LOGE("%s: error: Invalid event params id: %d\n", __func__,
            event_params->event_id);
@@ -209,7 +226,7 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff,
     /* Avalible buffer size is always multiple of fragment size */
     priv->bytes_avail -= (buf_cnt * priv->buffer_config.size);
     if (priv->bytes_avail < 0) {
-        printf("%s: err: bytes_avail = %lld", __func__, (long long) priv->bytes_avail);
+        AGM_LOGE("%s: err: bytes_avail = %lld", __func__, (long long) priv->bytes_avail);
         ret = -EINVAL;
         goto err;
     }
@@ -494,6 +511,34 @@ int agm_compress_set_params(struct compress_plugin *plugin,
     return ret;
 }
 
+static int agm_compress_set_metadata(struct compress_plugin *plugin,
+                                     struct snd_compr_metadata *metadata)
+{
+    struct agm_compress_priv *priv = plugin->priv;
+    uint64_t handle;
+    int ret;
+
+    ret = agm_get_session_handle(priv, &handle);
+    if (ret)
+        return ret;
+
+    if (metadata->key == SNDRV_COMPRESS_ENCODER_PADDING) {
+        priv->type = TRAILING_SILENCE;
+        priv->silence = metadata->value[0];
+    }
+    if (metadata->key == SNDRV_COMPRESS_ENCODER_DELAY) {
+        priv->type = INITIAL_SILENCE;
+        priv->silence = metadata->value[0];
+    }
+
+    ret = agm_set_gapless_session_metadata(handle, priv->type,
+                                           priv->silence);
+    if (ret)
+       ALOGE("%s: failed to send gapless metadata ret = %d\n", __func__, ret);
+
+    return ret;
+}
+
 static int agm_compress_start(struct compress_plugin *plugin)
 {
     struct agm_compress_priv *priv = plugin->priv;
@@ -527,6 +572,14 @@ static int agm_compress_stop(struct compress_plugin *plugin)
         priv->eos = false;
     }
     pthread_mutex_unlock(&priv->eos_lock);
+
+    /* Unblock eos wait if early eos event cb has not been called */
+    pthread_mutex_lock(&priv->early_eos_lock);
+    if (priv->early_eos) {
+        pthread_cond_signal(&priv->early_eos_cond);
+        priv->early_eos = false;
+    }
+    pthread_mutex_unlock(&priv->early_eos_lock);
 
     /* Signal Poll */
     pthread_mutex_lock(&priv->poll_lock);
@@ -599,7 +652,7 @@ static int agm_compress_drain(struct compress_plugin *plugin)
         return ret;
     }
     pthread_cond_wait(&priv->eos_cond, &priv->eos_lock);
-    AGM_LOGE("%s: out of eos wait\n", __func__);
+    AGM_LOGD("%s: out of eos wait\n", __func__);
     pthread_mutex_unlock(&priv->eos_lock);
 
     return 0;
@@ -615,22 +668,56 @@ static int agm_compress_partial_drain(struct compress_plugin *plugin)
     if (ret)
         return ret;
 
-    /* TODO: include gapless playback logic */
-    return 0;
+    // Send EOS command and wait for EARLY EOS event
+    pthread_mutex_lock(&priv->early_eos_lock);
+    priv->early_eos = true;
+    ret = agm_session_eos(handle);
+    if (ret) {
+        AGM_LOGE("%s: EOS fail\n", __func__);
+        pthread_mutex_unlock(&priv->early_eos_lock);
+        return ret;
+    }
+    pthread_cond_wait(&priv->early_eos_cond, &priv->early_eos_lock);
+    AGM_LOGD("%s: out of early eos wait\n", __func__);
+    pthread_mutex_unlock(&priv->early_eos_lock);
+
+    AGM_LOGV("%s: exit\n", __func__);
+    return ret;
 }
 
 static int agm_compress_next_track(struct compress_plugin *plugin)
 {
+
+    AGM_LOGE("%s: next track \n", __func__);
+
+    return 0;
+}
+
+static int agm_compress_ioctl(struct compress_plugin *plugin, int cmd, ...)
+{
     struct agm_compress_priv *priv = plugin->priv;
     uint64_t handle;
     int ret;
+    va_list ap;
+    void *arg;
 
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
         return ret;
 
-    /* TODO: include gapless playback logic */
-    return 0;
+    va_start(ap, cmd);
+    arg = va_arg(ap, void *);
+    va_end(ap);
+
+    switch (cmd) {
+    case SNDRV_COMPRESS_SET_METADATA:
+        ret = agm_compress_set_metadata(plugin, arg);
+        break;
+    default:
+        break;
+    }
+
+    return ret;
 }
 
 static int agm_compress_poll(struct compress_plugin *plugin,
@@ -680,7 +767,8 @@ void agm_compress_close(struct compress_plugin *plugin)
 
     ret = agm_session_register_cb(priv->session_id, NULL,
                                   AGM_EVENT_DATA_PATH, plugin);
-
+    ret = agm_session_register_cb(priv->session_id, NULL,
+                                  AGM_EVENT_MODULE, plugin);
     ret = agm_session_close(handle);
     if (ret)
         AGM_LOGE("%s: agm_session_close failed \n", __func__);
@@ -693,6 +781,14 @@ void agm_compress_close(struct compress_plugin *plugin)
         priv->eos = false;
     }
     pthread_mutex_unlock(&priv->eos_lock);
+
+    /* Unblock eos wait if early eos event cb has not been called */
+    pthread_mutex_lock(&priv->early_eos_lock);
+    if (priv->early_eos) {
+        pthread_cond_signal(&priv->early_eos_cond);
+        priv->early_eos = false;
+    }
+    pthread_mutex_unlock(&priv->early_eos_lock);
 
     /* Signal Poll */
     pthread_mutex_lock(&priv->poll_lock);
@@ -721,6 +817,7 @@ struct compress_plugin_ops agm_compress_ops = {
     .drain = agm_compress_drain,
     .partial_drain = agm_compress_partial_drain,
     .next_track = agm_compress_next_track,
+    .ioctl = agm_compress_ioctl,
     .poll = agm_compress_poll,
 };
 
@@ -825,6 +922,8 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     if (ret)
         goto err_sess_cls;
 
+    ret = agm_session_register_cb(session_id, &agm_compress_event_cb,
+                                  AGM_EVENT_MODULE, agm_compress_plugin);
     agm_populate_codec_caps(priv);
     priv->handle = handle;
     *plugin = agm_compress_plugin;
@@ -832,6 +931,7 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     pthread_mutex_init(&priv->eos_lock, (const pthread_mutexattr_t *) NULL);
     pthread_mutex_init(&priv->drain_lock, (const pthread_mutexattr_t *) NULL);
     pthread_mutex_init(&priv->poll_lock, (const pthread_mutexattr_t *) NULL);
+    pthread_mutex_init(&priv->early_eos_lock, (const pthread_mutexattr_t *) NULL);
 
     return 0;
 

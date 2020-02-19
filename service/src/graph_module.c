@@ -1294,6 +1294,51 @@ done:
     return ret;
 }
 
+int configure_gapless(struct module_info *gapless_mod,
+                            struct graph_obj *gph_obj)
+{
+    int ret = 0;
+    struct gsl_cmd_register_custom_event *reg_ev_payload = NULL;
+    size_t payload_size = 0;
+
+    AGM_LOGD("GAPLESS module \n");
+
+    if (gph_obj->graph_handle == NULL) {
+        pthread_mutex_unlock(&gph_obj->lock);
+        AGM_LOGE("invalid graph handle\n");
+        ret = -EINVAL;
+        goto done;
+    }
+    payload_size = sizeof(struct gsl_cmd_register_custom_event);
+
+    reg_ev_payload = calloc(1, payload_size);
+    if (reg_ev_payload == NULL) {
+        pthread_mutex_unlock(&gph_obj->lock);
+        AGM_LOGE("calloc failed for reg_ev_payload\n");
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    AGM_LOGD("GAPLESS module IID = %d\n", gapless_mod->miid);
+
+    reg_ev_payload->event_id = EVENT_ID_EARLY_EOS;
+    // Write shared memory end point module IID
+    reg_ev_payload->module_instance_id = gapless_mod->miid;
+    // No payload for early eos registration
+    reg_ev_payload->event_config_payload_size = 0;
+    reg_ev_payload->is_register = 1;
+
+    ret = gsl_ioctl(gph_obj->graph_handle, GSL_CMD_REGISTER_CUSTOM_EVENT,
+                                           reg_ev_payload, payload_size);
+    if (ret != 0) {
+       ret = ar_err_get_lnx_err_code(ret);
+       AGM_LOGE("Early EOS event registration failed with error %d\n", ret);
+    }
+
+done:
+    return ret;
+}
+
 
 module_info_t stream_module_list[] = {
     {
@@ -1330,6 +1375,11 @@ module_info_t stream_module_list[] = {
         .module = MODULE_STREAM_SPR,
         .tag = TAG_STREAM_SPR,
         .configure = configure_spr,
+    },
+    {
+        .module = MODULE_STREAM_GAPLESS,
+        .tag = MODULE_GAPLESS,
+        .configure = configure_gapless,
     },
 };
 

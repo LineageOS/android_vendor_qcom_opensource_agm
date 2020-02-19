@@ -453,3 +453,16 @@ int agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp)
     ALOGE("%s: agm service is not running\n", __func__);
     return -EAGAIN;
 }
+
+int agm_set_gapless_session_metadata(uint64_t handle,
+                         enum agm_gapless_silence_type type,
+                         uint32_t silence)
+{
+    if(!agm_server_died) {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_set_gapless_session_metadata(handle, type,
+                                                                silence);
+    }
+    ALOGE("%s: agm service is not running\n", __func__);
+    return -EAGAIN;
+}

@@ -161,4 +161,7 @@ int session_obj_buffer_timestamp(struct session_obj *sess_obj,
                              uint64_t *timestamp);
 int session_obj_get_sess_buf_info(struct session_obj *sess_obj,
         struct agm_buf_info *buf_info, uint32_t flag);
+int session_obj_set_gapless_metadata(struct session_obj *sess_obj,
+                                     enum agm_gapless_silence_type type,
+                                     uint32_t silence);
 #endif

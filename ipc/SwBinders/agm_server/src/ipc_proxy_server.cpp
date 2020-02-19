@@ -113,6 +113,7 @@ enum {
     GET_PARAMS,
     BUF_TSTAMP,
     AIF_SET_PARAMS,
+    SET_GAPLESS_SESSION_METADATA,
 };
 
 class BpAgmService : public ::android::BpInterface<IAgmService>
@@ -698,6 +699,20 @@ class BpAgmService : public ::android::BpInterface<IAgmService>
         data.writeUint32(session_id);
         remote()->transact(BUF_TSTAMP, data, &reply);
         *timestamp = reply.readUint64();
+        return reply.readInt32();
+    }
+
+    virtual int ipc_agm_set_gapless_session_metadata(uint64_t handle,
+                                   enum agm_gapless_silence_type type,
+                                                     uint32_t silence)
+    {
+        android::Parcel data, reply;
+        ALOGV("%s:%d\n", __func__, __LINE__);
+        data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
+        data.writeInt64((long)handle);
+        data.writeUint32(type);
+        data.writeUint32(silence);
+        remote()->transact(SET_GAPLESS_SESSION_METADATA, data, &reply);
         return reply.readInt32();
     }
 };
@@ -1361,6 +1376,14 @@ android::status_t BnAgmService::onTransact(uint32_t code,
         pcm_idx = data.readUint32();
         rc = ipc_agm_get_buffer_timestamp(pcm_idx, &ts);
         reply->writeUint64(ts);
+        reply->writeInt32(rc);
+        break; }
+
+    case SET_GAPLESS_SESSION_METADATA : {
+        uint64_t handle = (uint64_t )data.readInt64();
+        uint32_t type = data.readUint32();
+        uint32_t silence = data.readUint32();
+        rc = ipc_agm_set_gapless_session_metadata(handle, init_silence, trail_silence);
         reply->writeInt32(rc);
         break; }
 

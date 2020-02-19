@@ -104,4 +104,7 @@ interface IAGM
                     generates (int32_t ret , uint64_t timestamp);
     ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t flag)
                     generates (int32_t ret, MmapBufInfo buf_info_ret);
+    ipc_agm_set_gapless_session_metadata(uint64_t hndl, AgmGaplessSilenceType type,
+                    uint32_t silence)
+                    generates (int32_t ret);
 };

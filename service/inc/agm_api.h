@@ -124,6 +124,15 @@ enum agm_session_mode
 };
 
 /**
+ *Gapless playback Silence type
+ */
+enum agm_gapless_silence_type
+{
+    INITIAL_SILENCE,            /**< Initial silence sample to be removed*/
+    TRAILING_SILENCE,           /**< Trailing silence sample to be removed*/
+};
+
+/**
  * AAC decoder parameters
  */
 struct agm_session_aac_dec {
@@ -388,6 +397,11 @@ enum agm_event_id {
     */
 
     AGM_EVENT_WRITE_DONE = 0x2,
+   /**
+    * Indicates early EOS event
+    */
+
+    AGM_EVENT_EARLY_EOS = 0x08001126,
 
     AGM_EVENT_ID_MAX
 };
@@ -885,6 +899,19 @@ int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
 int agm_register_service_crash_callback(agm_service_crash_cb cb,
                                          uint64_t cookie);
 
+/**
+  * \brief set gapless metadata of the session.
+  *
+  * \param[in] handle - Valid session handle obtained
+  *       from agm_session_open
+  * \param[in] type - Silence Type (Initial or Trailing)
+  * \param[in] silence - Initial/Trailing silence samples to be
+  *       removed
+  *
+  * \return 0 on success, error code otherwise
+  */
+int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_type type,
+                                     uint32_t silence);
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif

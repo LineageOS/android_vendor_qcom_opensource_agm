@@ -1082,18 +1082,18 @@ static int amp_pcm_get_param_get(struct mixer_plugin *plugin __unused,
     int ret = 0;
     size_t tlv_size;
 
-    printf("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
 
     payload = &tlv->tlv[0];
     tlv_size = tlv->length;
 
     if (!pcm_adi->get_param_payload) {
-        printf("%s: put() for getParam not called\n", __func__);
+        AGM_LOGE("%s: put() for getParam not called\n", __func__);
         return -EINVAL;
     }
 
     if (tlv_size < pcm_adi->get_param_payload_size) {
-        printf("%s: Buffer size less than expected\n", __func__);
+        AGM_LOGE("%s: Buffer size less than expected\n", __func__);
         return -EINVAL;
     }
 
@@ -1104,7 +1104,7 @@ static int amp_pcm_get_param_get(struct mixer_plugin *plugin __unused,
         ret = 0;
 
     if (ret)
-        printf("%s: failed err %d for %s\n", __func__, ret, ctl->name);
+        AGM_LOGE("%s: failed err %d for %s\n", __func__, ret, ctl->name);
 
     free(pcm_adi->get_param_payload);
     pcm_adi->get_param_payload = NULL;
@@ -1118,7 +1118,7 @@ static int amp_pcm_get_param_put(struct mixer_plugin *plugin __unused,
     struct amp_dev_info *pcm_adi = ctl->private_data;
     void *payload;
 
-    printf("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
 
     if (pcm_adi->get_param_payload) {
         free(pcm_adi->get_param_payload);
