@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -1288,9 +1288,9 @@ static struct snd_value_tlv_bytes pcm_taginfo_bytes =
 static struct snd_value_tlv_bytes pcm_setparamtag_bytes =
     SND_VALUE_TLV_BYTES(1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_setparam_bytes =
-    SND_VALUE_TLV_BYTES(64 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
+    SND_VALUE_TLV_BYTES(128 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_getparam_bytes =
-    SND_VALUE_TLV_BYTES(64 * 1024, amp_pcm_get_param_get, amp_pcm_get_param_put);
+    SND_VALUE_TLV_BYTES(128 * 1024, amp_pcm_get_param_get, amp_pcm_get_param_put);
 
 static struct snd_value_int media_fmt_int =
     SND_VALUE_INTEGER(4, 0, 384000, 1);
