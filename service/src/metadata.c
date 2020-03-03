@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -112,12 +112,12 @@ static void metadata_remove_dup(
     for (i = 0; i < count; i++) {
         for (j = i + 1; j < count; j++) {
             if (meta_data->gkv.kv[i].key == meta_data->gkv.kv[j].key) {
-                for (k = j; k < count; k++) {
+                for (k = j; k < count-1; k++) {
                     meta_data->gkv.kv[k].key = meta_data->gkv.kv[k + 1].key;
                     meta_data->gkv.kv[k].value = meta_data->gkv.kv[k + 1].value;
                 }
-            count--;
-            j--;
+                count--;
+                j--;
             }
         }
     }
@@ -128,12 +128,12 @@ static void metadata_remove_dup(
     for (i = 0; i < count; i++) {
         for (j = i + 1; j < count; j++) {
             if (meta_data->ckv.kv[i].key == meta_data->ckv.kv[j].key) {
-                for (k = j; k < count; k++) {
+                for (k = j; k < count-1; k++) {
                     meta_data->ckv.kv[k].key = meta_data->ckv.kv[k + 1].key;
                     meta_data->ckv.kv[k].value = meta_data->ckv.kv[k + 1].value;
                 }
-            count--;
-            j--;
+                count--;
+                j--;
             }
         }
     }
@@ -144,9 +144,9 @@ static void metadata_remove_dup(
     for (i = 0; i < count; i++) {
         for (j = i + 1; j < count; j++) {
             if (meta_data->sg_props.values[i] == meta_data->sg_props.values[j]) {
-                for (k = j; k < count; k++) {
+                for (k = j; k < count-1; k++) {
                     meta_data->sg_props.values[k] =
-                                              meta_data->sg_props.values[k+1];
+                        meta_data->sg_props.values[k+1];
                 }
                 count--;
                 j--;

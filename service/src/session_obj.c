@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -1444,21 +1444,21 @@ int session_obj_register_cb(struct session_obj *sess_obj, agm_event_cb cb,
         AGM_LOGV("sess_cb %p client_data %p evt_type %d", sess_cb,
                                            client_data, evt_type);
         list_add_tail(&sess_obj->cb_pool, &sess_cb->node);
-        } else {
-            struct session_cb *sess_cb;
-            struct listnode *node, *next;
-            list_for_each_safe(node, next, &sess_obj->cb_pool) {
-                sess_cb = node_to_item(node, struct session_cb, node);
-                if (sess_cb->evt_type == evt_type &&
-                    sess_cb->client_data == client_data) {
-                    AGM_LOGV("remove sess_cb %p client_data %p evt_type %d",
-                                       sess_cb, sess_cb->client_data,
-                                       sess_cb->evt_type);
-                    list_remove(&sess_cb->node);
-                    free(sess_cb);
-                }
+    } else {
+        struct session_cb *sess_cb;
+        struct listnode *node, *next;
+        list_for_each_safe(node, next, &sess_obj->cb_pool) {
+            sess_cb = node_to_item(node, struct session_cb, node);
+            if (sess_cb->evt_type == evt_type &&
+                sess_cb->client_data == client_data) {
+                AGM_LOGV("remove sess_cb %p client_data %p evt_type %d",
+                        sess_cb, sess_cb->client_data,
+                        sess_cb->evt_type);
+                list_remove(&sess_cb->node);
+                free(sess_cb);
             }
-       }
+        }
+    }
 done:
     pthread_mutex_unlock(&sess_obj->cb_pool_lock);
     return ret;
@@ -1757,8 +1757,6 @@ int session_obj_pause(struct session_obj *sess_obj)
         AGM_LOGE("%s Error:%d pausing graph\n", __func__, ret);
     }
 
-    sess_obj->state = SESSION_PAUSED;
-
 done:
     pthread_mutex_unlock(&sess_obj->lock);
     return ret;
@@ -1769,17 +1767,11 @@ int session_obj_resume(struct session_obj *sess_obj)
     int ret = 0;
 
     pthread_mutex_lock(&sess_obj->lock);
-    if (sess_obj->state != SESSION_PAUSED) {
-        ret = -EINVAL;
-        goto done;
-    }
 
     ret = graph_resume(sess_obj->graph);
     if (ret) {
         AGM_LOGE("%s Error:%d resuming graph\n", __func__, ret);
     }
-
-    sess_obj->state = SESSION_STARTED;
 
 done:
     pthread_mutex_unlock(&sess_obj->lock);
