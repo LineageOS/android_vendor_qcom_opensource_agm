@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -43,8 +43,8 @@
 #include <log_utils.h>
 #endif
 
-#define DEV_ARG_SIZE                 20
-#define DEV_VALUE_SIZE               60
+#define DEV_ARG_SIZE                 21
+#define DEV_VALUE_SIZE               61
 
 #define CODEC_RX0 1
 #define CODEC_TX0 1
