@@ -195,11 +195,11 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff,
         priv->prepared = true;
     }
 
-    pthread_mutex_lock(&priv->lock);
     ret = agm_session_write(handle, (void *)buff, &size);
     if (ret)
-        goto err;
+        return ret;
 
+    pthread_mutex_lock(&priv->lock);
     buf_cnt = size / priv->buffer_config.size;
     if (size % priv->buffer_config.size != 0)
         buf_cnt +=1;
