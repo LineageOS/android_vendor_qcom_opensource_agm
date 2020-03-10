@@ -897,8 +897,13 @@ static int session_start(struct session_obj *sess_obj)
             }
         }
 
-        // For ec ref, check if the device object is in STARTED,
-        //otherwise return failure
+        /*
+         * For ec ref, check if the device object is in STARTED,
+         * otherwise return failure.
+         * The RX(EC) device EP should be in started state, this ensures
+         * the RX EP is configured and hence capture session start() succeeds
+         * if RX(EC) device EP is not started, graph_start of capture will fail.
+         */
         if (sess_obj->ec_ref_state == true) {
             ret = device_get_obj(sess_obj->ec_ref_aif_id, &ec_ref_dev_obj);
             if (ret) {
@@ -915,7 +920,6 @@ static int session_start(struct session_obj *sess_obj)
                 ret = -EINVAL;
                 goto done;
             }
-
         }
 
         ret = graph_start(sess_obj->graph);
@@ -1123,6 +1127,7 @@ int session_obj_set_sess_metadata(struct session_obj *sess_obj,
     int ret = 0;
 
     pthread_mutex_lock(&sess_obj->lock);
+    metadata_free(&(sess_obj->sess_meta));
     ret = metadata_copy(&(sess_obj->sess_meta), size, metadata);
     pthread_mutex_unlock(&sess_obj->lock);
 
@@ -1348,6 +1353,7 @@ int session_obj_set_sess_aif_metadata(struct session_obj *sess_obj,
         goto done;
     }
 
+    metadata_free(&(aif_obj->sess_aif_meta));
     ret = metadata_copy(&(aif_obj->sess_aif_meta), size, metadata);
     if (ret) {
         AGM_LOGE("%s: Error copying session audio interface metadata \
