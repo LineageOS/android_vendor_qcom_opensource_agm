@@ -138,11 +138,14 @@ static void *device_prepare_thread(void *obj)
        return NULL;
     }
 
-    if (dev_obj->state == DEV_PREPARED) {
+    pthread_mutex_lock(&dev_obj->lock);
+    if (dev_obj->refcnt.prepare) {
+        dev_obj->refcnt.prepare++;
         AGM_LOGE("%s: device prepared already \n", __func__);
+        pthread_mutex_unlock(&dev_obj->lock);
+        return NULL;
     }
 
-    pthread_mutex_lock(&dev_obj->lock);
     ret = pcm_prepare(dev_obj->pcm);
     if (ret) {
         AGM_LOGE("%s: PCM device %u prepare failed, ret = %d\n",
