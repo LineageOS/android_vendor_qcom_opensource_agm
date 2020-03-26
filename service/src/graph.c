@@ -581,6 +581,10 @@ int graph_prepare(struct graph_obj *graph_obj)
 
     AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
     pthread_mutex_lock(&graph_obj->lock);
+    if (graph_obj->state == PREPARED) {
+        AGM_LOGD("Graph already prepared");
+        goto done;
+    }
     /**
      *Iterate over mod list to configure each module
      *present in the graph. Also validate if the module list
