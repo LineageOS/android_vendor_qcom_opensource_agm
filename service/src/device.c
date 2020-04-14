@@ -114,8 +114,9 @@ int device_open(struct device_obj *dev_obj)
     pcm = pcm_open(dev_obj->card_id, dev_obj->pcm_id, dev_obj->pcm_flags,
                 &config);
     if (!pcm || !pcm_is_ready(pcm)) {
-        AGM_LOGE("%s: Unable to open PCM device %u (%s)\n",
-                __func__, dev_obj->pcm_id, pcm_get_error(pcm));
+        AGM_LOGE("%s: Unable to open PCM device %u (%s) rate %u ch %d fmt %u",
+                __func__, dev_obj->pcm_id, pcm_get_error(pcm), config.rate,
+                config.channels, config.format);
         ret = -EIO;
         goto done;
     }
