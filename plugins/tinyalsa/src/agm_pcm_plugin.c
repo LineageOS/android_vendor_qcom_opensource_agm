@@ -33,11 +33,13 @@
 #include <limits.h>
 #include <linux/ioctl.h>
 #include <sys/time.h>
+#include <sys/mman.h>
 #include <sound/asound.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <tinyalsa/pcm_plugin.h>
 #include <snd-card-def.h>
 #include <tinyalsa/asoundlib.h>
@@ -52,13 +54,34 @@
 #define PCM_MASK_SIZE (2)
 #define PCM_FORMAT_BIT(x) (1 << x)
 
+struct agm_shared_pos_buffer {
+    volatile uint32_t frame_counter;
+    volatile uint32_t read_index;
+    volatile uint32_t wall_clock_us_lsw;
+    volatile uint32_t wall_clock_us_msw;
+};
+
+struct pcm_plugin_pos_buf_info {
+    void *pos_buf_addr;
+    unsigned int boundary;       /* pcm boundary */
+    snd_pcm_uframes_t hw_ptr;    /* RO: hw ptr (0...boundary-1) */
+    snd_pcm_uframes_t hw_ptr_base;
+    uint64_t tstamp_us;
+    snd_pcm_uframes_t appl_ptr;  /* RW: appl ptr (0...boundary-1) */
+    snd_pcm_uframes_t avail_min; /* RW: min available frames for wakeup */
+};
+
 struct agm_pcm_priv {
     struct agm_media_config *media_config;
     struct agm_buffer_config *buffer_config;
     struct agm_session_config *session_config;
+    struct agm_buf_info *buf_info;
+    struct pcm_plugin_pos_buf_info *pos_buf;
     uint64_t handle;
     void *card_node;
     int session_id;
+    unsigned int period_size;
+    snd_pcm_uframes_t total_size_frames;
 };
 
 struct pcm_plugin_hw_constraints agm_pcm_constrs = {
@@ -77,7 +100,7 @@ struct pcm_plugin_hw_constraints agm_pcm_constrs = {
         .max = 384000,
     },
     .periods = {
-        .min = 2,
+        .min = 1,
         .max = 8,
     },
     .period_bytes = {
@@ -172,6 +195,22 @@ static enum agm_media_format param_get_mask_val(struct snd_pcm_hw_params *p,
     return 0;
 }
 
+static unsigned int agm_pcm_frames_to_bytes(struct agm_media_config *config,
+        unsigned int frames)
+{
+    return frames * config->channels *
+        (agm_format_to_bits(config->format) >> 3);
+}
+
+static unsigned int agm_pcm_bytes_to_frames(unsigned int bytes,
+        struct agm_media_config *config)
+{
+    unsigned int frame_bits = config->channels *
+        agm_format_to_bits(config->format);
+
+    return bytes * 8 / frame_bits;
+}
+
 static int agm_get_session_handle(struct agm_pcm_priv *priv,
                                   uint64_t *handle)
 {
@@ -185,14 +224,124 @@ static int agm_get_session_handle(struct agm_pcm_priv *priv,
     return 0;
 }
 
+static void agm_pcm_plugin_apply_appl_ptr(struct agm_pcm_priv *priv,
+        snd_pcm_uframes_t appl_ptr)
+{
+    struct pcm_plugin_pos_buf_info *pos = priv->pos_buf;
+
+    pos->appl_ptr = appl_ptr;
+}
+
+static void agm_pcm_plugin_apply_avail_min(struct agm_pcm_priv *priv,
+        snd_pcm_uframes_t avail_min)
+{
+    struct pcm_plugin_pos_buf_info *pos = priv->pos_buf;
+
+    pos->avail_min = avail_min;
+}
+
+static snd_pcm_uframes_t agm_pcm_plugin_get_avail_min(struct agm_pcm_priv *priv)
+{
+    struct pcm_plugin_pos_buf_info *pos = priv->pos_buf;
+
+    return pos->avail_min;
+}
+
+static snd_pcm_uframes_t agm_pcm_plugin_get_appl_ptr(struct agm_pcm_priv *priv)
+{
+    struct pcm_plugin_pos_buf_info *pos = priv->pos_buf;
+
+    return pos->appl_ptr;
+}
+
+static snd_pcm_uframes_t agm_pcm_plugin_get_hw_ptr(struct agm_pcm_priv *priv)
+{
+    struct pcm_plugin_pos_buf_info *pos = priv->pos_buf;
+
+    return pos->hw_ptr;
+}
+
+static uint64_t agm_pcm_plugin_get_tstamp(struct agm_pcm_priv *priv)
+{
+    struct pcm_plugin_pos_buf_info *pos = priv->pos_buf;
+
+    return pos->tstamp_us;
+}
+
+static int agm_pcm_plugin_get_shared_pos(struct pcm_plugin_pos_buf_info *pos_buf,
+        uint32_t *read_index, uint32_t *wall_clk_msw,
+        uint32_t *wall_clk_lsw)
+{
+    struct agm_shared_pos_buffer *buf;
+    int i, j;
+    uint32_t frame_cnt1, frame_cnt2;
+
+    buf = (struct agm_shared_pos_buffer *)pos_buf->pos_buf_addr;
+    for (i = 0; i < 2; ++i) {
+        for (j = 0; j < 5; ++j) {
+            frame_cnt1 = buf->frame_counter;
+            if (frame_cnt1 != 0)
+                break;
+        }
+        *wall_clk_msw = buf->wall_clock_us_msw;
+        *wall_clk_lsw = buf->wall_clock_us_lsw;
+        *read_index = buf->read_index; /* 0,.... Circ_buf_size-1 */
+        frame_cnt2 = buf->frame_counter;
+
+        if (frame_cnt1 != frame_cnt2)
+            continue;
+
+        return 0;
+    }
+
+    return -EAGAIN;
+}
+
+static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
+{
+    int retries = 10;
+    snd_pcm_sframes_t circ_buf_pos;
+    snd_pcm_uframes_t pos, old_hw_ptr, new_hw_ptr, hw_base;
+    uint32_t read_index, wall_clk_msw, wall_clk_lsw;
+    int ret = 0;
+    uint32_t period_size = priv->period_size; /** in frames */
+
+    do {
+        ret = agm_pcm_plugin_get_shared_pos(priv->pos_buf,
+                &read_index, &wall_clk_msw, &wall_clk_lsw);
+    } while (ret == -EAGAIN && --retries);
+
+    if (ret == 0) {
+        circ_buf_pos = agm_pcm_bytes_to_frames(read_index, priv->media_config);
+        pos = (circ_buf_pos / period_size) * period_size;
+        old_hw_ptr = agm_pcm_plugin_get_hw_ptr(priv);
+        hw_base = priv->pos_buf->hw_ptr_base;
+        new_hw_ptr = hw_base + pos;
+        if (new_hw_ptr < old_hw_ptr) {
+            hw_base += priv->total_size_frames;
+            if (hw_base >= priv->pos_buf->boundary)
+                hw_base = 0;
+            new_hw_ptr = hw_base + pos;
+            priv->pos_buf->hw_ptr_base = hw_base;
+        }
+        priv->pos_buf->hw_ptr = new_hw_ptr;
+        priv->pos_buf->tstamp_us = (uint64_t)wall_clk_msw; /** ??? or clock_gettime? */
+        priv->pos_buf->tstamp_us = (priv->pos_buf->tstamp_us << 32) +
+            wall_clk_lsw;
+    }
+
+    return ret;
+}
+
 static int agm_pcm_hw_params(struct pcm_plugin *plugin,
                              struct snd_pcm_hw_params *params)
 {
     struct agm_pcm_priv *priv = plugin->priv;
     struct agm_media_config *media_config;
     struct agm_buffer_config *buffer_config;
+    struct agm_session_config *session_config = NULL;
     uint64_t handle;
-    int ret = 0;
+    int ret = 0, is_hostless = 0;
 
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
@@ -200,15 +349,31 @@ static int agm_pcm_hw_params(struct pcm_plugin *plugin,
 
     media_config = priv->media_config;
     buffer_config = priv->buffer_config;
+    session_config = priv->session_config;
 
     media_config->rate =  param_get_int(params, SNDRV_PCM_HW_PARAM_RATE);
     media_config->channels = param_get_int(params, SNDRV_PCM_HW_PARAM_CHANNELS);
     media_config->format = param_get_mask_val(params, SNDRV_PCM_HW_PARAM_FORMAT);
 
     buffer_config->count = param_get_int(params, SNDRV_PCM_HW_PARAM_PERIODS);
-    buffer_config->size = param_get_int(params, SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
+    priv->period_size = param_get_int(params, SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
+    /* period size in bytes */
+    buffer_config->size = agm_pcm_frames_to_bytes(media_config,
+            priv->period_size);
+    priv->total_size_frames = buffer_config->count *
+            priv->period_size; /* in frames */
+    
 
-    return 0;
+    snd_card_def_get_int(plugin->node, "hostless", &is_hostless);
+    session_config->dir = (plugin->mode & PCM_IN) ? TX : RX;
+    session_config->is_hostless = !!is_hostless;
+    AGM_LOGD("%s: mode: %d\n", __func__, plugin->mode);
+    if ((plugin->mode & PCM_MMAP) && (plugin->mode & PCM_NOIRQ))
+        session_config->data_mode = AGM_DATA_PUSH_PULL;
+
+    ret = agm_session_set_config(priv->handle, session_config,
+                                 priv->media_config, priv->buffer_config);
+    return ret;
 }
 
 static int agm_pcm_sw_params(struct pcm_plugin *plugin,
@@ -217,7 +382,7 @@ static int agm_pcm_sw_params(struct pcm_plugin *plugin,
     struct agm_pcm_priv *priv = plugin->priv;
     struct agm_session_config *session_config = NULL;
     uint64_t handle = 0;
-    int ret = 0, is_hostless = 0;
+    int ret = 0;
 
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
@@ -225,10 +390,6 @@ static int agm_pcm_sw_params(struct pcm_plugin *plugin,
 
     session_config = priv->session_config;
 
-    snd_card_def_get_int(plugin->node, "hostless", &is_hostless);
-
-    session_config->dir = (plugin->mode == 0) ? RX : TX;
-    session_config->is_hostless = !!is_hostless;
     session_config->start_threshold = (uint32_t)sparams->start_threshold;
     session_config->stop_threshold = (uint32_t)sparams->stop_threshold;
 
@@ -242,16 +403,42 @@ static int agm_pcm_sync_ptr(struct pcm_plugin *plugin,
 {
     struct agm_pcm_priv *priv = plugin->priv;
     uint64_t handle;
+    int ret = 0;
 
-    if (!priv)
+    if (!(plugin->mode & PCM_NOIRQ))
+        return -EOPNOTSUPP;
+
+    ret = agm_get_session_handle(priv, &handle);
+    if (ret)
+        return ret;
+
+    if (!priv->buf_info)
         return -EINVAL;
 
-    handle = priv->handle;
-    if (!handle)
-        return -EINVAL;
+    if (sync_ptr->flags & SNDRV_PCM_SYNC_PTR_HWSYNC) {
+        /** sync hw ptr */
+        ret = agm_pcm_plugin_update_hw_ptr(priv);
+        if (ret < 0)
+            return ret;
+    }
 
-    /* TODO : Add AGM API call */
-    return 0;
+    if (!(sync_ptr->flags & SNDRV_PCM_SYNC_PTR_APPL)) {
+        agm_pcm_plugin_apply_appl_ptr(priv, sync_ptr->c.control.appl_ptr);
+    } else {
+        sync_ptr->c.control.appl_ptr = agm_pcm_plugin_get_appl_ptr(priv);
+    }
+
+    if (!(sync_ptr->flags & SNDRV_PCM_SYNC_PTR_AVAIL_MIN)) {
+        agm_pcm_plugin_apply_avail_min(priv, sync_ptr->c.control.avail_min);
+    } else {
+        sync_ptr->c.control.avail_min = agm_pcm_plugin_get_avail_min(priv);
+    }
+
+    sync_ptr->s.status.hw_ptr = agm_pcm_plugin_get_hw_ptr(priv);
+    sync_ptr->s.status.tstamp.tv_nsec = agm_pcm_plugin_get_tstamp(priv) * 1000;
+    sync_ptr->s.status.tstamp.tv_sec = 0;
+
+    return ret;
 }
 
 static int agm_pcm_writei_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
@@ -367,6 +554,141 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
     return ret;
 }
 
+static snd_pcm_sframes_t agm_pcm_get_avail(struct pcm_plugin *plugin)
+{
+    struct agm_pcm_priv *priv = plugin->priv;
+    snd_pcm_sframes_t avail = 0;
+
+    if (plugin->mode & PCM_OUT) {
+        avail = priv->pos_buf->hw_ptr +
+            priv->total_size_frames -
+            priv->pos_buf->appl_ptr;
+
+        if (avail < 0)
+            avail += priv->pos_buf->boundary;
+        else if ((snd_pcm_uframes_t)avail >= priv->pos_buf->boundary)
+            avail -= priv->pos_buf->boundary;
+    } else if (plugin->mode & PCM_IN) {
+        avail = priv->pos_buf->hw_ptr - priv->pos_buf->appl_ptr;
+        if (avail < 0)
+            avail += priv->pos_buf->boundary;
+    }
+
+    return avail;
+}
+
+static int agm_pcm_poll(struct pcm_plugin *plugin, struct pollfd *pfd,
+        nfds_t nfds __attribute__ ((unused)), int timeout)
+{
+    struct agm_pcm_priv *priv = plugin->priv;
+    uint32_t period_size = priv->period_size;
+    snd_pcm_sframes_t avail;
+    int ret = 0;
+
+    avail = agm_pcm_get_avail(plugin);
+
+    if (avail < period_size) {
+        if (timeout == 0) //wait for 1msec
+            timeout = 1;
+        usleep(timeout * 1000);
+        ret = agm_pcm_plugin_update_hw_ptr(priv);
+        if (ret == 0)
+            avail = agm_pcm_get_avail(plugin);
+    }
+
+    if (avail >= period_size) {
+        if (plugin->mode & PCM_IN) {
+            pfd->revents = POLLIN | POLLOUT;
+            ret = POLLIN;
+        } else {
+            pfd->revents = POLLOUT;
+            ret = POLLOUT;
+        }
+    } else {
+        ret = 0; /* TIMEOUT */
+    }
+
+    return ret;
+}
+
+static void* agm_pcm_mmap(struct pcm_plugin *plugin, void *addr, size_t length, int prot,
+                               int flags, off_t offset)
+{
+    struct agm_pcm_priv *priv = plugin->priv;
+    struct agm_buf_info *buf_info = NULL;
+    struct pcm_plugin_pos_buf_info *pos = NULL;
+    uint64_t handle;
+    int flag = DATA_BUF;
+    int ret = 0;
+    unsigned int boundary;
+
+    if (offset != 0)
+        return MAP_FAILED;
+
+    ret = agm_get_session_handle(priv, &handle);
+    if (ret)
+        return MAP_FAILED;
+
+    if (!priv->buf_info) {
+        buf_info = calloc(1, sizeof(struct agm_buf_info));
+        if (!buf_info)
+            return MAP_FAILED;
+
+        if (plugin->mode & PCM_NOIRQ)
+            flag |= POS_BUF;
+
+        ret = agm_session_get_buf_info(priv->session_id, buf_info, flag);
+        if (ret) {
+            free(buf_info);
+            return MAP_FAILED;
+        }
+        priv->buf_info = buf_info;
+    }
+    if (plugin->mode & PCM_NOIRQ) {
+        if (!priv->pos_buf) {
+            pos = calloc(1, sizeof(struct pcm_plugin_pos_buf_info));
+            if (!pos)
+                return MAP_FAILED;
+
+            pos->pos_buf_addr = mmap(0, priv->buf_info->pos_buf_size,
+                    PROT_READ | PROT_WRITE, MAP_SHARED,
+                    priv->buf_info->pos_buf_fd, 0);
+
+            priv->pos_buf = pos;
+
+            boundary = priv->total_size_frames;
+            while (boundary * 2 <= 0x7fffffffUL - priv->total_size_frames)
+                boundary *= 2;
+
+            priv->pos_buf->boundary = boundary;
+            AGM_LOGE("%s: boundary: 0x%x, size_frames: 0x%x\n",
+                    __func__, boundary, priv->total_size_frames);
+        }
+    }
+
+    if (length > priv->buf_info->data_buf_size)
+        return MAP_FAILED;
+
+    return mmap(0, length,
+            PROT_READ | PROT_WRITE, MAP_SHARED,
+            priv->buf_info->data_buf_fd, 0);
+}
+
+static int agm_pcm_munmap(struct pcm_plugin *plugin, void *addr, size_t length)
+{
+    struct agm_pcm_priv *priv = plugin->priv;
+
+    if (plugin->mode & PCM_NOIRQ) {
+        if (priv->pos_buf) {
+            munmap(priv->pos_buf->pos_buf_addr,
+                    priv->buf_info->pos_buf_size);
+            free(priv->pos_buf);
+            priv->pos_buf = NULL;
+        }
+    }
+    return munmap(addr, length);
+}
+
 struct pcm_plugin_ops agm_pcm_ops = {
     .close = agm_pcm_close,
     .hw_params = agm_pcm_hw_params,
@@ -378,6 +700,9 @@ struct pcm_plugin_ops agm_pcm_ops = {
     .prepare = agm_pcm_prepare,
     .start = agm_pcm_start,
     .drop = agm_pcm_drop,
+    .mmap = agm_pcm_mmap,
+    .munmap = agm_pcm_munmap,
+    .poll = agm_pcm_poll,
 };
 
 PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)

@@ -149,6 +149,7 @@ struct graph_obj {
     struct session_obj *sess_obj;
     uint32_t spr_miid;
     struct graph_buf_info buf_info;
+    bool is_config_buf_params_done;
 };
 
 void get_stream_module_list_array(module_info_t **info, size_t *size);

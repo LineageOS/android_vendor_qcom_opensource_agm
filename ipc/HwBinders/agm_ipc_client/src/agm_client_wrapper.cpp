@@ -41,6 +41,7 @@ using android::hardware::hidl_vec;
 using vendor::qti::hardware::AGMIPC::V1_0::IAGM;
 using vendor::qti::hardware::AGMIPC::V1_0::IAGMCallback;
 using vendor::qti::hardware::AGMIPC::V1_0::implementation::AGMCallback;
+using vendor::qti::hardware::AGMIPC::V1_0::MmapBufInfo;
 using android::hardware::defaultPassthroughServiceImplementation;
 using android::hardware::configureRpcThreadpool;
 using android::hardware::joinRpcThreadpool;
@@ -631,3 +632,33 @@ int agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp)
     }
     return ret;
 }
+
+int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info, uint32_t flag)
+{
+    ALOGV("%s : session_id = %d\n", __func__, session_id);
+    int ret = -EINVAL;
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+        const native_handle *datahandle = nullptr;
+        const native_handle *poshandle = nullptr;
+
+        agm_client->ipc_agm_session_get_buf_info(session_id, flag,
+                [&](int32_t _ret, const MmapBufInfo& buf_info_ret_hidl)
+                { ret = _ret;
+                if (!ret) {
+                if (flag & DATA_BUF) {
+                datahandle = buf_info_ret_hidl.dataSharedMemory.handle();
+                buf_info->data_buf_fd = datahandle->data[0];
+                buf_info->data_buf_size = buf_info_ret_hidl.data_size;
+                }
+                if (flag & POS_BUF) {
+                poshandle = buf_info_ret_hidl.posSharedMemory.handle();
+                buf_info->pos_buf_fd = poshandle->data[0];
+                buf_info->pos_buf_size = buf_info_ret_hidl.pos_size;
+                }
+                }
+                });
+    }
+    return ret;
+}
+

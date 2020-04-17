@@ -222,6 +222,8 @@ struct AGM : public IAGM {
                                 ipc_agm_get_session_time_cb _hidl_cb) override;
     Return<void> ipc_agm_get_buffer_timestamp(uint32_t session_id,
                                 ipc_agm_get_buffer_timestamp_cb _hidl_cb) override;
+    Return<void> ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t flag,
+                                ipc_agm_session_get_buf_info_cb _hidl_cb) override;
     int is_agm_initialized() { return agm_initialized;}
 
 private:

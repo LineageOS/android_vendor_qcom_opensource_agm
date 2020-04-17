@@ -2018,3 +2018,23 @@ done:
         pthread_mutex_unlock(&sess_obj->lock);
         return ret;
 }
+
+int session_obj_get_sess_buf_info(struct session_obj *sess_obj, struct agm_buf_info *buf_info, uint32_t flag)
+{
+	int ret = 0;
+
+	pthread_mutex_lock(&sess_obj->lock);
+	if (sess_obj->state == SESSION_CLOSED) {
+		AGM_LOGE("%s Cannot get timestamp in state:%d\n", __func__, sess_obj->state);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	ret = graph_get_buf_info(sess_obj->graph, buf_info, flag);
+	if (ret)
+		AGM_LOGE("%s graph_get_buf_info failed %d\n", __func__, ret);
+
+done:
+	pthread_mutex_unlock(&sess_obj->lock);
+	return ret;
+}

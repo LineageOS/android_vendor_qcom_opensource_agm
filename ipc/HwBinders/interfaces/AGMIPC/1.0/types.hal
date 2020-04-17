@@ -325,3 +325,11 @@ struct AgmCalConfig {
     uint32_t num_ckvs;         /**< num  of tag key values*/
     vec<AgmKeyValue> kv;
 };
+
+/** shared mmap buf info */
+struct MmapBufInfo {
+    memory dataSharedMemory;
+    int32_t data_size;
+    memory posSharedMemory;
+    int32_t pos_size;
+};

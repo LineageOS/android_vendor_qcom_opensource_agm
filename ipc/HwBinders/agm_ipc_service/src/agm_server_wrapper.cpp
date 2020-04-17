@@ -748,6 +748,43 @@ Return<void> AGM::ipc_agm_get_buffer_timestamp(uint32_t session_id,
     _hidl_cb(ret, ts);
     return Void();
 }
+Return<void> AGM::ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t flag,
+                                             ipc_agm_session_get_buf_info_cb _hidl_cb) {
+    struct agm_buf_info buf_info;
+    int32_t ret = -EINVAL;
+    MmapBufInfo info;
+    native_handle_t *dataHidlHandle = nullptr;
+    native_handle_t *posHidlHandle = nullptr;
+
+    ALOGV("%s : session_id = %d\n", __func__, session_id);
+
+    ret = agm_session_get_buf_info(session_id, &buf_info, flag);
+    if (!ret) {
+        if (flag & DATA_BUF) {
+            dataHidlHandle = native_handle_create(1, 0);
+            dataHidlHandle->data[0] = buf_info.data_buf_fd;
+            info.dataSharedMemory = hidl_memory("casa_data_buf", dataHidlHandle,
+                    buf_info.data_buf_size);
+            info.data_size = buf_info.data_buf_size;
+        }
+        if (flag & POS_BUF) {
+            posHidlHandle = native_handle_create(1, 0);
+            posHidlHandle->data[0] = buf_info.pos_buf_fd;
+            info.posSharedMemory = hidl_memory("casa_pos_buf", posHidlHandle,
+                    buf_info.pos_buf_size);
+            info.pos_size = buf_info.pos_buf_size;
+        }
+    }
+
+    _hidl_cb(ret, info);
+    if (dataHidlHandle != nullptr)
+        native_handle_delete(dataHidlHandle);
+
+    if (posHidlHandle != nullptr)
+        native_handle_delete(posHidlHandle);
+
+    return Void();
+}
 }  // namespace implementation
 }  // namespace V1_0
 }  // namespace AGMIPC

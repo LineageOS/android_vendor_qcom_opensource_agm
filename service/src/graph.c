@@ -129,6 +129,7 @@ done:
     return ret;
 }
 
+#define PULL_PUSH_SHMEM_ENDPOINT SHMEM_ENDPOINT /** Temp: till pull mode keys are defined */
 int configure_buffer_params(struct graph_obj *gph_obj,
                             struct session_obj *sess_obj)
 {
@@ -138,15 +139,31 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     enum gsl_cmd_id cmd_id;
     enum agm_data_mode mode = sess_obj->stream_config.data_mode;
 
+
+    if (gph_obj->is_config_buf_params_done) {
+        AGM_LOGD("configure buf params already done");
+        return 0;
+    }
+
     AGM_LOGD("%s sess buf_sz %d num_bufs %d\n", sess_obj->stream_config.dir == RX?
                  "Playback":"Capture", sess_obj->buffer_config.size,
                   sess_obj->buffer_config.count);
 
-    buf_config.buff_size = (uint32_t)sess_obj->buffer_config.size;
-    buf_config.num_buffs = sess_obj->buffer_config.count;
+    if (mode == AGM_DATA_PUSH_PULL) {
+        buf_config.buff_size = sess_obj->buffer_config.count *
+            sess_obj->buffer_config.size;
+        buf_config.num_buffs = 1;
+    } else {
+        buf_config.buff_size = (uint32_t)sess_obj->buffer_config.size;
+        buf_config.num_buffs = sess_obj->buffer_config.count;
+    }
     buf_config.start_threshold = sess_obj->stream_config.start_threshold;
     buf_config.stop_threshold = sess_obj->stream_config.stop_threshold;
-    buf_config.shmem_ep_tag = SHMEM_ENDPOINT;
+
+    if (mode == AGM_DATA_PUSH_PULL)
+        buf_config.shmem_ep_tag = PULL_PUSH_SHMEM_ENDPOINT;
+    else
+        buf_config.shmem_ep_tag = SHMEM_ENDPOINT;
     /**
      *TODO:expose a flag to chose between different data passing modes
      *BLOCKING/NON-BLOCKING/SHARED_MEM.
@@ -155,6 +172,8 @@ int configure_buffer_params(struct graph_obj *gph_obj,
         buf_config.attributes = GSL_DATA_MODE_BLOCKING;
     else if (mode == AGM_DATA_NON_BLOCKING)
         buf_config.attributes = GSL_DATA_MODE_NON_BLOCKING;
+    else if (mode == AGM_DATA_PUSH_PULL)
+        buf_config.attributes = GSL_DATA_MODE_PUSH_PULL;
     else {
         AGM_LOGE("Unsupported buffer mode : %d, Default to Blocking\n", mode);
         buf_config.attributes = GSL_DATA_MODE_BLOCKING;
@@ -175,6 +194,9 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     } else {
        gph_obj->buf_config  = buf_config;
     }
+    if (ret == 0)
+        gph_obj->is_config_buf_params_done = true;
+
     AGM_LOGD("exit");
     return ret;
 }
@@ -1494,4 +1516,99 @@ int graph_get_buffer_timestamp(struct graph_obj *graph_obj, uint64_t *tstamp)
 done:
     pthread_mutex_unlock(&graph_obj->lock);
     return ret;
+}
+
+/* TODO expose this header file from osal */
+struct casa_shmem_handle {
+	/*ion fd created on ion memory allocation*/
+	int32_t ion_mem_fd;
+};
+
+static int graph_fill_buf_info(struct graph_obj *gph_obj,
+	struct agm_buf_info *buf_info, enum gsl_cmd_id cmd_id, enum buf_flag flag)
+{
+	struct gsl_cmd_get_shmem_buf_info *shmem_buf_info = NULL;
+	struct casa_shmem_handle *shmem_handle;
+	int ret = -1;
+
+	shmem_buf_info = calloc(1, sizeof(struct gsl_cmd_get_shmem_buf_info));
+	if (!shmem_buf_info) {
+		AGM_LOGE("%s: shmem_buf_info allocation failed\n", __func__);
+		return -ENOMEM;
+	}
+
+	shmem_buf_info->num_buffs = 1;
+	shmem_buf_info->buffs = calloc(shmem_buf_info->num_buffs, sizeof(struct gsl_shmem_buf));
+	if (!shmem_buf_info->buffs) {
+		AGM_LOGE("%s: buf allocation failed\n", __func__);
+		ret = -ENOMEM;
+		goto free_shbuf_info;
+	}
+
+	ret = gsl_ioctl(gph_obj->graph_handle, cmd_id, shmem_buf_info,
+		sizeof(struct gsl_cmd_get_shmem_buf_info) + sizeof(struct gsl_shmem_buf));
+	if (ret != 0) {
+		AGM_LOGE("Buffer info get failed error %d", ret);
+		goto free_buffs;
+	}
+	AGM_LOGD("%s - metadata %lx\n", __func__, shmem_buf_info->buffs[0].metadata);
+	AGM_LOGD("shmem_buf_info size %d - addr %lx\n", shmem_buf_info->size, shmem_buf_info->buffs[0].addr);
+
+	shmem_handle = (struct casa_shmem_handle *)shmem_buf_info->buffs[0].metadata;
+	if (shmem_handle) {
+		if (flag == DATA_BUF) {
+			buf_info->data_buf_fd = shmem_handle->ion_mem_fd;
+			buf_info->data_buf_size = shmem_buf_info->size;
+		}
+		else {
+			buf_info->pos_buf_fd = shmem_handle->ion_mem_fd;
+			buf_info->pos_buf_size = shmem_buf_info->size;
+		}
+	}
+
+free_buffs:
+	free(shmem_buf_info->buffs);
+free_shbuf_info:
+	free(shmem_buf_info);
+	return ret;
+}
+
+int graph_get_buf_info(struct graph_obj *graph_obj, struct agm_buf_info *buf_info, uint32_t flag)
+{
+	struct session_obj *sess_obj = NULL;
+	enum gsl_cmd_id cmd_id;
+	int ret = -EINVAL;
+
+	sess_obj = graph_obj->sess_obj;
+
+	if (sess_obj == NULL) {
+		AGM_LOGE("invalid sess object");
+		return -EINVAL;
+	}
+    if ((sess_obj->buffer_config.count == 0) ||
+        (sess_obj->buffer_config.size == 0)) {
+        AGM_LOGE("invalid buffer count or size");
+        return -EINVAL;
+    }
+
+    configure_buffer_params(graph_obj, sess_obj);
+
+	if (flag & DATA_BUF) {
+		if (sess_obj->stream_config.dir == RX)
+			cmd_id = GSL_CMD_GET_WRITE_BUFF_INFO;
+		else
+			cmd_id = GSL_CMD_GET_READ_BUFF_INFO;
+
+		ret = graph_fill_buf_info(graph_obj, buf_info, cmd_id, DATA_BUF);
+	}
+
+	if (flag & POS_BUF) {
+		if (sess_obj->stream_config.dir == RX)
+			cmd_id = GSL_CMD_GET_WRITE_POS_BUFF_INFO;
+		else
+			cmd_id = GSL_CMD_GET_READ_POS_BUFF_INFO;
+
+		ret = graph_fill_buf_info(graph_obj, buf_info, cmd_id, POS_BUF);
+	}
+	return ret;
 }

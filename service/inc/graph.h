@@ -157,7 +157,7 @@ int graph_set_config(struct graph_obj *gph_obj, void *payload,
 int graph_prepare(struct graph_obj *gph_obj);
 
 /**
- *\brief Issue start command to modules in the graph. 
+ *\brief Issue start command to modules in the graph.
  *\param [in] graph_obj: associated graph obj
  *
  * return CASA_EOK on success or error code otherwise.
@@ -231,7 +231,7 @@ int graph_add(struct graph_obj *gph_obj,
  *        Expectation here is that only the device leg of the graph
  *        gets updated/replaced. Session related gkv remains the same.
  *\param [in] dev_obj: Pass the device obj
- *        e.g. in case of device switch 
+ *        e.g. in case of device switch
  *
  * return CASA_EOK on success or error code otherwise.
  */
@@ -322,4 +322,16 @@ int graph_get_session_time(struct graph_obj *gph_obj, uint64_t *timestamp);
  * return CASA_EOK on success or error code otherwise.
  */
 int graph_get_buffer_timestamp(struct graph_obj *gph_obj, uint64_t *timestamp);
+
+/**
+ *\brief Get buffer shared memory info
+ *\param [in] graph_obj: associated graph obj
+ *\param [out] buf_info: agm_buf_info containing dma_buf info
+ *\param [in] flag: either DATA_BUF or POS_BUF or both
+ *
+ * return CASA_EOK on success or error code otherwise.
+ */
+int graph_get_buf_info(struct graph_obj *gph_obj,
+	struct agm_buf_info *buf_info, uint32_t flag);
+
 #endif /*GPH_OBJ_H*/

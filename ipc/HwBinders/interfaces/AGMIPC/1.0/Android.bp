@@ -38,6 +38,7 @@ hidl_interface {
         "AifInfo",
         "Direction",
         "EventType",
+        "MmapBufInfo",
     ],
     gen_java: false,
 }

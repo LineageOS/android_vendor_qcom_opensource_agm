@@ -680,3 +680,24 @@ int agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp)
 
     return session_obj_buffer_timestamp(obj, timestamp);
 }
+
+int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info, uint32_t flag)
+{
+	struct session_obj *obj = NULL;
+	int ret = 0;
+
+	ret = session_obj_get(session_id, &obj);
+	if (ret) {
+		AGM_LOGE("%s: Error:%d retrieving session obj with session id=%d\n",
+			__func__, ret, session_id);
+		goto done;
+	}
+
+	ret = session_obj_get_sess_buf_info(obj, buf_info, flag);
+	if (ret)
+		AGM_LOGE("%s: Error:%d getting buf_info for session id=%d, flag = %d\n",
+			__func__, ret, session_id, flag);
+
+done:
+	return ret;
+}

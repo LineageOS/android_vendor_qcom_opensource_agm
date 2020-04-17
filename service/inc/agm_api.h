@@ -109,6 +109,7 @@ enum agm_data_mode
     AGM_DATA_INVALID,
     AGM_DATA_BLOCKING,      /**< Blocking mode */
     AGM_DATA_NON_BLOCKING,  /**< Non blocking mode */
+    AGM_DATA_PUSH_PULL,     /**< Push Pull mode */
     AGM_DATA_MODE_MAX,
 };
 
@@ -212,6 +213,25 @@ union agm_session_codec
     struct agm_session_ape_dec ape_dec;        /**< APE decoder config */
     struct agm_session_wma_dec wma_dec;        /**< WMA decoder config */
     struct agm_session_wmapro_dec wmapro_dec;  /**< WMAPro decoder config */
+};
+
+/**
+ * Flag to determine data buf or postion buf.
+ * One bit is used for each type.
+ */
+enum buf_flag {
+    DATA_BUF = 0x1,
+    POS_BUF = 0x2,
+};
+
+/**
+ * Shared memory buffer info 211
+ */
+struct agm_buf_info {
+    int32_t data_buf_fd;
+    int32_t data_buf_size;
+    int32_t pos_buf_fd;
+    int32_t pos_buf_size;
 };
 
 /**
@@ -811,6 +831,19 @@ int agm_get_session_time(uint64_t handle, uint64_t *timestamp);
   * \return 0 on success, error code otherwise
   */
 int agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp);
+
+/**
+ * \brief Get shared memory buf_info of a given session
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[out] buf_info - agm_buf_info structure with dma_buf_fd
+ * \param[in] buf_info - flag to determine data buf/pos buf
+ *
+ * \return 0 on success, error code on failure.
+ * If the session is not opened,
+ * api will return failure.
+ */
+int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info, uint32_t flag);
 
 #ifdef __cplusplus
 }  /* extern "C" */
