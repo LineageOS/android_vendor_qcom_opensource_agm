@@ -167,45 +167,9 @@ done:
     return ret;
 }
 
-static void *device_prepare_thread(void *obj)
-{
-    int ret = 0;
-    struct device_obj *dev_obj = (struct device_obj*)obj;
-
-    if (dev_obj == NULL) {
-       AGM_LOGE("%s: Invalid device object\n", __func__);
-       return NULL;
-    }
-
-    pthread_mutex_lock(&dev_obj->lock);
-    if (dev_obj->refcnt.prepare) {
-        dev_obj->refcnt.prepare++;
-        AGM_LOGE("%s: device prepared already \n", __func__);
-        pthread_mutex_unlock(&dev_obj->lock);
-        return NULL;
-    }
-
-    ret = pcm_prepare(dev_obj->pcm);
-    if (ret) {
-        AGM_LOGE("%s: PCM device %u prepare failed, ret = %d\n",
-              __func__, dev_obj->pcm_id, ret);
-        goto done;
-    }
-
-    dev_obj->state = DEV_PREPARED;
-    dev_obj->refcnt.prepare++;
-
-done:
-    dev_obj->prepare_thread_created = FALSE;
-    pthread_mutex_unlock(&dev_obj->lock);
-    return NULL;
-}
-
 int device_prepare(struct device_obj *dev_obj)
 {
     int ret = 0;
-    pthread_attr_t tattr;
-    struct sched_param param;
 
     if (dev_obj == NULL) {
         AGM_LOGE("%s: Invalid device object\n", __func__);
@@ -220,23 +184,17 @@ int device_prepare(struct device_obj *dev_obj)
         pthread_mutex_unlock(&dev_obj->lock);
         return ret;
     }
-    pthread_attr_init (&tattr);
-    pthread_attr_getschedparam (&tattr, &param);
-    param.sched_priority = SCHED_FIFO;
-    pthread_attr_setschedparam (&tattr, &param);
-
-    ret = pthread_create(&dev_obj->device_prepare_thread,
-           (const pthread_attr_t *) &tattr, device_prepare_thread, dev_obj);
+    ret = pcm_prepare(dev_obj->pcm);
     if (ret) {
-        AGM_LOGE("%s: PCM device %u prepare thread creation failed\n",
-              __func__, dev_obj->pcm_id);
-        dev_obj->prepare_thread_created = FALSE;
-        pthread_attr_destroy(&tattr);
-        pthread_mutex_unlock(&dev_obj->lock);
-        return ret;
+        AGM_LOGE("%s: PCM device %u prepare failed, ret = %d\n",
+              __func__, dev_obj->pcm_id, ret);
+        goto done;
     }
-    dev_obj->prepare_thread_created = TRUE;
-    pthread_attr_destroy(&tattr);
+
+    dev_obj->state = DEV_PREPARED;
+    dev_obj->refcnt.prepare++;
+
+done:
     pthread_mutex_unlock(&dev_obj->lock);
     return ret;
 }
@@ -251,21 +209,6 @@ int device_start(struct device_obj *dev_obj)
     }
 
     pthread_mutex_lock(&dev_obj->lock);
-    if (dev_obj->state < DEV_PREPARED) {
-        pthread_mutex_unlock(&dev_obj->lock);
-        ret = pthread_join(dev_obj->device_prepare_thread, (void **) NULL);
-        if (ret < 0) {
-            AGM_LOGE("%s: Unable to join PCM device %u prepare thread\n",
-                  __func__, dev_obj->pcm_id);
-            return ret;
-        }
-        pthread_mutex_lock(&dev_obj->lock);
-        dev_obj->prepare_thread_created = FALSE;
-    }
-
-    AGM_LOGD("%s: PCM device %u prepare thread completed\n",
-                                 __func__, dev_obj->pcm_id);
-
     if (dev_obj->state < DEV_PREPARED) {
             AGM_LOGE("%s: PCM device %u not yet prepared, exiting\n",
                   __func__, dev_obj->pcm_id);
@@ -496,7 +439,6 @@ int parse_snd_card()
         }
 
         pthread_mutex_init(&dev_obj->lock, (const pthread_mutexattr_t *) NULL);
-        pthread_cond_init(&dev_obj->device_prepared, NULL);
         device_list[count] = dev_obj;
         count++;
         dev_obj = NULL;

@@ -118,9 +118,6 @@ struct device_obj {
     uint32_t pcm_flags;
     struct agm_media_config media_config;
     struct agm_meta_data_gsl metadata;
-    pthread_t device_prepare_thread;
-    pthread_cond_t device_prepared;
-    bool prepare_thread_created;
     struct refcount refcnt;
     int state;
     void *params;
