@@ -685,10 +685,15 @@ int configure_hw_ep(struct module_info *mod,
     int ret = 0;
     struct device_obj *dev_obj = mod->dev_obj;
 
-    ret = configure_hw_ep_media_config(mod, graph_obj);
-    if (ret) {
-        AGM_LOGE("hw_ep_media_config failed %d", ret);
-        return ret;
+    if(dev_obj->hw_ep_info.intf == PCM_RT_PROXY) {
+        AGM_LOGD("no ep media config for %d\n",  dev_obj->hw_ep_info.intf);
+    }
+    else {
+        ret = configure_hw_ep_media_config(mod, graph_obj);
+        if (ret) {
+            AGM_LOGE("hw_ep_media_config failed %d", ret);
+            return ret;
+        }
     }
     switch (dev_obj->hw_ep_info.intf) {
     case CODEC_DMA:
@@ -708,6 +713,9 @@ int configure_hw_ep(struct module_info *mod,
          break;
     case DISPLAY_PORT:
     case USB_AUDIO:
+        AGM_LOGD("no ep configuration for %d\n",  dev_obj->hw_ep_info.intf);
+        break;
+    case PCM_RT_PROXY:
         AGM_LOGD("no ep configuration for %d\n",  dev_obj->hw_ep_info.intf);
         break;
     default:

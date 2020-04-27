@@ -48,6 +48,7 @@
 #define  SLIMBUS                    0x4
 #define  DISPLAY_PORT               0x5
 #define  USB_AUDIO                  0x6
+#define  PCM_RT_PROXY               0x7
 
 #define  AUDIO_OUTPUT               0x1 /**< playback usecases*/
 #define  AUDIO_INPUT                0x2 /**< capture/voice activation usecases*/
@@ -83,9 +84,15 @@ struct hw_ep_slimbus_config {
     uint32_t dev_id;
 };
 
+struct hw_ep_pcm_rt_proxy_config {
+    /* RT proxy device id */
+    uint32_t dev_id;
+};
+
 union hw_ep_config {
     struct hw_ep_cdc_dma_i2s_tdm_config cdc_dma_i2s_tdm_config;
     struct hw_ep_slimbus_config slim_config;
+    struct hw_ep_pcm_rt_proxy_config pcm_rt_proxy_config;
 };
 
 typedef struct hw_ep_info

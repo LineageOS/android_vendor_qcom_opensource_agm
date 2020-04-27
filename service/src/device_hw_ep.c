@@ -129,6 +129,8 @@ static int populate_hw_ep_intf(hw_ep_info_t *hw_ep_info, char *intf)
         hw_ep_info->intf = TDM;
     else if (!strcmp(intf, "AUXPCM"))
         hw_ep_info->intf = AUXPCM;
+    else if (!strcmp(intf, "PCM_RT_PROXY"))
+        hw_ep_info->intf = PCM_RT_PROXY;
     else {
         AGM_LOGE("%s: No matching intf found\n",__func__);
         return -EINVAL;
@@ -147,6 +149,26 @@ static int populate_hw_ep_direction(hw_ep_info_t *hw_ep_info, char *dir)
         return -EINVAL;
     }
     return 0;
+}
+
+static int populate_pcm_rt_proxy_ep_info(hw_ep_info_t *hw_ep_info, char *value)
+{
+    char arg[DEV_ARG_SIZE] = {0};
+    struct hw_ep_pcm_rt_proxy_config *pcm_rt_proxy_config;
+    int ret = 0;
+
+    sscanf(value, "%20[^-]-%60s", arg, value);
+    ret = populate_hw_ep_direction(hw_ep_info, arg);
+    if (ret) {
+        AGM_LOGE("%s: failed to parse direction\n", __func__);
+        return ret;
+    }
+
+    pcm_rt_proxy_config = &hw_ep_info->ep_config.pcm_rt_proxy_config;
+    sscanf(value, "%20[^-]-%60s", arg, value);
+    pcm_rt_proxy_config->dev_id = atoi(arg);
+
+    return ret;
 }
 
 static int populate_slim_dp_usb_ep_info(hw_ep_info_t *hw_ep_info, char *value)
@@ -243,6 +265,8 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj)
     case DISPLAY_PORT:
     case USB_AUDIO:
         return populate_slim_dp_usb_ep_info(&dev_obj->hw_ep_info, value);
+    case PCM_RT_PROXY:
+        return populate_pcm_rt_proxy_ep_info(&dev_obj->hw_ep_info, value);
     default:
         AGM_LOGE("%s: Unsupported interface name %s\n", __func__, dev_obj->name);
         return -EINVAL;
