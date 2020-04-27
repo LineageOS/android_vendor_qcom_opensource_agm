@@ -621,7 +621,7 @@ int graph_prepare(struct graph_obj *graph_obj)
             } else {
                 ret = mod->configure(mod, graph_obj);
                 if (ret != 0) {
-                    AGM_LOGE("Module configuration for mod->miid, mod->mid, mod->tag failed:%d \n",
+                    AGM_LOGE("Module configuration for miid %x, mid %x, tag %x, failed:%d\n",
                              mod->miid, mod->mid, mod->tag, ret);
                     goto done;
                 }
@@ -1014,6 +1014,7 @@ int graph_add(struct graph_obj *graph_obj,
         bool mod_present = false;
         size_t arraysize;
         module_info_t *hw_ep_module = NULL;
+
         get_hw_ep_module_list_array(&hw_ep_module, &arraysize);
         if (dev_obj->hw_ep_info.dir == AUDIO_OUTPUT)
             mod = &hw_ep_module[0];
@@ -1090,6 +1091,17 @@ int graph_add(struct graph_obj *graph_obj,
             /* Need to configure SPR module again for the new device */
             if (mod->is_configured && !(mod->tag == TAG_STREAM_SPR))
                 continue;
+
+            if ((mod->dev_obj != NULL) &&
+                ((mod->tag == DEVICE_HW_ENDPOINT_RX) ||
+                (mod->tag == DEVICE_HW_ENDPOINT_TX)) &&
+                (mod->dev_obj->refcnt.start > 0)) {
+                AGM_LOGE("device obj:%s in started state, start ref_cnt:%d\n",
+                      mod->dev_obj->name, mod->dev_obj->refcnt.start);
+                mod->is_configured = true;
+                continue;
+            }
+
             if (mod->configure) {
                 ret = mod->configure(mod, graph_obj);
                 if (ret != 0)
