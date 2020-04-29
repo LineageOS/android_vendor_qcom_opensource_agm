@@ -701,3 +701,11 @@ int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
 done:
 	return ret;
 }
+
+int agm_register_service_crash_callback(agm_service_crash_cb cb __unused,
+                                        uint64_t cookie __unused)
+{
+
+    AGM_LOGE("client directly communicating with agm need not call this api");
+    return -ENOSYS;
+}

@@ -21,7 +21,7 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := \
         libtinyalsa \
         libsndcardparser \
-        libclient_ipc \
+        libagmclient \
         libutils \
         libcutils \
         liblog
@@ -56,7 +56,7 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := \
         libtinyalsa \
         libsndcardparser \
-        libclient_ipc \
+        libagmclient \
         libcutils \
         libutils \
         liblog
@@ -96,7 +96,7 @@ LOCAL_SHARED_LIBRARIES := \
         libtinyalsa \
         libtinycompress \
         libsndcardparser \
-        libclient_ipc \
+        libagmclient \
         libutils \
         libcutils \
         liblog

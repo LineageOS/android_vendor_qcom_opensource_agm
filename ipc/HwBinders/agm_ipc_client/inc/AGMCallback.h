@@ -50,9 +50,27 @@ using AgmEventCbParams = ::vendor::qti::hardware::AGMIPC::V1_0::AgmEventCbParams
 class server_death_notifier : public android::hardware::hidl_death_recipient
 {
     public:
-        server_death_notifier(){}
+        server_death_notifier()
+        {
+             cb_ = NULL;
+             cookie_ = 0;
+        };
+        server_death_notifier(agm_service_crash_cb cb, uint64_t cookie = 0)
+        {
+             cb_ = cb;
+             cookie_ = cookie;
+        };
         void serviceDied(uint64_t cookie,
-         const android::wp<::android::hidl::base::V1_0::IBase>& who) override ;
+         const android::wp<::android::hidl::base::V1_0::IBase>& who) override;
+        void register_crash_cb(agm_service_crash_cb cb, uint64_t cookie)
+        {
+             cb_ = cb;
+             cookie_ = cookie;
+        };
+
+    private:
+        agm_service_crash_cb cb_;
+        uint64_t cookie_;
 };
 
 class client_death_notifier : public android::hardware::hidl_death_recipient

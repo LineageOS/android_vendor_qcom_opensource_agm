@@ -408,6 +408,13 @@ typedef void (*agm_event_cb)(uint32_t session_id,
               struct agm_event_cb_params *event_params, void *client_data);
 
 /**
+ * \brief Callback function signature for crash notification to clients
+ *
+ * \param[in] cookie - cookie set during callback registration
+ */
+typedef void (*agm_service_crash_cb)(uint64_t cookie);
+
+/**
  *  \brief Initialize agm.
  *
  *  \return 0 on success, error code on failure.
@@ -844,6 +851,26 @@ int agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp);
  * api will return failure.
  */
 int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info, uint32_t flag);
+
+/**
+  * \brief This api is a no-op if agm runs in clients context.
+  *        In scenarios where AGM runs in its own process context
+  *        and clients talk to AGM over IPC, this api could be used
+  *        by clients to register a callback with the agm client wrapper
+  *        implentation, which is then responsible to trigger this callback
+  *        when the agm service crashes. Once the callback is invoked clients
+  *        then can decide on the approach they want to take with respect to
+  *        clean up of the agm sesisons
+
+  * \param[in] agm_service_crash_cb - Callback passed by clients
+  * \param[in] cookie - Cookie that client expect to be passed during the invocation
+  *                     of the callback.
+  *
+  * \return 0 on success, error code otherwise
+  */
+
+int agm_register_service_crash_callback(agm_service_crash_cb cb,
+                                         uint64_t cookie);
 
 #ifdef __cplusplus
 }  /* extern "C" */

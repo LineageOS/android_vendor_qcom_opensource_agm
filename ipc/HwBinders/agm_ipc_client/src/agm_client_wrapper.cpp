@@ -48,6 +48,7 @@ using android::hardware::joinRpcThreadpool;
 using android::sp;
 
 bool agm_server_died = false;
+static pthread_mutex_t agmclient_init_lock = PTHREAD_MUTEX_INITIALIZER;
 android::sp<IAGM> agm_client = NULL;
 sp<server_death_notifier> Server_death_notifier = NULL;
 
@@ -56,25 +57,54 @@ void server_death_notifier::serviceDied(uint64_t cookie,
 {
     ALOGE("%s : AGM Service died ,cookie : %lu",__func__,cookie);
     agm_server_died = true;
+    if (cb_ != NULL)
+        cb_(cookie_);
     // We exit the client process here, so that it also can restart
     // leading to a fresh start on both the sides.
-    _exit(1);
 }
 
 android::sp<IAGM> get_agm_server() {
+    pthread_mutex_lock(&agmclient_init_lock);
     if (agm_client == NULL) {
         agm_client = IAGM::getService();
         if (agm_client == nullptr) {
             ALOGE("AGM service not initialized\n");
+            goto done;
         }
         if(Server_death_notifier == NULL)
         {
             Server_death_notifier = new server_death_notifier();
             agm_client->linkToDeath(Server_death_notifier,0);
-            ALOGE("%s : server linked to death \n", __func__);
+            ALOGI("%s : server linked to death \n", __func__);
         }
     }
+done:
+    pthread_mutex_unlock(&agmclient_init_lock);
     return agm_client ;
+}
+
+int agm_register_service_crash_callback(agm_service_crash_cb cb, uint64_t cookie)
+{
+    int ret = 0;
+    pthread_mutex_lock(&agmclient_init_lock);
+    if (agm_client == NULL) {
+        agm_client = IAGM::getService();
+        if (agm_client == nullptr) {
+            ALOGE("AGM service not initialized\n");
+            ret = -ESRCH;
+            goto done;
+        }
+    }
+    if (Server_death_notifier == NULL) {
+        Server_death_notifier = new server_death_notifier(cb, cookie);
+        agm_client->linkToDeath(Server_death_notifier,0);
+        ALOGI("%s : server linked to death \n", __func__);
+    } else {
+        Server_death_notifier->register_crash_cb(cb, cookie);
+    }
+done:
+    pthread_mutex_unlock(&agmclient_init_lock);
+    return 0;
 }
 
 int agm_aif_set_media_config(uint32_t audio_intf,
