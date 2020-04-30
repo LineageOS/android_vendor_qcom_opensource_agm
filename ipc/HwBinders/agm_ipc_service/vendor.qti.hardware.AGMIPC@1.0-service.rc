@@ -34,4 +34,3 @@ service vendor.agm-1-0 /vendor/bin/hw/vendor.qti.hardware.AGMIPC@1.0-service
   capabilities BLOCK_SUSPEND SYS_NICE
   ioprio rt 4
   task_profiles ProcessCapacityHigh HighPerformance
-  writepid /dev/cpuset/foreground/tasks /dev/stune/foreground/tasks
