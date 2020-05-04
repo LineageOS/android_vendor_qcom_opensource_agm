@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -763,14 +763,14 @@ Return<void> AGM::ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t fla
         if (flag & DATA_BUF) {
             dataHidlHandle = native_handle_create(1, 0);
             dataHidlHandle->data[0] = buf_info.data_buf_fd;
-            info.dataSharedMemory = hidl_memory("casa_data_buf", hidl_handle(dataHidlHandle),
+            info.dataSharedMemory = hidl_memory("ar_data_buf", hidl_handle(dataHidlHandle),
                     buf_info.data_buf_size);
             info.data_size = buf_info.data_buf_size;
         }
         if (flag & POS_BUF) {
             posHidlHandle = native_handle_create(1, 0);
             posHidlHandle->data[0] = buf_info.pos_buf_fd;
-            info.posSharedMemory = hidl_memory("casa_pos_buf", posHidlHandle,
+            info.posSharedMemory = hidl_memory("ar_pos_buf", posHidlHandle,
                     buf_info.pos_buf_size);
             info.pos_size = buf_info.pos_buf_size;
         }

@@ -15,7 +15,7 @@ lib_LTLIBRARIES = libagmserverwrapper.la
 libagmserverwrapper_la_SOURCES = ./src/agm-dbus-utils.cpp ./src/agm_server_wrapper_dbus.cpp
 libagmserverwrapper_la_CPPFLAGS := $(AM_CPPFLAGS) $(DBUS_CFLAGS)
 libagmserverwrapper_la_LIBADD = -lagm
-libagmserverwrapper_la_LDFLAGS = -ldl -shared -avoid-version -lpthread -lcasa_osal $(DBUS_LIBS)
+libagmserverwrapper_la_LDFLAGS = -ldl -shared -avoid-version -lpthread -lar_osal $(DBUS_LIBS)
 
 bin_PROGRAMS := agm_server
 

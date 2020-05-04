@@ -14,7 +14,7 @@ LOCAL_MODULE := libagmmixer
 LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_HEADER_LIBRARIES := libcasa-acdbdata
+LOCAL_HEADER_LIBRARIES := libar-acdbdata
 
 LOCAL_SHARED_LIBRARIES := \
         libtinyalsa
@@ -33,7 +33,7 @@ LOCAL_MODULE := agmplay
 LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_HEADER_LIBRARIES := libcasa-acdbdata
+LOCAL_HEADER_LIBRARIES := libar-acdbdata
 LOCAL_SHARED_LIBRARIES := \
         libtinyalsa\
         libagmmixer
@@ -52,7 +52,7 @@ LOCAL_MODULE := agmcap
 LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_HEADER_LIBRARIES := libcasa-acdbdata
+LOCAL_HEADER_LIBRARIES := libar-acdbdata
 LOCAL_SHARED_LIBRARIES := \
         libtinyalsa\
         libagmmixer
@@ -72,7 +72,7 @@ LOCAL_ADDITIONAL_DEPENDENCIES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
 LOCAL_SRC_FILES := agmcompressplay.c
 
-LOCAL_HEADER_LIBRARIES := libcasa-acdbdata
+LOCAL_HEADER_LIBRARIES := libar-acdbdata
 LOCAL_MODULE := agmcompressplay
 LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional

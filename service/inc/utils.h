@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -28,7 +28,7 @@
 **/
 
 #ifndef __UTILS_H__
-#include "casa_osal_error.h"
+#include "ar_osal_error.h"
 
 #ifdef FEATURE_IPQ_OPENWRT
 #include <audio_utils/log.h>
@@ -42,8 +42,8 @@
 #define AGM_LOGV(arg,...) ALOGV("%s: %d "  arg, __func__, __LINE__, ##__VA_ARGS__)
 
 /*convert osal error codes to lnx error codes*/
-int cass_err_get_lnx_err_code(uint32_t error);
+int ar_err_get_lnx_err_code(uint32_t error);
 /*helper to print errors in string form*/
-char *casa_err_get_err_str(uint32_t error);
+char *ar_err_get_err_str(uint32_t error);
 
 #endif /*__UTILS_H*/

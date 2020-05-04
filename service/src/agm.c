@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +31,7 @@
 #include "device.h"
 #include "session_obj.h"
 #include "utils.h"
-#include "qts.h"
+#include "ats.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <pthread.h>
@@ -44,18 +44,18 @@
 #endif
 
 static bool agm_initialized = 0;
-static pthread_t qts_thread;
+static pthread_t ats_thread;
 
-static void *qts_init_thread(void *obj)
+static void *ats_init_thread(void *obj)
 {
     int ret = 0;
     while(1) {
         if (agm_initialized) {
             sleep(2);
-            ret = qts_init();
+            ret = ats_init();
             if (0 != ret)
-                AGM_LOGE("qts init failed with err = %d", ret);
-            AGM_LOGD("QTS initialized\n");
+                AGM_LOGE("ats init failed with err = %d", ret);
+            AGM_LOGD("ATS initialized\n");
             break;
         }
         sleep(5);
@@ -83,10 +83,10 @@ int agm_init()
     param.sched_priority = SCHED_FIFO;
     pthread_attr_setschedparam (&tattr, &param);
 
-    ret = pthread_create(&qts_thread, (const pthread_attr_t *) &tattr,
-                                           qts_init_thread, NULL);
+    ret = pthread_create(&ats_thread, (const pthread_attr_t *) &tattr,
+                                           ats_init_thread, NULL);
     if (ret)
-        AGM_LOGE(" qts init thread creation failed\n");
+        AGM_LOGE(" ats init thread creation failed\n");
 
     ret = session_obj_init();
     if (0 != ret) {
@@ -103,8 +103,8 @@ int agm_deinit()
 {
     //close all sessions first
     if (agm_initialized) {
-        AGM_LOGD("Deinitializing QTS...");
-        qts_deinit();
+        AGM_LOGD("Deinitializing ATS...");
+        ats_deinit();
         session_obj_deinit();
         agm_initialized = 0;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -54,7 +54,7 @@
  *would be implicitly configured by it.
  *For all other modules the client is supposed to form the
  *payload and pass it as an blob, which is then sent to
- *GECKO via gsl.
+ *SPF via gsl.
  *NOTE:Ensure that the hw_ep_info.intf in device object
  *also uses the same enum values to define a hw
  *interface.

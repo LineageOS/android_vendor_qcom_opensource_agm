@@ -19,9 +19,9 @@ agm-def += -D_ANDROID_
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/inc
 
-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/casa/casa_osal
-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/casa/gsl
-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/casa/acdb
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/ar_osal
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/gsl
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/acdb
 LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
 LOCAL_CFLAGS     := $(agm-def)
 LOCAL_CFLAGS += -Wno-tautological-compare
@@ -41,15 +41,15 @@ LOCAL_MODULE               := libagm
 LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS          := optional
 
-LOCAL_HEADER_LIBRARIES := libgecko-headers \
-                          libcasa-acdbdata \
+LOCAL_HEADER_LIBRARIES := libspf-headers \
+                          libar-acdbdata \
                           libutils_headers
 LOCAL_SHARED_LIBRARIES := \
-         libcasa-gsl \
+         libar-gsl \
          liblog \
          liblx-osal \
          libaudioroute \
-         libqts \
+         libats \
          libtinyalsa
 
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DYNAMIC_LOG)), true)

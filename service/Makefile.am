@@ -26,7 +26,7 @@ h_sources = ${top_srcdir}/inc/agm_api.h \
             ${top_srcdir}/inc/agm_list.h \
             ${top_srcdir}/inc/utils.h
 
-AM_CFLAGS = -I ${top_srcdir}/inc  -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/gecko
+AM_CFLAGS = -I ${top_srcdir}/inc  -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/spf
 AM_CFLAGS += -DDYNAMIC_LOG_ENABLED
 
 library_include_HEADERS = $(h_sources)
@@ -44,7 +44,7 @@ endif
 
 lib_LTLIBRARIES = libagm.la
 libagm_la_SOURCES = $(agm_sources)
-libagm_la_LIBADD = -ltinyalsa -lcasa_osal -lgsl -lqts
+libagm_la_LIBADD = -ltinyalsa -lar_osal -lgsl -lats
 
 if !BUILDSYSTEM_OPENWRT
 libagm_la_LIBADD += -laudio_log_utils

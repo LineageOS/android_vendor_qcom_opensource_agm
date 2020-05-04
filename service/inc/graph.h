@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -66,7 +66,7 @@ struct graph_obj;
  * GSL with correct ACDB data file. This should be triggered only once
  * during the lifetime of the service.
  *
- * retuns CASA_EOK on success and error code on failure.
+ * retuns AR_EOK on success and error code on failure.
  */
 int graph_init();
 
@@ -74,7 +74,7 @@ int graph_init();
  *\brief De initialize graph handling module,
  * this in turn deinitializes GSL.
  *
- * retuns CASA_EOK on success and error code on failure.
+ * retuns AR_EOK on success and error code on failure.
  */
 int graph_deinit();
 
@@ -103,7 +103,7 @@ int graph_deinit();
  *\param [in/out] graph_obj: Graph object created based on
  *        session and device objects.
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_open(struct agm_meta_data_gsl *meta_data_kv,
                    struct session_obj *ses_obj,
@@ -116,7 +116,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
  *\param [in] cb: pointer to callback function implemented by
  *                the client
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_register_cb(struct graph_obj *gph_obj, event_cb cb,
                           void *client_data);
@@ -141,9 +141,9 @@ int graph_register_for_events(struct graph_obj *gph_obj,
  * to configure modules with this custom config is adhered to.
  * Graph object wont be able to force this policy.
  *\param [in] graph_obj: associated graph obj
- *\param [in] config: payload to pass to GECKO via GSL.
+ *\param [in] config: payload to pass to SPF via GSL.
  *
- * return CASA_EOK on success, or error code otherwise.
+ * return AR_EOK on success, or error code otherwise.
  */
 int graph_set_config(struct graph_obj *gph_obj, void *payload,
                      size_t payload_size);
@@ -152,7 +152,7 @@ int graph_set_config(struct graph_obj *gph_obj, void *payload,
  *\brief issue a prepare command to modules in the graph.
  *\param [in] graph_obj: associated graph obj
  *
- * return CASA_EOK on sucess or error code otherwise.
+ * return AR_EOK on sucess or error code otherwise.
  */
 int graph_prepare(struct graph_obj *gph_obj);
 
@@ -160,7 +160,7 @@ int graph_prepare(struct graph_obj *gph_obj);
  *\brief Issue start command to modules in the graph.
  *\param [in] graph_obj: associated graph obj
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_start(struct graph_obj *gph_obj);
 
@@ -188,7 +188,7 @@ int graph_write(struct graph_obj *gph_obj, void *buffer, size_t *size);
  *\brief pause an existing graph.
  *\param [in] graph_obj: associated graph obj
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_pause(struct graph_obj *gph_obj);
 
@@ -196,7 +196,7 @@ int graph_pause(struct graph_obj *gph_obj);
  *\brief resume an existing graph.
  *\param [in] graph_obj: associated graph obj
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_resume(struct graph_obj *gph_obj);
 
@@ -217,7 +217,7 @@ int graph_resume(struct graph_obj *gph_obj);
  *        processing path into an existing graph and hence device object
  *        in such cases wont be needed.
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_add(struct graph_obj *gph_obj,
                   struct agm_meta_data_gsl *meta_data_kv,
@@ -233,7 +233,7 @@ int graph_add(struct graph_obj *gph_obj,
  *\param [in] dev_obj: Pass the device obj
  *        e.g. in case of device switch
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_change(struct graph_obj *gph_obj,
                      struct agm_meta_data_gsl *meta_data_kv,
@@ -247,7 +247,7 @@ int graph_change(struct graph_obj *gph_obj,
  *        which describes part of graph(subgraph) to be removed
  *        from the current graph
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_remove(struct graph_obj *gph_obj,
                  struct agm_meta_data_gsl *meta_data_kv);
@@ -259,7 +259,7 @@ int graph_remove(struct graph_obj *gph_obj,
  *        which describes part of graph(subgraph) to be removed
  *        from the current graph
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_stop(struct graph_obj *gph_obj,
                struct agm_meta_data_gsl *meta_data);
@@ -269,12 +269,12 @@ int graph_stop(struct graph_obj *gph_obj,
  * memory.
  *\param [in] graph_obj: associated graph obj
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_close(struct graph_obj *gph_obj);
 
 /**
- *\brief return the no of buffers consumed/captured by the HW(GECKO).
+ *\brief return the no of buffers consumed/captured by the HW(SPF).
  * memory.
  *\param [in] graph_obj: associated graph obj
  *\param [in] dir      : specifies the path for which information is requested
@@ -301,7 +301,7 @@ int graph_set_cal(struct graph_obj *gph_obj,
  *\brief Issue eos to the associated graph
  *\param [in] graph_obj: associated graph obj
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_eos(struct graph_obj *gph_obj);
 
@@ -310,7 +310,7 @@ int graph_eos(struct graph_obj *gph_obj);
  *\param [in] graph_obj: associated graph obj
  *\param [out] timestamp: updated the timestamp value if success
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_get_session_time(struct graph_obj *gph_obj, uint64_t *timestamp);
 
@@ -319,7 +319,7 @@ int graph_get_session_time(struct graph_obj *gph_obj, uint64_t *timestamp);
  *\param [in] graph_obj: associated graph obj
  *\param [out] timestamp: updated timestamp value if success
  *
- * return CASA_EOK on success or error code otherwise.
+ * return AR_EOK on success or error code otherwise.
  */
 int graph_get_buffer_timestamp(struct graph_obj *gph_obj, uint64_t *timestamp);
 

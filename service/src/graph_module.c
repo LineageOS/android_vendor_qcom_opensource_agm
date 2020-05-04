@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -231,10 +231,10 @@ static int configure_codec_dma_ep(struct module_info *mod,
                                &ret_payload_sz);
 
     if (ret != 0) {
-        if (ret == CASA_ENEEDMORE)
+        if (ret == AR_ENEEDMORE)
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGD("get_tagged_data for mod tag:%x miid:%x failed with error %d",
                       mod->tag, mod->miid, ret);
         goto free_kvp;
@@ -253,7 +253,7 @@ static int configure_codec_dma_ep(struct module_info *mod,
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("custom_config for module %d failed with error %d",
                       mod->tag, ret);
     }
@@ -318,10 +318,10 @@ static int configure_i2s_ep(struct module_info *mod,
                                &ret_payload_sz);
 
     if (ret != 0) {
-        if (ret == CASA_ENEEDMORE)
+        if (ret == AR_ENEEDMORE)
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGD("get_tagged_data for module %d failed with error %d",
                       mod->tag, ret);
         goto free_kvp;
@@ -340,7 +340,7 @@ static int configure_i2s_ep(struct module_info *mod,
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("custom_config for module %d failed with error %d",
                       mod->tag, ret);
     }
@@ -406,10 +406,10 @@ static int configure_tdm_ep(struct module_info *mod,
                                &ret_payload_sz);
 
     if (ret != 0) {
-        if (ret == CASA_ENEEDMORE)
+        if (ret == AR_ENEEDMORE)
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGD("get_tagged_data for module %d failed with error %d",
                       mod->tag, ret);
         goto free_kvp;
@@ -429,7 +429,7 @@ static int configure_tdm_ep(struct module_info *mod,
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("custom_config for module %d failed with error %d",
                       mod->tag, ret);
     }
@@ -496,10 +496,10 @@ static int configure_aux_pcm_ep(struct module_info *mod,
                                &ret_payload_sz);
 
     if (ret != 0) {
-       if (ret == CASA_ENEEDMORE)
+       if (ret == AR_ENEEDMORE)
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGD("get_tagged_data for module %d failed with error %d",
                       mod->tag, ret);
         goto free_kvp;
@@ -517,7 +517,7 @@ static int configure_aux_pcm_ep(struct module_info *mod,
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("custom_config for module %d failed with error %d",
                       mod->tag, ret);
     }
@@ -589,10 +589,10 @@ static int configure_slimbus_ep(struct module_info *mod,
                                &ret_payload_sz);
 
     if (ret != 0) {
-       if (ret == CASA_ENEEDMORE)
+       if (ret == AR_ENEEDMORE)
            AGM_LOGE("payload buffer sz %d smaller than expected size %d",
                      payload_sz, ret_payload_sz);
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGD("get_tagged_data for module %d failed with error %d",
                       mod->tag, ret);
         goto free_kvp;
@@ -611,7 +611,7 @@ static int configure_slimbus_ep(struct module_info *mod,
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("custom_config for module %d failed with error %d",
                       mod->tag, ret);
     }
@@ -669,7 +669,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("custom_config command for module %d failed with error %d",
                       mod->tag, ret);
     }
@@ -847,7 +847,7 @@ int configure_output_media_format(struct module_info *mod,
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("custom_config command for module %d failed with error %d",
                       mod->tag, ret);
     }
@@ -1072,7 +1072,7 @@ int configure_placeholder_dec(struct module_info *mod,
     ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)mod->gkv,
                          TAG_STREAM_PLACEHOLDER_DECODER, &tkv);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("set_config command failed with error: %d", ret);
         return ret;
     }
@@ -1140,7 +1140,7 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("custom_config command for module %d failed with error %d",
                       mod->tag, ret);
     }
@@ -1229,7 +1229,7 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
-        ret = cass_err_get_lnx_err_code(ret);
+        ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("custom_config command for module %d failed with error %d",
                       mod->tag, ret);
     }
@@ -1294,7 +1294,7 @@ int configure_spr(struct module_info *spr_mod,
             spr_hwep_delay->module_instance_id = mod->miid;
             ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
             if (ret !=0) {
-                ret = cass_err_get_lnx_err_code(ret);
+                ret = ar_err_get_lnx_err_code(ret);
                 AGM_LOGE("graph_set_custom_config failed %d", ret);
             }
         }
