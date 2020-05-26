@@ -54,6 +54,10 @@
 #define PCM_MASK_SIZE (2)
 #define PCM_FORMAT_BIT(x) (1 << x)
 
+/* pull-push mode macros */
+#define AGM_PULL_PUSH_IDX_RETRY_COUNT 2
+#define AGM_PULL_PUSH_FRAME_CNT_RETRY_COUNT 5
+
 struct agm_shared_pos_buffer {
     volatile uint32_t frame_counter;
     volatile uint32_t read_index;
@@ -66,7 +70,7 @@ struct pcm_plugin_pos_buf_info {
     unsigned int boundary;       /* pcm boundary */
     snd_pcm_uframes_t hw_ptr;    /* RO: hw ptr (0...boundary-1) */
     snd_pcm_uframes_t hw_ptr_base;
-    uint64_t tstamp_us;
+    struct timespec tstamp;
     snd_pcm_uframes_t appl_ptr;  /* RW: appl ptr (0...boundary-1) */
     snd_pcm_uframes_t avail_min; /* RW: min available frames for wakeup */
 };
@@ -104,7 +108,7 @@ struct pcm_plugin_hw_constraints agm_pcm_constrs = {
         .max = 8,
     },
     .period_bytes = {
-        .min = 128,
+        .min = 96,
         .max = 122880,
     },
 };
@@ -261,13 +265,6 @@ static snd_pcm_uframes_t agm_pcm_plugin_get_hw_ptr(struct agm_pcm_priv *priv)
     return pos->hw_ptr;
 }
 
-static uint64_t agm_pcm_plugin_get_tstamp(struct agm_pcm_priv *priv)
-{
-    struct pcm_plugin_pos_buf_info *pos = priv->pos_buf;
-
-    return pos->tstamp_us;
-}
-
 static int agm_pcm_plugin_get_shared_pos(struct pcm_plugin_pos_buf_info *pos_buf,
         uint32_t *read_index, uint32_t *wall_clk_msw,
         uint32_t *wall_clk_lsw)
@@ -277,8 +274,8 @@ static int agm_pcm_plugin_get_shared_pos(struct pcm_plugin_pos_buf_info *pos_buf
     uint32_t frame_cnt1, frame_cnt2;
 
     buf = (struct agm_shared_pos_buffer *)pos_buf->pos_buf_addr;
-    for (i = 0; i < 2; ++i) {
-        for (j = 0; j < 5; ++j) {
+    for (i = 0; i < AGM_PULL_PUSH_IDX_RETRY_COUNT; ++i) {
+        for (j = 0; j < AGM_PULL_PUSH_FRAME_CNT_RETRY_COUNT; ++j) {
             frame_cnt1 = buf->frame_counter;
             if (frame_cnt1 != 0)
                 break;
@@ -325,9 +322,7 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
             priv->pos_buf->hw_ptr_base = hw_base;
         }
         priv->pos_buf->hw_ptr = new_hw_ptr;
-        priv->pos_buf->tstamp_us = (uint64_t)wall_clk_msw; /** ??? or clock_gettime? */
-        priv->pos_buf->tstamp_us = (priv->pos_buf->tstamp_us << 32) +
-            wall_clk_lsw;
+        clock_gettime(CLOCK_MONOTONIC, &priv->pos_buf->tstamp);
     }
 
     return ret;
@@ -362,7 +357,6 @@ static int agm_pcm_hw_params(struct pcm_plugin *plugin,
             priv->period_size);
     priv->total_size_frames = buffer_config->count *
             priv->period_size; /* in frames */
-
 
     snd_card_def_get_int(plugin->node, "hostless", &is_hostless);
     session_config->dir = (plugin->mode & PCM_IN) ? TX : RX;
@@ -435,8 +429,7 @@ static int agm_pcm_sync_ptr(struct pcm_plugin *plugin,
     }
 
     sync_ptr->s.status.hw_ptr = agm_pcm_plugin_get_hw_ptr(priv);
-    sync_ptr->s.status.tstamp.tv_nsec = agm_pcm_plugin_get_tstamp(priv) * 1000;
-    sync_ptr->s.status.tstamp.tv_sec = 0;
+    sync_ptr->s.status.tstamp = priv->pos_buf->tstamp;
 
     return ret;
 }

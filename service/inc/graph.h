@@ -332,6 +332,6 @@ int graph_get_buffer_timestamp(struct graph_obj *gph_obj, uint64_t *timestamp);
  * return CASA_EOK on success or error code otherwise.
  */
 int graph_get_buf_info(struct graph_obj *gph_obj,
-	struct agm_buf_info *buf_info, uint32_t flag);
+    struct agm_buf_info *buf_info, uint32_t flag);
 
 #endif /*GPH_OBJ_H*/

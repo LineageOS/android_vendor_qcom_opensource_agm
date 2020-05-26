@@ -763,7 +763,7 @@ Return<void> AGM::ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t fla
         if (flag & DATA_BUF) {
             dataHidlHandle = native_handle_create(1, 0);
             dataHidlHandle->data[0] = buf_info.data_buf_fd;
-            info.dataSharedMemory = hidl_memory("casa_data_buf", dataHidlHandle,
+            info.dataSharedMemory = hidl_memory("casa_data_buf", hidl_handle(dataHidlHandle),
                     buf_info.data_buf_size);
             info.data_size = buf_info.data_buf_size;
         }

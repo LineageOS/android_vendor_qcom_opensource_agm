@@ -31,6 +31,7 @@
 #include <vendor/qti/hardware/AGMIPC/1.0/IAGMCallback.h>
 #include <hidl/LegacySupport.h>
 #include <log/log.h>
+#include <unistd.h>
 #include <vendor/qti/hardware/AGMIPC/1.0/IAGM.h>
 
 #include "agm_api.h"
@@ -678,7 +679,7 @@ int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
                 if (!ret) {
                 if (flag & DATA_BUF) {
                 datahandle = buf_info_ret_hidl.dataSharedMemory.handle();
-                buf_info->data_buf_fd = datahandle->data[0];
+                buf_info->data_buf_fd = dup(datahandle->data[0]);
                 buf_info->data_buf_size = buf_info_ret_hidl.data_size;
                 }
                 if (flag & POS_BUF) {

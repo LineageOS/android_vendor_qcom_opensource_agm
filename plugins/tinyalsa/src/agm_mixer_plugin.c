@@ -710,22 +710,22 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
 }
 
 static int amp_pcm_buf_info_get(struct mixer_plugin *plugin,
-	struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+    struct snd_control *ctl, struct snd_ctl_elem_value *ev)
 {
-	struct agm_buf_info *buf_info;
-	int pcm_idx = ctl->private_value;
-	int ret = 0;
+    struct agm_buf_info *buf_info;
+    int pcm_idx = ctl->private_value;
+    int ret = 0;
 
-	buf_info = (struct agm_buf_info *) ev->value.bytes.data;
+    buf_info = (struct agm_buf_info *) ev->value.bytes.data;
 
-	ret = agm_session_get_buf_info(pcm_idx, buf_info, DATA_BUF);
-	return ret;
+    ret = agm_session_get_buf_info(pcm_idx, buf_info, DATA_BUF);
+    return ret;
 }
 
 static int amp_pcm_buf_info_put(struct mixer_plugin *plugin,
-	struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+    struct snd_control *ctl, struct snd_ctl_elem_value *ev)
 {
-	return 0;
+    return 0;
 }
 
 static int amp_be_set_param_get(struct mixer_plugin *plugin,
@@ -1507,17 +1507,17 @@ static void amp_create_pcm_buf_tstamp_ctl(struct amp_priv *amp_priv,
 }
 
 static void amp_create_pcm_bufinfo_ctl(struct amp_priv *amp_priv,
-	char *name, int ctl_idx, int pval, void *pdata)
+    char *name, int ctl_idx, int pval, void *pdata)
 {
-	struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
-	char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
 
-	snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
-		name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_BUF_INFO]);
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+            name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_BUF_INFO]);
 
-	INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_pcm_buf_info_get,
-		amp_pcm_buf_info_put, pcm_buf_info_bytes,
-		pval, pdata);
+    INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_pcm_buf_info_get,
+            amp_pcm_buf_info_put, pcm_buf_info_bytes,
+            pval, pdata);
 }
 
 /* BE related mixer control creations here */
@@ -1623,8 +1623,8 @@ static int amp_form_common_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx,
                         idx, pcm_adi);
         amp_create_pcm_get_param_ctl(amp_priv, name, (*ctl_idx)++,
                         idx, pcm_adi);
-		amp_create_pcm_bufinfo_ctl(amp_priv, name, (*ctl_idx)++,
-			idx, pcm_adi);
+        amp_create_pcm_bufinfo_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, pcm_adi);
     }
 
     return 0;

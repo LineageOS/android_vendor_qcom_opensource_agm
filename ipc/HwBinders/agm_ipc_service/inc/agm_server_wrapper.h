@@ -84,6 +84,7 @@ using ::android::hardware::hidl_string;
 using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
+using ::android::hardware::hidl_handle;
 using ::android::sp;
 
 class SrvrClbk
