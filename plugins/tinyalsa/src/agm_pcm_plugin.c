@@ -362,7 +362,7 @@ static int agm_pcm_hw_params(struct pcm_plugin *plugin,
             priv->period_size);
     priv->total_size_frames = buffer_config->count *
             priv->period_size; /* in frames */
-    
+
 
     snd_card_def_get_int(plugin->node, "hostless", &is_hostless);
     session_config->dir = (plugin->mode & PCM_IN) ? TX : RX;
@@ -457,7 +457,10 @@ static int agm_pcm_writei_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
     count = x->frames * (priv->media_config->channels *
             agm_format_to_bits(priv->media_config->format) / 8);
 
-    return agm_session_write(handle, buff, &count);
+    ret = agm_session_write(handle, buff, &count);
+    errno = ret;
+
+    return ret;
 }
 
 static int agm_pcm_readi_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
@@ -475,8 +478,10 @@ static int agm_pcm_readi_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
     buff = x->buf;
     count = x->frames * (priv->media_config->channels *
             agm_format_to_bits(priv->media_config->format) / 8);
+    ret = agm_session_read(handle, buff, &count);
+    errno = ret;
 
-    return agm_session_read(handle, buff, &count);
+    return ret;
 }
 
 static int agm_pcm_ttstamp(struct pcm_plugin *plugin, int *tstamp)
@@ -503,7 +508,10 @@ static int agm_pcm_prepare(struct pcm_plugin *plugin)
     if (ret)
         return ret;
 
-    return agm_session_prepare(handle);
+    ret = agm_session_prepare(handle);
+    errno = ret;
+
+    return ret;
 }
 
 static int agm_pcm_start(struct pcm_plugin *plugin)
@@ -516,7 +524,10 @@ static int agm_pcm_start(struct pcm_plugin *plugin)
     if (ret)
         return ret;
 
-    return agm_session_start(handle);
+    ret = agm_session_start(handle);
+    errno = ret;
+
+    return ret;
 }
 
 static int agm_pcm_drop(struct pcm_plugin *plugin)
@@ -529,7 +540,10 @@ static int agm_pcm_drop(struct pcm_plugin *plugin)
     if (ret)
         return ret;
 
-    return agm_session_stop(handle);
+    ret = agm_session_stop(handle);
+    errno = ret;
+
+    return ret;
 }
 
 static int agm_pcm_close(struct pcm_plugin *plugin)
@@ -543,6 +557,7 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
         return ret;
 
     ret = agm_session_close(handle);
+    errno = ret;
 
     snd_card_def_put_card(priv->card_node);
     free(priv->buffer_config);
@@ -777,6 +792,7 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
     priv->session_id = session_id;
 
     ret = agm_session_open(session_id, &handle);
+    errno = ret;
     if (ret)
         goto err_card_put;
 

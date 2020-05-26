@@ -737,14 +737,13 @@ int graph_stop(struct graph_obj *graph_obj,
                         &gsl_cmd_prop, sizeof(struct gsl_cmd_properties));
     } else {
         ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP, NULL, 0);
+        graph_obj->state = STOPPED;
     }
     if (ret !=0) {
         ret = cass_err_get_lnx_err_code(ret);
         AGM_LOGE("graph stop failed %d\n", ret);
         goto done;
     }
-
-    graph_obj->state = STOPPED;
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
@@ -1157,11 +1156,6 @@ int graph_change(struct graph_obj *graph_obj,
 
     pthread_mutex_lock(&graph_obj->lock);
     AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
-    if (graph_obj->state & STARTED) {
-        AGM_LOGE("Cannot change graph in start state\n");
-        ret = -EINVAL;
-        goto done;
-    }
 
     if (dev_obj != NULL) {
         mod = NULL;
