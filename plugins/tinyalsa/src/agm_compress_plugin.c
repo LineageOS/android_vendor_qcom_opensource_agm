@@ -196,9 +196,10 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff,
     }
 
     ret = agm_session_write(handle, (void *)buff, &size);
-    if (ret)
+    if (ret) {
+        errno = ret;
         return ret;
-
+    }
     pthread_mutex_lock(&priv->lock);
     buf_cnt = size / priv->buffer_config.size;
     if (size % priv->buffer_config.size != 0)
@@ -237,9 +238,10 @@ int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
     }
 
     ret = agm_session_read(handle, buff, &count);
-    if (ret < 0)
+    if (ret < 0) {
+        errno = ret;
         return ret;
-
+    }
     pthread_mutex_lock(&priv->lock);
 
     buf_cnt = count / priv->buffer_config.size;
@@ -274,9 +276,10 @@ int agm_compress_tstamp(struct compress_plugin *plugin,
     tstamp->copied_total = priv->bytes_copied;
 
     ret = agm_get_session_time(handle, &timestamp);
-    if (ret)
+    if (ret) {
+        errno = ret;
         return ret;
-
+    }
     timestamp *= tstamp->sampling_rate;
     tstamp->pcm_io_frames = timestamp/1000000;
 
@@ -502,7 +505,10 @@ static int agm_compress_start(struct compress_plugin *plugin)
     if (ret)
         return ret;
 
-    return agm_session_start(handle);
+    ret = agm_session_start(handle);
+    if (ret)
+        errno = ret;
+    return ret;
 }
 
 static int agm_compress_stop(struct compress_plugin *plugin)
@@ -529,9 +535,10 @@ static int agm_compress_stop(struct compress_plugin *plugin)
     pthread_mutex_unlock(&priv->poll_lock);
 
     ret = agm_session_stop(handle);
-    if (ret)
+    if (ret) {
+        errno = ret;
         return ret;
-
+    }
     /* stop will reset all the buffers and it called during seek also */
     priv->bytes_avail = priv->total_buf_size;
     priv->bytes_copied = 0;
@@ -549,7 +556,8 @@ static int agm_compress_pause(struct compress_plugin *plugin)
     if (ret)
         return ret;
 
-    return agm_session_pause(handle);
+    ret = agm_session_pause(handle);
+    return ret;
 }
 
 static int agm_compress_resume(struct compress_plugin *plugin)
@@ -562,7 +570,8 @@ static int agm_compress_resume(struct compress_plugin *plugin)
     if (ret)
         return ret;
 
-    return agm_session_resume(handle);
+    ret = agm_session_resume(handle);
+    return ret;
 }
 
 static int agm_compress_drain(struct compress_plugin *plugin)
@@ -586,6 +595,7 @@ static int agm_compress_drain(struct compress_plugin *plugin)
     ret = agm_session_eos(handle);
     if (ret) {
         AGM_LOGE("%s: EOS fail\n", __func__);
+        errno = ret;
         pthread_mutex_unlock(&priv->eos_lock);
         return ret;
     }
@@ -807,9 +817,10 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     }
 
     ret = agm_session_open(session_id, &handle);
-    if (ret)
+    if (ret) {
+        errno = ret;
         goto err_card_put;
-
+    }
     ret = agm_session_register_cb(session_id, &agm_compress_event_cb,
                                   AGM_EVENT_DATA_PATH, agm_compress_plugin);
     if (ret)

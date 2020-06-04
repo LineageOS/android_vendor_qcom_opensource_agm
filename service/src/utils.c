@@ -54,7 +54,9 @@
 #define AR_ENOMEMORY_STR    "AR_ENOMEMORY"
 #define AR_ENOTEXIST_STR    "AR_ENOTEXIST"
 #define AR_ETERMINATED_STR  "AR_ETERMINATED"
-#define AR_ETIMEOUT_STR  "AR_ETIMEOUT"
+#define AR_ETIMEOUT_STR     "AR_ETIMEOUT"
+#define AR_EIODATA_STR      "AR_EIODATA"
+#define AR_ESUBSYSRESET_STR "AR_ESUBSYSRESET"
 #define AR_ERR_MAX_STR      "AR_ERR_MAX"
 
 /*
@@ -62,7 +64,7 @@
  *from based on the latest header, need to revisit each time
  *a new error code is added
  */
-#define AR_ERR_MAX AR_ETIMEOUT + 1
+#define AR_ERR_MAX AR_ESUBSYSRESET + 1
 
 struct ar_err_code {
     int  lnx_err_code;
@@ -92,6 +94,8 @@ static struct ar_err_code ar_err_code_info[AR_ERR_MAX+1] = {
     { -ENODEV, AR_ENOTEXIST_STR},
     { -ENODEV, AR_ETERMINATED_STR},
     { -ETIMEDOUT, AR_ETIMEOUT_STR},
+    { -EIO, AR_EIODATA_STR},
+    { -ENETRESET, AR_ESUBSYSRESET_STR},
     { -EADV, AR_ERR_MAX_STR},
 };
 
