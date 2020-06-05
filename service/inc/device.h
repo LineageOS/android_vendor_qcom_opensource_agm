@@ -158,4 +158,6 @@ int device_set_metadata(struct device_obj *obj, uint32_t size,
 int device_set_params(struct device_obj *obj, void *payload, size_t size);
 
 int populate_device_hw_ep_info(struct device_obj *dev_obj);
+
+int get_pcm_bit_width(enum agm_media_format fmt_id);
 #endif

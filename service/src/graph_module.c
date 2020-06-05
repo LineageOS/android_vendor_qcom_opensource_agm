@@ -128,7 +128,7 @@ static bool is_format_bypassed(enum agm_media_format fmt_id)
     return false;
 }
 
-static int get_pcm_bit_width(enum agm_media_format fmt_id)
+int get_pcm_bit_width(enum agm_media_format fmt_id)
 {
     int bit_width = 16;
 

@@ -68,8 +68,15 @@ static uint32_t num_audio_intfs;
 static int sysfs_fd = -1;
 
 #define MAX_BUF_SIZE                 2048
-#define DEFAULT_SAMPLING_RATE        48000
-#define DEFAULT_PERIOD_SIZE          960
+/**
+  * The maximum period bytes for dummy dai is 8192 bytes.
+  * Hard coding of period size to 960 frames was leading
+  * to bigger period bytes for multi channels.
+  * So, now based on frame size, Period size is being calculated.
+  * 1 frame = bytes_per_sample * channels
+  * period size = 8192/(bytes_per_sample * channels)
+  */
+#define MAX_PERIOD_BUFFER            8192
 #define DEFAULT_PERIOD_COUNT         2
 
 #define MAX_USR_INPUT 9
@@ -120,6 +127,7 @@ enum pcm_format agm_to_pcm_format(enum agm_media_format format)
         return PCM_FORMAT_S16_LE;
     };
 }
+
 int device_open(struct device_obj *dev_obj)
 {
     int ret = 0;
@@ -143,9 +151,10 @@ int device_open(struct device_obj *dev_obj)
     config.channels = dev_obj->media_config.channels;
     config.rate = dev_obj->media_config.rate;
     config.format = agm_to_pcm_format(dev_obj->media_config.format);
-    config.period_size = DEFAULT_PERIOD_SIZE;
+    config.period_size = (MAX_PERIOD_BUFFER)/((config.channels) *
+                              (get_pcm_bit_width(dev_obj->media_config.format)/8));
     config.period_count = DEFAULT_PERIOD_COUNT;
-    config.start_threshold = DEFAULT_PERIOD_SIZE / 4;
+    config.start_threshold = config.period_size / 4;
     config.stop_threshold = INT_MAX;
 
     update_sysfs_fd(dev_obj->pcm_id, DEVICE_ENABLE);
@@ -155,6 +164,7 @@ int device_open(struct device_obj *dev_obj)
         AGM_LOGE("%s: Unable to open PCM device %u (%s) rate %u ch %d fmt %u",
                 __func__, dev_obj->pcm_id, pcm_get_error(pcm), config.rate,
                 config.channels, config.format);
+        AGM_LOGE("%s: Period Size %d \n", __func__, config.period_size);
         ret = -EIO;
         update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
         goto done;
