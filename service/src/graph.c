@@ -35,6 +35,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <dlfcn.h>
+#include <unistd.h>
 #include "gsl_intf.h"
 #include "graph.h"
 #include "graph_module.h"
@@ -49,6 +50,10 @@
 
 #define DEVICE_RX 0
 #define DEVICE_TX 1
+#define MAX_PATH 256
+#define BUF_SIZE 1024
+#define ACDB_PATH_MAX_LENGTH 50
+
 
 /* TODO: remove this later after including in spf header files */
 #define PARAM_ID_SOFT_PAUSE_START 0x800102e
@@ -74,6 +79,7 @@ typedef struct module_info_link_list {
    struct listnode tagged_list;
 }module_info_link_list_t;
 
+static char acdb_path[ACDB_PATH_MAX_LENGTH];
 
 static int get_acdb_files_from_directory(const char* acdb_files_path,
                                          struct gsl_acdb_data_files *data_files)
@@ -208,24 +214,62 @@ int graph_init()
     struct gsl_acdb_file delta_file;
     struct gsl_init_data init_data;
     const char *delta_file_path;
+    unsigned int card = 0;
+    FILE *file = NULL;
+    int len = 0;
+    char *snd_card_name = NULL;
+    char filename[MAX_PATH];
+
+#ifndef ACDB_PATH
+#  error "Define -DACDB_PATH="PATH" in the makefile to compile"
+#endif
+    card = device_get_snd_card_id();
+    if (card < 0) {
+        ret = -EINVAL;
+        goto err;
+    }
 
     /*Populate acdbfiles from the shared file path*/
     acdb_files.num_files = 0;
+    snprintf(filename, MAX_PATH, "/proc/asound/card%d/id", card);
+    if (access(filename, F_OK) != -1) {
+        file = fopen(filename, "r");
+        if (file < 0) {
+            printf("open %s: failed\n", filename);
+            ret = -EIO;
+            goto err;
+        } else {
+            snd_card_name = calloc(1, BUF_SIZE);
+            if (!snd_card_name) {
+                ret = -ENOMEM;
+                goto err;
+            }
+            if (fgets(snd_card_name, BUF_SIZE - 1, file)) {
+                len = strlen(snd_card_name);
+                snd_card_name[len - 1] = '\0';
+                if (strstr(snd_card_name, "qrd")) {
+                    snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, "QRD");
+                } else {
+                    snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, "IDP");
+                }
+                free(snd_card_name);
+                snd_card_name = NULL;
+                fclose(file);
+                file = NULL;
+            }
+        }
+    }
 
-#ifdef ACDB_PATH
-    ret = get_acdb_files_from_directory(CONV_TO_STRING(ACDB_PATH), &acdb_files);
-    if (ret != 0)
-       return ret;
-#else
-#  error "Define -DACDB_PATH="PATH" in the makefile to compile"
-#endif
+    ret = get_acdb_files_from_directory(acdb_path, &acdb_files);
+    if (ret)
+       goto err;
 
 #ifdef ACDB_DELTA_FILE_PATH
     delta_file_path = CONV_TO_STRING(ACDB_DELTA_FILE_PATH);
     if ((strlen(delta_file_path) + 1) > sizeof(delta_file.fileName)) {
        AGM_LOGE("path is big than what gsl handles");
        ret = -EINVAL;
-       return ret;
+       goto err;
     }
     delta_file.fileNameLen = strlen(delta_file_path) + 1;
     ret = strlcpy(delta_file.fileName, delta_file_path, delta_file.fileNameLen);
@@ -242,11 +286,13 @@ int graph_init()
     if (ret != 0) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("gsl_init failed error %d \n", ret);
-        goto deinit_gsl;
     }
-    return 0;
 
-deinit_gsl:
+err:
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     return ret;
 }
 
@@ -955,13 +1001,6 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
         AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
-    pthread_mutex_lock(&graph_obj->lock);
-    if (!(graph_obj->state & STARTED)) {
-        AGM_LOGE("Cannot add a graph in start state\n");
-        ret = -EINVAL;
-        pthread_mutex_unlock(&graph_obj->lock);
-        goto done;
-    }
 
     /*TODO: Update the write api to take timeStamps/other buffer meta data*/
     gsl_buff.timestamp = 0x0;
@@ -969,7 +1008,6 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
     gsl_buff.flags = 0;
     gsl_buff.size = *size;
     gsl_buff.addr = (uint8_t *)(buffer);
-    pthread_mutex_unlock(&graph_obj->lock);
 
     ret = gsl_read(graph_obj->graph_handle,
                     SHMEM_ENDPOINT, &gsl_buff, &size_read);

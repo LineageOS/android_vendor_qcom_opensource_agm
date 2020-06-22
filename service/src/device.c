@@ -64,12 +64,20 @@
 struct device_obj **device_list;
 static uint32_t num_audio_intfs;
 
+static struct mixer *mixer = NULL;
 #define SYSFS_FD_PATH "/sys/kernel/aud_dev/state"
 static int sysfs_fd = -1;
 
 #define MAX_BUF_SIZE                 2048
-#define DEFAULT_SAMPLING_RATE        48000
-#define DEFAULT_PERIOD_SIZE          960
+/**
+  * The maximum period bytes for dummy dai is 8192 bytes.
+  * Hard coding of period size to 960 frames was leading
+  * to bigger period bytes for multi channels.
+  * So, now based on frame size, Period size is being calculated.
+  * 1 frame = bytes_per_sample * channels
+  * period size = 8192/(bytes_per_sample * channels)
+  */
+#define MAX_PERIOD_BUFFER            8192
 #define DEFAULT_PERIOD_COUNT         2
 
 #define MAX_USR_INPUT 9
@@ -120,6 +128,18 @@ enum pcm_format agm_to_pcm_format(enum agm_media_format format)
         return PCM_FORMAT_S16_LE;
     };
 }
+
+int device_get_snd_card_id()
+{
+    struct device_obj *dev_obj = device_list[0];
+
+    if (dev_obj == NULL) {
+        AGM_LOGE("%s: Invalid device object\n", __func__);
+        return -EINVAL;
+    }
+    return dev_obj->card_id;
+}
+
 int device_open(struct device_obj *dev_obj)
 {
     int ret = 0;
@@ -143,9 +163,10 @@ int device_open(struct device_obj *dev_obj)
     config.channels = dev_obj->media_config.channels;
     config.rate = dev_obj->media_config.rate;
     config.format = agm_to_pcm_format(dev_obj->media_config.format);
-    config.period_size = DEFAULT_PERIOD_SIZE;
+    config.period_size = (MAX_PERIOD_BUFFER)/((config.channels) *
+                              (get_pcm_bit_width(dev_obj->media_config.format)/8));
     config.period_count = DEFAULT_PERIOD_COUNT;
-    config.start_threshold = DEFAULT_PERIOD_SIZE / 4;
+    config.start_threshold = config.period_size / 4;
     config.stop_threshold = INT_MAX;
 
     update_sysfs_fd(dev_obj->pcm_id, DEVICE_ENABLE);
@@ -155,6 +176,7 @@ int device_open(struct device_obj *dev_obj)
         AGM_LOGE("%s: Unable to open PCM device %u (%s) rate %u ch %d fmt %u",
                 __func__, dev_obj->pcm_id, pcm_get_error(pcm), config.rate,
                 config.channels, config.format);
+        AGM_LOGE("%s: Period Size %d \n", __func__, config.period_size);
         ret = -EIO;
         update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
         goto done;
@@ -377,6 +399,66 @@ done:
    return ret;
 }
 
+int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
+{
+    struct mixer_ctl *ctl = NULL;
+    char *mixer_str = NULL;
+    int ctl_len = 0, ret = 0, card_id;
+    void *payload = NULL;
+
+    if (mixer == NULL) {
+        card_id = device_get_snd_card_id();
+        if (card_id < 0) {
+            AGM_LOGE("%s: failed to get card_id", __func__);
+            return -EINVAL;
+        }
+
+        mixer = mixer_open(card_id);
+        if (!mixer) {
+            AGM_LOGE("%s: failed to get mixer handle", __func__);
+            return -EINVAL;
+        }
+    }
+
+    ctl_len = strlen(dev_obj->name) + 1 + strlen("Channel Map") + 1;
+    mixer_str = calloc(1, ctl_len);
+    if (!mixer_str) {
+        AGM_LOGE("%s: Failed to allocate memory for mixer_str", __func__);
+        return -ENOMEM;
+    }
+
+    payload = calloc(16, sizeof(uint32_t));
+    if (!payload) {
+        AGM_LOGE("%s: Failed to allocate memory for payload", __func__);
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    snprintf(mixer_str, ctl_len, "%s %s", dev_obj->name, "Channel Map");
+
+    ctl = mixer_get_ctl_by_name(mixer, mixer_str);
+    if (!ctl) {
+        printf("Invalid mixer control: %s\n", mixer_str);
+        free(mixer_str);
+        ret = -ENOENT;
+        goto err_get_ctl;
+    }
+
+    ret = mixer_ctl_get_array(ctl, payload, 16 * sizeof(uint32_t));
+    if (ret < 0) {
+        printf("Failed to mixer_ctl_get_array\n");
+        goto err_get_ctl;
+    }
+    *chmap = payload;
+    goto done;
+
+err_get_ctl:
+    free(payload);
+done:
+    free(mixer_str);
+    return ret;
+}
+
 int parse_snd_card()
 {
     char buffer[MAX_BUF_SIZE];
@@ -504,6 +586,10 @@ void device_deinit()
     if (sysfs_fd >= 0)
         close(sysfs_fd);
     sysfs_fd = -1;
+
+    if (mixer)
+        mixer_close(mixer);
+
     free(device_list);
     device_list = NULL;
 }

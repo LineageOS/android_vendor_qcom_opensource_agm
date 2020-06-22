@@ -128,7 +128,7 @@ static bool is_format_bypassed(enum agm_media_format fmt_id)
     return false;
 }
 
-static int get_pcm_bit_width(enum agm_media_format fmt_id)
+int get_pcm_bit_width(enum agm_media_format fmt_id)
 {
     int bit_width = 16;
 
@@ -186,11 +186,11 @@ static int configure_codec_dma_ep(struct module_info *mod,
     int ret = 0;
     struct device_obj *dev_obj = mod->dev_obj;
     hw_ep_info_t hw_ep_info = dev_obj->hw_ep_info;
-    struct gsl_key_vector tag_key_vect;
     struct apm_module_param_data_t *header;
     struct param_id_codec_dma_intf_cfg_t* codec_config;
-    size_t payload_sz, ret_payload_sz = 0;
+    size_t payload_sz;
     uint8_t *payload = NULL;
+    uint32_t *chmap = NULL;
 
     AGM_LOGV("entry mod tag %x miid %x mid %x\n", mod->tag, mod->miid, mod->mid);
 
@@ -198,7 +198,6 @@ static int configure_codec_dma_ep(struct module_info *mod,
         sizeof(struct param_id_codec_dma_intf_cfg_t);
 
     ALIGN_PAYLOAD(payload_sz, 8);
-    ret_payload_sz = payload_sz;
     payload = (uint8_t*)calloc(1, (size_t)payload_sz);
     if (!payload) {
         AGM_LOGE("Not enough memory for payload");
@@ -210,44 +209,29 @@ static int configure_codec_dma_ep(struct module_info *mod,
     codec_config = (struct param_id_codec_dma_intf_cfg_t*)
                      (payload + sizeof(struct apm_module_param_data_t));
 
-    /*
-     * For Codec dma we need to configure the following tags
-     * 1.Channels  - Channels are reused to derive the active channel mask
-     */
-    tag_key_vect.num_kvps = 1;
-    tag_key_vect.kvp = calloc(tag_key_vect.num_kvps,
-                                sizeof(struct gsl_key_value_pair));
-    if (!tag_key_vect.kvp) {
-        AGM_LOGE("Not enough memory for KVP");
-        ret = -ENOMEM;
-        goto free_payload;
+    ret = device_get_channel_map(dev_obj, &chmap);
+    if (ret || chmap == NULL) {
+        AGM_LOGE("get channel map failed");
+        goto done;
     }
 
-    tag_key_vect.kvp[0].key = CHANNELS;
-    tag_key_vect.kvp[0].value = dev_obj->media_config.channels;
-
-    ret = gsl_get_tagged_data((struct gsl_key_vector *)mod->gkv,
-                               mod->tag, &tag_key_vect, (uint8_t *)payload,
-                               &ret_payload_sz);
-
-    if (ret != 0) {
-        if (ret == AR_ENEEDMORE)
-           AGM_LOGE("payload buffer sz %d smaller than expected size %d",
-                     payload_sz, ret_payload_sz);
-        ret = ar_err_get_lnx_err_code(ret);
-        AGM_LOGD("get_tagged_data for mod tag:%x miid:%x failed with error %d",
-                      mod->tag, mod->miid, ret);
-        goto free_kvp;
+    if (chmap[0] < dev_obj->media_config.channels) {
+        AGM_LOGE("Mismatch in num channels, expected %d, received %d",
+                 dev_obj->media_config.channels, chmap[0]);
+        goto done;
     }
 
-    AGM_LOGV("hdr mid %x pid %x er_cd %x param_sz %d",
-             header->module_instance_id, header->param_id, header->error_code,
-             header->param_size);
+    header->module_instance_id = mod->miid;
+    header->param_id = PARAM_ID_CODEC_DMA_INTF_CFG;
+    header->error_code = 0x0;
+    header->param_size = payload_sz - sizeof(struct apm_module_param_data_t);
 
     codec_config->lpaif_type = hw_ep_info.ep_config.cdc_dma_i2s_tdm_config.lpaif_type;
     codec_config->intf_indx = hw_ep_info.ep_config.cdc_dma_i2s_tdm_config.intf_idx;
+    /* chmap[0] contains num_ch and chmap[1] contains channelmap */
+    codec_config->active_channels_mask = chmap[1];
 
-    AGM_LOGV("cdc_dma intf cfg lpaif %d indx %d ch_msk %x",
+    AGM_LOGD("cdc_dma intf cfg lpaif %d indx %d ch_msk %x",
               codec_config->lpaif_type, codec_config->intf_indx,
               codec_config->active_channels_mask);
 
@@ -257,11 +241,13 @@ static int configure_codec_dma_ep(struct module_info *mod,
         AGM_LOGE("custom_config for module %d failed with error %d",
                       mod->tag, ret);
     }
-free_kvp:
-    free(tag_key_vect.kvp);
-free_payload:
-    free(payload);
 done:
+    if (chmap)
+        free(chmap);
+
+    if (payload)
+        free(payload);
+
     AGM_LOGD("exit");
     return ret;
 }
@@ -536,13 +522,12 @@ static int configure_slimbus_ep(struct module_info *mod,
     int ret = 0;
     struct device_obj *dev_obj = mod->dev_obj;
     hw_ep_info_t hw_ep_info = dev_obj->hw_ep_info;
-    struct gsl_key_vector tag_key_vect;
     struct apm_module_param_data_t *header;
     struct param_id_slimbus_cfg_t* slimbus_cfg;
-    size_t payload_sz ,ret_payload_sz = 0;
+    size_t payload_sz;
     uint8_t *payload = NULL;
     int i = 0;
-    char print_ch_map[SB_MAX_CHAN_CNT+1] = {0};
+    uint32_t *chmap = NULL;
 
     AGM_LOGD("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
 
@@ -557,7 +542,6 @@ static int configure_slimbus_ep(struct module_info *mod,
         sizeof(struct param_id_slimbus_cfg_t);
 
     ALIGN_PAYLOAD(payload_sz, 8);
-    ret_payload_sz = payload_sz;
     payload = (uint8_t*)calloc(1, (size_t)payload_sz);
     if (!payload) {
         AGM_LOGE("Not enough memory for payload");
@@ -569,45 +553,30 @@ static int configure_slimbus_ep(struct module_info *mod,
     slimbus_cfg = (struct  param_id_slimbus_cfg_t*)
                      (payload + sizeof(struct apm_module_param_data_t));
 
-    /*
-     * For Codec dma we need to configure the following tags
-     * 1.Channels  - Channels are reused to derive the active channel mask
-     */
-    tag_key_vect.num_kvps = 1;
-    tag_key_vect.kvp = calloc(tag_key_vect.num_kvps,
-                                sizeof(struct gsl_key_value_pair));
-    if (!tag_key_vect.kvp) {
-        AGM_LOGE("Not enough memory for KVP");
-        ret = -ENOMEM;
-        goto free_payload;
-    }
-    tag_key_vect.kvp[0].key = CHANNELS;
-    tag_key_vect.kvp[0].value = dev_obj->media_config.channels;
-
-    ret = gsl_get_tagged_data((struct gsl_key_vector *)mod->gkv,
-                               mod->tag, &tag_key_vect, (uint8_t *)payload,
-                               &ret_payload_sz);
-
-    if (ret != 0) {
-       if (ret == AR_ENEEDMORE)
-           AGM_LOGE("payload buffer sz %d smaller than expected size %d",
-                     payload_sz, ret_payload_sz);
-        ret = ar_err_get_lnx_err_code(ret);
-        AGM_LOGD("get_tagged_data for module %d failed with error %d",
-                      mod->tag, ret);
-        goto free_kvp;
+    ret = device_get_channel_map(dev_obj, &chmap);
+    if (ret || chmap == NULL) {
+        AGM_LOGE("get channel map failed");
+        goto done;
     }
 
+    if (chmap[0] < dev_obj->media_config.channels) {
+        AGM_LOGE("Mismatch in num channels, expected %d, received %d",
+                 dev_obj->media_config.channels, chmap[0]);
+        goto done;
+    }
+
+    header->module_instance_id = mod->miid;
+    header->param_id = PARAM_ID_SLIMBUS_CONFIG;
+    header->error_code = 0x0;
+    header->param_size = payload_sz - sizeof(struct apm_module_param_data_t);
     slimbus_cfg->slimbus_dev_id = hw_ep_info.ep_config.slim_config.dev_id;
 
     AGM_LOGD("slimbus intf cfg dev id %d ch %d", slimbus_cfg->slimbus_dev_id,
              dev_obj->media_config.channels);
-    for (i = 0; i < dev_obj->media_config.channels; i++)
-         print_ch_map[i] = slimbus_cfg->shared_channel_mapping[i];
-    print_ch_map[i] = '\0';
-
-    AGM_LOGV("shared_chnl_mapping no ch %d map %s", dev_obj->media_config.channels,
-              print_ch_map);
+    for (i = 0; i < dev_obj->media_config.channels; i++) {
+        slimbus_cfg->shared_channel_mapping[i] = chmap[i + 1];
+        AGM_LOGV("shared_chnl_mapping[%d] = 0x%x\n", i, slimbus_cfg->shared_channel_mapping[i]);
+    }
 
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_sz);
     if (ret != 0) {
@@ -615,11 +584,13 @@ static int configure_slimbus_ep(struct module_info *mod,
         AGM_LOGE("custom_config for module %d failed with error %d",
                       mod->tag, ret);
     }
-free_kvp:
-    free(tag_key_vect.kvp);
-free_payload:
-    free(payload);
 done:
+    if (payload)
+        free(payload);
+
+    if (chmap)
+        free(chmap);
+
     AGM_LOGD("exit");
     return ret;
 }

@@ -58,6 +58,7 @@ Return<int32_t> AGMCallback::event_callback(uint32_t session_id,
     ALOGV("event_params payload_size %d", event_params_l->event_payload_size);
     agm_event_cb clbk_func = cl_clbk_data->get_clbk_func();
     clbk_func(session_id, event_params_l, cl_clbk_data->get_clnt_data() );
+    free(event_params_l);
     return int32_t {};
 }
 

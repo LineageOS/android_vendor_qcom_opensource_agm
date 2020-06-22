@@ -486,6 +486,7 @@ void *snd_card_def_get_card(unsigned int card)
         if (card_found) {
             card_def->refcnt++;
             pthread_rwlock_unlock(&snd_rwlock);
+            free(snd_card_name);
             return card_def;
         }
     }
@@ -494,6 +495,7 @@ void *snd_card_def_get_card(unsigned int card)
     file = fopen(CARD_DEF_FILE, "r");
     if (!file) {
         pthread_rwlock_unlock(&snd_rwlock);
+        free(snd_card_name);
         return NULL;
     }
 
@@ -501,6 +503,7 @@ void *snd_card_def_get_card(unsigned int card)
     if (!parser) {
         fclose(file);
         pthread_rwlock_unlock(&snd_rwlock);
+        free(snd_card_name);
         return NULL;
     }
 
@@ -535,6 +538,8 @@ void *snd_card_def_get_card(unsigned int card)
         card_def->refcnt++;
     }
 ret:
+    free(snd_card_name);
+    card_data.card_name = NULL;
     XML_ParserFree(parser);
     fclose(file);
     pthread_rwlock_unlock(&snd_rwlock);

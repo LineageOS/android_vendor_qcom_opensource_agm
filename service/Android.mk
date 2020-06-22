@@ -26,7 +26,8 @@ LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
 LOCAL_CFLAGS     := $(agm-def)
 LOCAL_CFLAGS += -Wno-tautological-compare
 LOCAL_CFLAGS += -Wno-macro-redefined
-LOCAL_CFLAGS += -D_GNU_SOURCE -DACDB_PATH="/vendor/etc/acdbdata/MTP" -DACDB_DELTA_FILE_PATH="/data/vendor/audio/acdbdata/delta"
+LOCAL_CFLAGS += -D_GNU_SOURCE -DACDB_PATH=\"/vendor/etc/acdbdata/\"
+LOCAL_CFLAGS += -DACDB_DELTA_FILE_PATH="/data/vendor/audio/acdbdata/delta"
 
 LOCAL_SRC_FILES  := src/agm.c\
                     src/graph.c\
