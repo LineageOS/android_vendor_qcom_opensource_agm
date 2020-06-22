@@ -12,12 +12,10 @@ LOCAL_SRC_FILES := \
 
 LOCAL_SHARED_LIBRARIES := \
     libhidlbase \
-    libhidltransport \
     libutils \
     liblog \
     libcutils \
     libhardware \
-    libhwbinder \
     libbase \
     vendor.qti.hardware.AGMIPC@1.0 \
     libagm
@@ -43,9 +41,7 @@ LOCAL_SHARED_LIBRARIES := \
     libutils \
     libhardware \
     libhidlbase \
-    libhidltransport \
     vendor.qti.hardware.AGMIPC@1.0 \
-    libhwbinder \
     vendor.qti.hardware.AGMIPC@1.0-impl \
     libagm
 
