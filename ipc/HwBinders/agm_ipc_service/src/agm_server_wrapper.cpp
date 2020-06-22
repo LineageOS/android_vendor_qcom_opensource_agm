@@ -203,6 +203,7 @@ Return<int32_t> AGM::ipc_agm_aif_set_media_config(uint32_t aif_id,
     med_config_l->format = (enum agm_media_format) media_config.data()->format;
     med_config_l->data_format = media_config.data()->data_format;
     int32_t ret = agm_aif_set_media_config (aif_id, med_config_l);
+    free(med_config_l);
     return ret;
 }
 
@@ -211,13 +212,16 @@ Return<int32_t> AGM::ipc_agm_aif_set_metadata(uint32_t aif_id,
                                             const hidl_vec<uint8_t>& metadata) {
     ALOGV("%s called with aif_id = %d, size = %d\n", __func__, aif_id, size);
     uint8_t * metadata_l = NULL;
+    int32_t ret = 0;
     metadata_l = (uint8_t *) calloc(1,size);
     if (metadata_l == NULL) {
         ALOGE("%s: Cannot allocate memory for metadata_l\n", __func__);
         return -ENOMEM;
     }
     memcpy(metadata_l, metadata.data(), size);
-    return agm_aif_set_metadata(aif_id, size, metadata_l);
+    ret = agm_aif_set_metadata(aif_id, size, metadata_l);
+    free(metadata_l);
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_session_set_metadata(uint32_t session_id,
@@ -225,13 +229,16 @@ Return<int32_t> AGM::ipc_agm_session_set_metadata(uint32_t session_id,
                                             const hidl_vec<uint8_t>& metadata) {
     ALOGV("%s : session_id = %d, size = %d\n", __func__, session_id, size);
     uint8_t * metadata_l = NULL;
+    int32_t ret = 0;
     metadata_l = (uint8_t *) calloc(1,size);
     if (metadata_l == NULL) {
         ALOGE("%s: Cannot allocate memory for metadata_l\n", __func__);
         return -ENOMEM;
     }
     memcpy(metadata_l, metadata.data(), size);
-    return agm_session_set_metadata(session_id, size, metadata_l);
+    ret = agm_session_set_metadata(session_id, size, metadata_l);
+    free(metadata_l);
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_session_aif_set_metadata(uint32_t session_id,
@@ -241,13 +248,16 @@ Return<int32_t> AGM::ipc_agm_session_aif_set_metadata(uint32_t session_id,
     ALOGV("%s : session_id = %d, aif_id =%d, size = %d\n", __func__,
                                                       session_id, aif_id, size);
     uint8_t * metadata_l = NULL;
+    int32_t ret = 0;
     metadata_l = (uint8_t *) calloc(1,size);
     if (metadata_l == NULL) {
         ALOGE("%s: Cannot allocate memory for metadata_l\n", __func__);
         return -ENOMEM;
     }
     memcpy(metadata_l, metadata.data(), size);
-    return agm_session_aif_set_metadata(session_id, aif_id, size, metadata_l);
+    ret = agm_session_aif_set_metadata(session_id, aif_id, size, metadata_l);
+    free(metadata_l);
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_session_aif_connect(uint32_t session_id,
@@ -285,6 +295,7 @@ Return<void> AGM::ipc_agm_session_aif_get_tag_module_info(uint32_t session_id,
         memcpy(payload_hidl.data(), payload_local, size_local);
     uint32_t size_hidl = (uint32_t) size_local;
     _hidl_cb(ret, payload_hidl, size_hidl);
+    free(payload_local);
     return Void();
 }
 
@@ -310,7 +321,8 @@ Return<void> AGM::ipc_agm_session_get_params(uint32_t session_id,
     if (!ret)
        memcpy(payload_hidl.data(), payload_local, (size_t)size);
 
-    _hidl_cb(ret, payload_hidl);
+     _hidl_cb(ret, payload_hidl);
+    free(payload_local);
     return Void();
 }
 
@@ -320,6 +332,7 @@ Return<int32_t> AGM::ipc_agm_aif_set_params(uint32_t aif_id,
 {
     size_t size_local = (size_t) size;
     void * payload_local = NULL;
+    int32_t ret = 0;
 
     ALOGV("%s : aif_id =%d, size = %d\n", __func__, aif_id, size);
     payload_local = (void*) calloc (1,size);
@@ -328,7 +341,9 @@ Return<int32_t> AGM::ipc_agm_aif_set_params(uint32_t aif_id,
         return -ENOMEM;
     }
     memcpy(payload_local, payload.data(), size);
-    return agm_aif_set_params(aif_id, payload_local, size_local);
+    ret = agm_aif_set_params(aif_id, payload_local, size_local);
+    free(payload_local);
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_session_aif_set_params(uint32_t session_id,
@@ -339,16 +354,19 @@ Return<int32_t> AGM::ipc_agm_session_aif_set_params(uint32_t session_id,
                                                       session_id, aif_id, size);
     size_t size_local = (size_t) size;
     void * payload_local = NULL;
+    int32_t ret = 0;
     payload_local = (void*) calloc (1,size);
     if (payload_local == NULL) {
         ALOGE("%s: Cannot allocate memory for payload_local\n", __func__);
         return -ENOMEM;
     }
     memcpy(payload_local, payload.data(), size);
-    return agm_session_aif_set_params(session_id,
+    ret = agm_session_aif_set_params(session_id,
                                       aif_id,
                                       payload_local,
                                       size_local);
+    free(payload_local);
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_session_aif_set_cal(uint32_t session_id,
@@ -356,6 +374,7 @@ Return<int32_t> AGM::ipc_agm_session_aif_set_cal(uint32_t session_id,
                                     const hidl_vec<AgmCalConfig>& cal_config) {
     ALOGV("%s : session_id = %d, aif_id = %d\n", __func__, session_id, aif_id);
     struct agm_cal_config *cal_config_local = NULL;
+    int32_t ret = 0;
 
     cal_config_local =
               (struct agm_cal_config*) calloc(1, sizeof(struct agm_cal_config) +
@@ -374,7 +393,9 @@ Return<int32_t> AGM::ipc_agm_session_aif_set_cal(uint32_t session_id,
         cal_config_local->kv[i].key = ptr->key;
         cal_config_local->kv[i].value = ptr->value;
     }
-    return agm_session_aif_set_cal(session_id, aif_id, cal_config_local);
+    ret = agm_session_aif_set_cal(session_id, aif_id, cal_config_local);
+    free(cal_config_local);
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_session_set_params(uint32_t session_id,
@@ -383,13 +404,16 @@ Return<int32_t> AGM::ipc_agm_session_set_params(uint32_t session_id,
     ALOGV("%s : session_id = %d, size = %d\n", __func__, session_id, size);
     size_t size_local = (size_t) size;
     void * payload_local = NULL;
+    int32_t ret = 0;
     payload_local = (void*) calloc (1,size);
     if (payload_local == NULL) {
         ALOGE("%s: Cannot allocate memory for payload_local\n", __func__);
         return -ENOMEM;
     }
     memcpy(payload_local, payload.data(), size);
-    return agm_session_set_params(session_id, payload_local, size_local);
+    ret = agm_session_set_params(session_id, payload_local, size_local);
+    free(payload_local);
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_set_params_with_tag(uint32_t session_id,
@@ -399,6 +423,7 @@ Return<int32_t> AGM::ipc_agm_set_params_with_tag(uint32_t session_id,
     struct agm_tag_config *tag_config_local;
     size_t size_local = (sizeof(struct agm_tag_config) +
                         (tag_config.data()->num_tkvs) * sizeof(agm_key_value));
+    int32_t ret = 0;
     tag_config_local = (struct agm_tag_config *) calloc(1,size_local);
     if (tag_config_local == NULL) {
         ALOGE("%s: Cannot allocate memory for tag_config_local\n", __func__);
@@ -414,13 +439,16 @@ Return<int32_t> AGM::ipc_agm_set_params_with_tag(uint32_t session_id,
         tag_config_local->kv[i].key = ptr->key;
         tag_config_local->kv[i].value = ptr->value;
     }
-    return agm_set_params_with_tag(session_id, aif_id, tag_config_local) ;
+    ret = agm_set_params_with_tag(session_id, aif_id, tag_config_local);
+    free(tag_config_local);
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_session_register_for_events(uint32_t session_id,
                                   const hidl_vec<AgmEventRegCfg>& evt_reg_cfg) {
     ALOGV("%s : session_id = %d\n", __func__, session_id);
     struct agm_event_reg_cfg *evt_reg_cfg_local;
+    int32_t ret = 0;
     evt_reg_cfg_local = (struct agm_event_reg_cfg*)
               calloc(1,(sizeof(struct agm_event_reg_cfg) +
               (evt_reg_cfg.data()->event_config_payload_size)*sizeof(uint8_t)));
@@ -434,10 +462,10 @@ Return<int32_t> AGM::ipc_agm_session_register_for_events(uint32_t session_id,
     evt_reg_cfg_local->is_register = evt_reg_cfg.data()->is_register;
     for (int i = 0; i < evt_reg_cfg.data()->event_config_payload_size; i++)
         evt_reg_cfg_local->event_config_payload[i] = evt_reg_cfg.data()->event_config_payload[i];
-/*     memcpy(evt_reg_cfg_local, evt_reg_cfg.data(),
-           sizeof(struct agm_event_reg_cfg) +
-           (evt_reg_cfg.data()->event_config_payload_size)*sizeof(uint8_t));
-  */   return agm_session_register_for_events(session_id, evt_reg_cfg_local);
+
+    ret = agm_session_register_for_events(session_id, evt_reg_cfg_local);
+    free(evt_reg_cfg_local);
+    return ret;
 }
 
 Return<void> AGM::ipc_agm_session_open(uint32_t session_id,
@@ -462,6 +490,7 @@ Return<int32_t> AGM::ipc_agm_session_set_config(uint64_t hndl,
     ALOGV("%s called with handle = %x \n", __func__, hndl);
 
     struct agm_media_config *media_config_local = NULL;
+    int32_t ret = 0;
     media_config_local = (struct agm_media_config*)
                                     calloc(1, sizeof(struct agm_media_config));
     if (media_config_local == NULL) {
@@ -492,11 +521,14 @@ Return<int32_t> AGM::ipc_agm_session_set_config(uint64_t hndl,
     }
     buffer_config_local->count = buffer_config.data()->count;
     buffer_config_local->size = buffer_config.data()->size;
-
-    return agm_session_set_config(hndl,
+    ret = agm_session_set_config(hndl,
                                   session_config_local,
                                   media_config_local,
                                   buffer_config_local);
+    free(session_config_local);
+    free(media_config_local);
+    free(buffer_config_local);
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_session_close(uint64_t hndl) {
@@ -575,6 +607,7 @@ Return<void> AGM::ipc_agm_session_read(uint64_t hndl, uint32_t count,
     buff_ret.resize(count);
     memcpy(buff_ret.data(), buffer, count);
     _hidl_cb (ret, buff_ret, cnt);
+    free(buffer);
     return Void();
 }
 
@@ -594,6 +627,7 @@ Return<void> AGM::ipc_agm_session_write(uint64_t hndl,
     size_t cnt = (size_t) count;
     int ret = agm_session_write(hndl, buffer, &cnt);
     _hidl_cb (ret, cnt);
+    free(buffer);
     return Void();
 }
 
@@ -631,6 +665,7 @@ Return<void> AGM::ipc_agm_get_aif_info_list(uint32_t num_aif_info,
     num_aif_info = (uint32_t) num_aif_info_ret;
     ret = 0;
     _hidl_cb(ret, aif_list_ret, num_aif_info);
+    free(aif_list);
     return Void();
 }
 Return<int32_t> AGM::ipc_agm_session_set_loopback(uint32_t capture_session_id,
