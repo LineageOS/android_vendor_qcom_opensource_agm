@@ -783,14 +783,23 @@ int graph_stop(struct graph_obj *graph_obj,
 
         ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP,
                         &gsl_cmd_prop, sizeof(struct gsl_cmd_properties));
+        /* Continue to close graph even stop fails */
+        if (ret !=0)
+            AGM_LOGE("graph stop with prop failed %d\n", ret);
+
+        ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_CLOSE_WITH_PROPS,
+                        &gsl_cmd_prop, sizeof(struct gsl_cmd_properties));
+        if (ret !=0) {
+            ret = ar_err_get_lnx_err_code(ret);
+            AGM_LOGE("graph close with prop failed %d\n", ret);
+        }
     } else {
         ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP, NULL, 0);
         graph_obj->state = STOPPED;
-    }
-    if (ret !=0) {
-        ret = ar_err_get_lnx_err_code(ret);
-        AGM_LOGE("graph stop failed %d\n", ret);
-        goto done;
+        if (ret !=0) {
+            ret = ar_err_get_lnx_err_code(ret);
+            AGM_LOGE("graph stop failed %d\n", ret);
+        }
     }
 
 done:
