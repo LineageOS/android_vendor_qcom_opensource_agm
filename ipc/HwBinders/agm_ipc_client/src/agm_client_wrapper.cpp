@@ -54,9 +54,9 @@ android::sp<IAGM> agm_client = NULL;
 sp<server_death_notifier> Server_death_notifier = NULL;
 
 void server_death_notifier::serviceDied(uint64_t cookie,
-                   const android::wp<::android::hidl::base::V1_0::IBase>& who)
+                   const android::wp<::android::hidl::base::V1_0::IBase>& who __unused)
 {
-    ALOGE("%s : AGM Service died ,cookie : %lu",__func__,cookie);
+    ALOGE("%s : AGM Service died ,cookie : %llu",__func__, (unsigned long long)cookie);
     agm_server_died = true;
     if (cb_ != NULL)
         cb_(cookie_);
@@ -129,7 +129,7 @@ int agm_session_set_config(uint64_t handle,
                             struct agm_session_config *session_config,
                             struct agm_media_config *media_config,
                             struct agm_buffer_config *buffer_config) {
-    ALOGE("%s called with handle = %x \n", __func__, handle);
+    ALOGE("%s called with handle = %llx \n", __func__, (unsigned long long)handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         hidl_vec<AgmSessionConfig> session_config_hidl;
@@ -219,7 +219,7 @@ int agm_session_aif_set_metadata(uint32_t session_id, uint32_t audio_intf,
 }
 
 int agm_session_close(uint64_t handle){
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         return agm_client->ipc_agm_session_close(handle);
@@ -228,7 +228,7 @@ int agm_session_close(uint64_t handle){
 }
 
 int agm_session_prepare(uint64_t handle){
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         return agm_client->ipc_agm_session_prepare(handle);
@@ -237,7 +237,7 @@ int agm_session_prepare(uint64_t handle){
 }
 
 int agm_session_start(uint64_t handle){
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         return agm_client->ipc_agm_session_start(handle);
@@ -246,7 +246,7 @@ int agm_session_start(uint64_t handle){
 }
 
 int agm_session_stop(uint64_t handle){
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         return agm_client->ipc_agm_session_stop(handle);
@@ -255,7 +255,7 @@ int agm_session_stop(uint64_t handle){
 }
 
 int agm_session_pause(uint64_t handle){
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         return agm_client->ipc_agm_session_pause(handle);
@@ -264,7 +264,7 @@ int agm_session_pause(uint64_t handle){
 }
 
 int agm_session_resume(uint64_t handle){
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         return agm_client->ipc_agm_session_resume(handle);
@@ -273,7 +273,7 @@ int agm_session_resume(uint64_t handle){
 }
 
 int agm_session_open(uint32_t session_id, uint64_t *handle) {
-    ALOGE("%s called with handle = %x , *handle = %x\n", __func__, handle, *handle);
+    ALOGE("%s called with handle = %p , *handle = %llx\n", __func__, handle, (unsigned long long) *handle);
     int ret = -EINVAL;
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
@@ -283,7 +283,7 @@ int agm_session_open(uint32_t session_id, uint64_t *handle) {
                                  *handle = *handle_hidl.data();
                               });
     }
-    ALOGE("%s Received handle = %x , *handle = %x\n", __func__, handle, *handle);
+    ALOGE("%s Received handle = %p , *handle = %llx\n", __func__, handle, (unsigned long long) *handle);
     return ret;
 }
 
@@ -302,10 +302,10 @@ int  agm_session_aif_connect(uint32_t session_id,
 }
 
 int agm_session_read(uint64_t handle, void *buf, size_t *byte_count){
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        if (handle == NULL)
+        if (!handle)
             return -EINVAL;
 
         int ret = -EINVAL;
@@ -324,12 +324,12 @@ int agm_session_read(uint64_t handle, void *buf, size_t *byte_count){
 }
 
 int agm_session_write(uint64_t handle, void *buf, size_t *byte_count) {
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         int ret = -EINVAL;
 
-        if (handle == NULL)
+        if (!handle)
             return -EINVAL;
 
         hidl_vec<uint8_t> buf_hidl;
@@ -364,7 +364,7 @@ int agm_session_set_loopback(uint32_t capture_session_id,
 }
 
 size_t agm_get_hw_processed_buff_cnt(uint64_t handle, enum direction dir) {
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         Direction dir_hidl = (Direction) dir;
@@ -435,7 +435,7 @@ int agm_session_aif_get_tag_module_info(uint32_t session_id, uint32_t aif_id,
 
 int agm_session_get_params(uint32_t session_id, void *payload, size_t size)
 {
-    ALOGV("%s : sess_id = %d, size = %d\n", __func__, session_id, size);
+    ALOGV("%s : sess_id = %d, size = %zu\n", __func__, session_id, size);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         hidl_vec<uint8_t> buf_hidl;
@@ -495,7 +495,7 @@ int agm_session_aif_set_params(uint32_t session_id, uint32_t aif_id,
 
 int agm_session_set_params(uint32_t session_id, void *payload, size_t size)
 {
-    ALOGV("%s : sess_id = %d, size = %d\n", __func__, session_id, size);
+    ALOGV("%s : sess_id = %d, size = %zu\n", __func__, session_id, size);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
 
@@ -602,7 +602,7 @@ int agm_session_set_ec_ref(uint32_t capture_session_id,
 int agm_session_register_cb(uint32_t session_id, agm_event_cb cb,
                              enum event_type evt_type, void *client_data)
 {
-    ALOGV("%s : sess_id = %d, evt_type = %d, client_data = %x \n", __func__,
+    ALOGV("%s : sess_id = %d, evt_type = %d, client_data = %p \n", __func__,
            session_id, evt_type, client_data);
     if (!agm_server_died) {
         sp<IAGMCallback> ClbkBinder = NULL;
@@ -626,7 +626,7 @@ int agm_session_register_cb(uint32_t session_id, agm_event_cb cb,
 
 int agm_session_eos(uint64_t handle)
 {
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         return agm_client->ipc_agm_session_eos(handle);
@@ -636,7 +636,7 @@ int agm_session_eos(uint64_t handle)
 
 int agm_get_session_time(uint64_t handle, uint64_t *timestamp)
 {
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         int ret = -EINVAL;

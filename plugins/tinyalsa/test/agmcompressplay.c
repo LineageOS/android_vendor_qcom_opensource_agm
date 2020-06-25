@@ -173,7 +173,7 @@ uint aac_sample_rates[] = {96000, 88200, 64000, 48000, 44100, 32000, 24000, 2205
 int parse_aac_header(struct adts_header *header, unsigned int *num_channels,
 		unsigned int *sample_rate, unsigned int *protection_absent)
 {
-	int profile, sample_rate_idx, channel_idx;
+	int profile, sample_rate_idx;
 
 	/* check sync bits */
 	if ((header->sync & 0xF0FF) != ADTS_SYNC) {
@@ -243,7 +243,7 @@ static int print_time(struct compress *compress)
 		fprintf(stderr, "ERR: %s\n", compress_get_error(compress));
 		return -1;
 	} else
-		fprintf(stderr, "DSP played %d.%d\n", tstamp.tv_sec, tstamp.tv_nsec*1000);
+		fprintf(stderr, "DSP played %ld.%ld\n", tstamp.tv_sec, tstamp.tv_nsec*1000);
 	return 0;
 }
 
@@ -251,8 +251,7 @@ int main(int argc, char **argv)
 {
 	char *file;
 	unsigned long buffer_size = 0;
-	int c;
-        unsigned int audio_intf = 0;
+    unsigned int audio_intf = 0;
 	unsigned int card = 0, device = 0, frag = 0, audio_format = 0, pause = 0;
 
 
@@ -294,7 +293,6 @@ int main(int argc, char **argv)
 
 	if (audio_intf >= sizeof(audio_interface_name)/sizeof(char *)) {
 		printf("Invalid audio interface index denoted by -i\n");
-		fclose(file);
 		return 1;
 	}
 
@@ -316,8 +314,8 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 	FILE *file;
 	char *buffer;
 	int size, num_read, wrote;
-	unsigned int channels, rate, bits = 0;
-        char *intf_name = audio_interface_name[intf];
+	unsigned int channels = 0, rate = 0, bits = 0;
+    char *intf_name = audio_interface_name[intf];
 
 	if (verbose)
 		printf("%s: entry\n", __func__);
@@ -340,7 +338,7 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 	} else if (format == AAC_ADTS_FORMAT) {
 		uint16_t protection_absent, crc;
 		fread(&adts_header, sizeof(adts_header), 1, file);
-		if (parse_aac_header(&adts_header, &channels, &rate, &protection_absent) == -1) {
+		if (parse_aac_header(&adts_header, &channels, &rate, (unsigned int*)&protection_absent) == -1) {
 			fclose(file);
 			exit(EXIT_FAILURE);
 		}

@@ -305,7 +305,7 @@ int device_close(struct device_obj *dev_obj)
         dev_obj->refcnt.prepare = 0;
         dev_obj->refcnt.start = 0;
     }
-done:
+
     pthread_mutex_unlock(&dev_obj->lock);
     return ret;
 }

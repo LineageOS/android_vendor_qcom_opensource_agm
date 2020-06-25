@@ -305,7 +305,7 @@ static int configure_i2s_ep(struct module_info *mod,
 
     if (ret != 0) {
         if (ret == AR_ENEEDMORE)
-           AGM_LOGE("payload buffer sz %d smaller than expected size %d",
+           AGM_LOGE("payload buffer sz %zu smaller than expected size %zu",
                      payload_sz, ret_payload_sz);
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGD("get_tagged_data for module %d failed with error %d",
@@ -393,7 +393,7 @@ static int configure_tdm_ep(struct module_info *mod,
 
     if (ret != 0) {
         if (ret == AR_ENEEDMORE)
-           AGM_LOGE("payload buffer sz %d smaller than expected size %d",
+           AGM_LOGE("payload buffer sz %zu smaller than expected size %zu",
                      payload_sz, ret_payload_sz);
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGD("get_tagged_data for module %d failed with error %d",
@@ -437,7 +437,7 @@ static int configure_aux_pcm_ep(struct module_info *mod,
     hw_ep_info_t hw_ep_info = dev_obj->hw_ep_info;
     struct gsl_key_vector tag_key_vect;
     struct apm_module_param_data_t *header;
-    struct param_id_tdm_intf_cfg_t* tdm_config;
+
     struct param_id_hw_pcm_intf_cfg_t* aux_pcm_cfg;
     size_t payload_sz ,ret_payload_sz = 0;
     uint8_t *payload = NULL;
@@ -483,7 +483,7 @@ static int configure_aux_pcm_ep(struct module_info *mod,
 
     if (ret != 0) {
        if (ret == AR_ENEEDMORE)
-           AGM_LOGE("payload buffer sz %d smaller than expected size %d",
+           AGM_LOGE("payload buffer sz %zu smaller than expected size %zu",
                      payload_sz, ret_payload_sz);
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGD("get_tagged_data for module %d failed with error %d",
@@ -534,7 +534,7 @@ static int configure_slimbus_ep(struct module_info *mod,
     if (dev_obj->media_config.channels > SB_MAX_CHAN_CNT) {
         AGM_LOGE("device channels %d exceed max supported ch %d for Slimbus",
                   dev_obj->media_config.channels, SB_MAX_CHAN_CNT);
-        ret -EINVAL;
+        ret = -EINVAL;
         goto done;
    }
 
@@ -1012,7 +1012,7 @@ int configure_placeholder_dec(struct module_info *mod,
     int ret = 0;
     struct gsl_key_vector tkv;
     struct session_obj *sess_obj = graph_obj->sess_obj;
-    int fmt_id = 0;
+
     size_t payload_size = 0, real_fmt_id = 0;
 
     AGM_LOGE("enter");
@@ -1230,7 +1230,7 @@ int configure_spr(struct module_info *spr_mod,
                             struct graph_obj *graph_obj)
 {
     int ret = 0;
-    struct session_obj *sess_obj = graph_obj->sess_obj;
+
     struct listnode *node = NULL;
     struct module_info *mod;
     struct apm_module_param_data_t *header;

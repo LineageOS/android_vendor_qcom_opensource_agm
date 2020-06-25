@@ -41,7 +41,7 @@
 
 #define MAX_PATH 256
 #define BUF_SIZE 1024
-#define UINT_MAX (~0U)
+
 
 struct snd_prop_val_pair {
     char *prop;

@@ -35,9 +35,9 @@
 #include <hwbinder/IPCThreadState.h>
 
 void client_death_notifier::serviceDied(uint64_t cookie,
-                   const android::wp<::android::hidl::base::V1_0::IBase>& who)
+                   const android::wp<::android::hidl::base::V1_0::IBase>& who __unused)
 {
-    ALOGE("%s : Client died ,cookie (pid) : %d",__func__,cookie);
+    ALOGE("%s : Client died ,cookie (pid) : %llu",__func__, (unsigned long long) cookie);
     struct listnode *node = NULL;
     struct listnode *tempnode = NULL;
     agm_client_session_handle *hndl = NULL;
@@ -72,11 +72,11 @@ void client_death_notifier::serviceDied(uint64_t cookie,
         list_for_each_safe(node, tempnode, &client_list) {
             handle = node_to_item(node, client_info, list);
             if (handle->pid == cookie) {
-                ALOGV("%s: MATCHED pid = %d\n", __func__, cookie);
+                ALOGV("%s: MATCHED pid = %llu\n", __func__, (unsigned long long) cookie);
                 list_for_each_safe(sess_node, sess_tempnode,
                                           &handle->agm_client_hndl_list) {
                     hndl = node_to_item(sess_node, agm_client_session_handle, list);
-                    if (hndl->handle != NULL) {
+                    if (hndl->handle) {
                         agm_session_close(hndl->handle);
                         list_remove(sess_node);
                         free(hndl);
@@ -94,7 +94,6 @@ void client_death_notifier::serviceDied(uint64_t cookie,
 void add_handle_to_list(uint64_t handle)
 {
     struct listnode *node = NULL;
-    struct listnode *tempnode = NULL;
     client_info *client_handle = NULL;
     client_info *client_handle_temp = NULL;
     agm_client_session_handle *hndl = NULL;
@@ -479,7 +478,7 @@ Return<void> AGM::ipc_agm_session_open(uint32_t session_id,
     _hidl_cb(ret, handle_ret);
     if (!ret)
         add_handle_to_list(handle);
-    ALOGV("%s : handle received is : %x",__func__, handle);
+    ALOGV("%s : handle received is : %llx",__func__, (unsigned long long) handle);
     return Void();
 }
 
@@ -487,7 +486,7 @@ Return<int32_t> AGM::ipc_agm_session_set_config(uint64_t hndl,
                 const hidl_vec<AgmSessionConfig>& session_config,
                 const hidl_vec<AgmMediaConfig>& media_config,
                 const hidl_vec<AgmBufferConfig>& buffer_config) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
 
     struct agm_media_config *media_config_local = NULL;
     int32_t ret = 0;
@@ -532,7 +531,7 @@ Return<int32_t> AGM::ipc_agm_session_set_config(uint64_t hndl,
 }
 
 Return<int32_t> AGM::ipc_agm_session_close(uint64_t hndl) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
     struct listnode *node = NULL;
     struct listnode *tempnode = NULL;
     agm_client_session_handle *hndle = NULL;
@@ -563,37 +562,37 @@ Return<int32_t> AGM::ipc_agm_session_close(uint64_t hndl) {
 }
 
 Return<int32_t> AGM::ipc_agm_session_prepare(uint64_t hndl) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
 
     return agm_session_prepare(hndl);
 }
 
 Return<int32_t> AGM::ipc_agm_session_start(uint64_t hndl) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
 
     return agm_session_start(hndl);
 }
 
 Return<int32_t> AGM::ipc_agm_session_stop(uint64_t hndl) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
 
     return agm_session_stop(hndl);
 }
 
 Return<int32_t> AGM::ipc_agm_session_pause(uint64_t hndl) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
 
     return agm_session_pause(hndl);
 }
 Return<int32_t> AGM::ipc_agm_session_resume(uint64_t hndl) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
 
     return agm_session_resume(hndl);
 }
 
 Return<void> AGM::ipc_agm_session_read(uint64_t hndl, uint32_t count,
                                              ipc_agm_session_read_cb _hidl_cb) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
     hidl_vec <uint8_t> buff_ret;
     void *buffer = NULL;
     buffer = (void*) calloc(1,count);
@@ -615,7 +614,7 @@ Return<void> AGM::ipc_agm_session_write(uint64_t hndl,
                                         const hidl_vec<uint8_t>& buff,
                                         uint32_t count,
                                         ipc_agm_session_write_cb _hidl_cb) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
     void* buffer = NULL;
     buffer = (void*) calloc(1,count);
     if (buffer == NULL) {
@@ -633,7 +632,7 @@ Return<void> AGM::ipc_agm_session_write(uint64_t hndl,
 
 Return<int32_t> AGM::ipc_agm_get_hw_processed_buff_cnt(uint64_t hndl,
                                                         Direction dir) {
-    ALOGV("%s called with handle = %x \n", __func__, hndl);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
     enum direction dir_local = (enum direction) dir;
     return agm_get_hw_processed_buff_cnt(hndl, dir_local);
 }
@@ -707,8 +706,8 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
         cb->linkToDeath(this->Client_death_notifier, pid);
         ALOGV("%s : client linked to death with pid = %d\n", __func__, pid);
         sr_clbk_data = new SrvrClbk (session_id, cb, evt_type, ipc_client_data, pid);
-        ALOGV("%s new SrvrClbk= %p, clntdata= %p, sess id= %d, evt_type= %d \n",
-                __func__, (void *) sr_clbk_data,ipc_client_data,session_id,
+        ALOGV("%s new SrvrClbk= %p, clntdata= %llx, sess id= %d, evt_type= %d \n",
+                __func__, (void *) sr_clbk_data, (unsigned long long) ipc_client_data,session_id,
                 (uint32_t)evt_type);
         /*TODO: Free this clbk list when the client dies abruptly also
                 deregister the callbacks*/
@@ -761,13 +760,13 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
 }
 
 Return<int32_t> AGM::ipc_agm_session_eos(uint64_t hndl){
-    ALOGV("%s : handle = %x \n", __func__, hndl);
+    ALOGV("%s : handle = %llx \n", __func__, (unsigned long long) hndl);
     return agm_session_eos(hndl);
 }
 
 Return<void> AGM::ipc_agm_get_session_time(uint64_t hndl,
                                           ipc_agm_get_session_time_cb _hidl_cb){
-    ALOGV("%s : handle = %x \n", __func__, hndl);
+    ALOGV("%s : handle = %llx \n", __func__, (unsigned long long) hndl);
     uint64_t ts;
     int ret = agm_get_session_time(hndl, &ts);
     _hidl_cb(ret,ts);
@@ -783,6 +782,7 @@ Return<void> AGM::ipc_agm_get_buffer_timestamp(uint32_t session_id,
     _hidl_cb(ret, ts);
     return Void();
 }
+
 Return<void> AGM::ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t flag,
                                              ipc_agm_session_get_buf_info_cb _hidl_cb) {
     struct agm_buf_info buf_info;

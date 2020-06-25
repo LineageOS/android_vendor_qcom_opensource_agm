@@ -61,7 +61,7 @@ static struct aif *aif_obj_get_from_pool(struct session_obj *sess_obj,
     return NULL;
 }
 
-static struct aif* aif_obj_create(struct session_obj *sess_obj, int aif_id)
+static struct aif* aif_obj_create(struct session_obj *sess_obj __unused, int aif_id)
 {
     struct aif *aif_obj = NULL;
     struct device_obj *dev_obj = NULL;
@@ -1380,7 +1380,7 @@ int session_obj_get_sess_params(struct session_obj *sess_obj,
                               __func__, ret, sess_obj->sess_id);
     }
 
-done:
+
     pthread_mutex_unlock(&sess_obj->lock);
     return ret;
 }
@@ -1602,6 +1602,8 @@ int session_obj_sess_aif_connect(struct session_obj *sess_obj,
                                                     __func__, ret);
                 goto done;
             }
+        default:
+            break;
         }
         aif_obj->state = AIF_CLOSED;
     }
@@ -1779,7 +1781,7 @@ int session_obj_resume(struct session_obj *sess_obj)
         AGM_LOGE("%s Error:%d resuming graph\n", __func__, ret);
     }
 
-done:
+
     pthread_mutex_unlock(&sess_obj->lock);
     return ret;
 }

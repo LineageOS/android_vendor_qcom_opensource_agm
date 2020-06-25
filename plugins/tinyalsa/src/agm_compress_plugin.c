@@ -97,13 +97,13 @@ static int agm_get_session_handle(struct agm_compress_priv *priv,
         return -EINVAL;
 
     *handle = priv->handle;
-    if (NULL == *handle)
+    if (!*handle)
         return -EINVAL;
 
     return 0;
 }
 
-void agm_compress_event_cb(uint32_t session_id,
+void agm_compress_event_cb(uint32_t session_id __unused,
                            struct agm_event_cb_params *event_params,
                            void *client_data)
 {
@@ -125,8 +125,8 @@ void agm_compress_event_cb(uint32_t session_id,
     }
 
     pthread_mutex_lock(&priv->lock);
-    AGM_LOGV("%s: enter: bytes_avail = %ld, event_id = %d\n", __func__,
-           priv->bytes_avail, event_params->event_id);
+    AGM_LOGV("%s: enter: bytes_avail = %lld, event_id = %d\n", __func__,
+             (long long) priv->bytes_avail, event_params->event_id);
     if (event_params->event_id == AGM_EVENT_WRITE_DONE) {
         /*
          * Write done cb is expected for every DSP write with
@@ -134,8 +134,8 @@ void agm_compress_event_cb(uint32_t session_id,
          */
         priv->bytes_avail += priv->buffer_config.size;
         if (priv->bytes_avail > priv->total_buf_size) {
-            AGM_LOGE("%s: Error: bytes_avail %ld, total size = %ld\n",
-                   __func__, priv->bytes_avail, priv->total_buf_size);
+            AGM_LOGE("%s: Error: bytes_avail %lld, total size = %llu\n",
+                   __func__, priv->bytes_avail, (unsigned long long) priv->total_buf_size);
             pthread_mutex_unlock(&priv->lock);
             return;
         }
@@ -181,8 +181,8 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff,
         return ret;
 
     if (count > priv->total_buf_size) {
-        AGM_LOGE("%s: Size %ld is greater than total buf size %ld\n",
-               __func__, count, priv->total_buf_size);
+        AGM_LOGE("%s: Size %zu is greater than total buf size %llu\n",
+               __func__, count, (unsigned long long) priv->total_buf_size);
         return -EINVAL;
     }
 
@@ -195,11 +195,10 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff,
         priv->prepared = true;
     }
 
-    ret = agm_session_write(handle, (void *)buff, &size);
-    if (ret) {
-        errno = ret;
+    ret = agm_session_write(handle, (void *)buff, (size_t*)&size);
+    if (ret)
         return ret;
-    }
+
     pthread_mutex_lock(&priv->lock);
     buf_cnt = size / priv->buffer_config.size;
     if (size % priv->buffer_config.size != 0)
@@ -208,12 +207,12 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff,
     /* Avalible buffer size is always multiple of fragment size */
     priv->bytes_avail -= (buf_cnt * priv->buffer_config.size);
     if (priv->bytes_avail < 0) {
-        printf("%s: err: bytes_avail = %ld", __func__, priv->bytes_avail);
+        printf("%s: err: bytes_avail = %lld", __func__, (long long) priv->bytes_avail);
         ret = -EINVAL;
         goto err;
     }
-    AGM_LOGV("%s: count = %ld, priv->bytes_avail: %ld\n",
-                     __func__, count, priv->bytes_avail);
+    AGM_LOGV("%s: count = %zu, priv->bytes_avail: %lld\n",
+                     __func__, count, (long long) priv->bytes_avail);
     priv->bytes_copied += size;
     ret = size;
 err:
@@ -233,7 +232,7 @@ int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
         return ret;
 
     if (count > priv->bytes_avail) {
-        AGM_LOGE("%s: Invalid requested size %ld", __func__, count);
+        AGM_LOGE("%s: Invalid requested size %zu", __func__, count);
         return -EINVAL;
     }
 
@@ -251,7 +250,7 @@ int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
     /* Avalible buffer size is always multiple of fragment size */
     priv->bytes_avail -= (buf_cnt * priv->buffer_config.size);
     if (priv->bytes_avail < 0)
-        AGM_LOGE("%s: err: bytes_avail = %ld", __func__, priv->bytes_avail);
+        AGM_LOGE("%s: err: bytes_avail = %lld", __func__, (long long) priv->bytes_avail);
 
     priv->bytes_read += count;
 
@@ -291,8 +290,6 @@ int agm_compress_avail(struct compress_plugin *plugin,
 {
     struct agm_compress_priv *priv = plugin->priv;
     uint64_t handle;
-    void *buff;
-    size_t count;
     int ret = 0;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -304,8 +301,8 @@ int agm_compress_avail(struct compress_plugin *plugin,
     pthread_mutex_lock(&priv->lock);
     /* Avail size is always in multiples of fragment size */
     avail->avail = priv->bytes_avail;
-    AGM_LOGV("%s: size = %d, *avail = %d, pcm_io_frames: %d \
-             sampling_rate: %d\n", __func__,
+    AGM_LOGV("%s: size = %zu, *avail = %llu, pcm_io_frames: %d \
+             sampling_rate: %u\n", __func__,
              sizeof(struct snd_compr_avail), avail->avail,
              avail->tstamp.pcm_io_frames,
              avail->tstamp.sampling_rate);
@@ -490,7 +487,7 @@ int agm_compress_set_params(struct compress_plugin *plugin,
     if (ret)
         return ret;
 
-    AGM_LOGD("%s: exit fragments cnt = %d size = %ld\n", __func__,
+    AGM_LOGD("%s: exit fragments cnt = %d size = %zu\n", __func__,
            buf_cfg->count, buf_cfg->size);
     return ret;
 }
@@ -584,8 +581,8 @@ static int agm_compress_drain(struct compress_plugin *plugin)
     if (ret)
         return ret;
 
-    AGM_LOGV("%s: priv->bytes_avail = %ld,  priv->total_buf_size = %ld\n",
-           __func__, priv->bytes_avail, priv->total_buf_size);
+    AGM_LOGV("%s: priv->bytes_avail = %lld,  priv->total_buf_size = %llu\n",
+           __func__, (long long) priv->bytes_avail, (unsigned long long) priv->total_buf_size);
     /* No need to wait for all buffers to be consumed to issue EOS as
      * write and EOS cmds are sequential
      */
@@ -635,7 +632,7 @@ static int agm_compress_next_track(struct compress_plugin *plugin)
 }
 
 static int agm_compress_poll(struct compress_plugin *plugin,
-                             struct pollfd *fds, nfds_t nfds,
+                             struct pollfd *fds, nfds_t nfds __unused,
                              int timeout)
 {
     struct agm_compress_priv *priv = plugin->priv;

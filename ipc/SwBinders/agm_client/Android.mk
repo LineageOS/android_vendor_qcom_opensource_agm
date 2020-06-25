@@ -17,6 +17,8 @@ LOCAL_SHARED_LIBRARIES := \
                           libutils \
                           libagmproxy
 
+LOCAL_CFLAGS += -Wall
+
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DYNAMIC_LOG)), true)
       LOCAL_CFLAGS += -DDYNAMIC_LOG_ENABLED
       LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-audio/audio-log-utils

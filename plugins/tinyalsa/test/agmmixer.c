@@ -119,7 +119,7 @@ int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
     media_config[2] = bits_to_alsa_format(bits);
     media_config[3] = AGM_DATA_FORMAT_FIXED_POINT;
 
-    printf("%s - %d - %d - %d\n", __func__, media_config[0],  media_config[1], media_config[2]);
+    printf("%s - %ld - %ld - %ld\n", __func__, media_config[0],  media_config[1], media_config[2]);
     ret = mixer_ctl_set_array(ctl, &media_config, sizeof(media_config)/sizeof(media_config[0]));
     free(mixer_str);
     return ret;
@@ -568,7 +568,7 @@ int agm_mixer_get_miid(struct mixer *mixer, int device, char *intf_name,
     for (i = 0; i < tag_info->num_tags; i++) {
         tag_entry += offset/sizeof(struct gsl_tag_module_info_entry);
 
-        printf("%s tag id[%d] = %lx, num_modules = %lx\n", __func__, i, tag_entry->tag_id, tag_entry->num_modules);
+        printf("%s tag id[%d] = %lx, num_modules = %lx\n", __func__, i, (unsigned long) tag_entry->tag_id, (unsigned long) tag_entry->num_modules);
         offset = sizeof(struct gsl_tag_module_info_entry) + (tag_entry->num_modules * sizeof(struct gsl_module_id_info_entry));
         if (tag_entry->tag_id == tag_id) {
             struct gsl_module_id_info_entry *mod_info_entry;
@@ -800,7 +800,7 @@ int agm_mixer_get_buf_tstamp(struct mixer *mixer, int device, enum stream_type s
          goto exit;
     }
 
-    printf("received timestamp is 0x%lx\n", ts);
+    printf("received timestamp is 0x%llx\n", (unsigned long long) ts);
     *tstamp = ts;
 exit:
     free(mixer_str);

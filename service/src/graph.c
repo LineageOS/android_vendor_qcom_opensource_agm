@@ -151,7 +151,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
         return 0;
     }
 
-    AGM_LOGD("%s sess buf_sz %d num_bufs %d\n", sess_obj->stream_config.dir == RX?
+    AGM_LOGD("%s sess buf_sz %zu num_bufs %d\n", sess_obj->stream_config.dir == RX?
                  "Playback":"Capture", sess_obj->buffer_config.size,
                   sess_obj->buffer_config.count);
 
@@ -403,12 +403,12 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     struct graph_obj *graph_obj = NULL;
     int ret = 0;
     struct listnode *temp_node, *node = NULL, *node_list = NULL;
-    size_t module_info_size;
+
     struct gsl_tag_module_info *tag_module_info = NULL;
     size_t tag_module_info_size;
     struct gsl_tag_module_info_entry *gsl_tag_entry = NULL;
     struct agm_key_vector_gsl *gkv;
-    int i = 0, j = 0;
+    int i = 0;
     size_t module_list_count =  0;
     module_info_t *mod, *temp_mod = NULL;
     module_info_link_list_t *mod_list = NULL;
@@ -450,7 +450,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
 
     /*Get all the tags info of the graph and store it tag_module_info structure*/
     ret = get_tags_with_module_info(&meta_data_kv->gkv,
-                                      &tag_module_info, &tag_module_info_size);
+                                    (void**) &tag_module_info, &tag_module_info_size);
     if (ret != 0)
         goto free_graph_obj;
 
@@ -543,9 +543,9 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
             }
         }
 tag_list:
-        gsl_tag_entry  = (char *)gsl_tag_entry + sizeof(struct gsl_tag_module_info_entry) +
+        gsl_tag_entry  = (struct gsl_tag_module_info_entry *) ((char *)gsl_tag_entry + sizeof(struct gsl_tag_module_info_entry) +
                                (sizeof(struct gsl_module_id_info_entry) *
-                               gsl_tag_entry->num_modules);
+                               gsl_tag_entry->num_modules));
     }
     graph_obj->sess_obj = sess_obj;
 
@@ -567,7 +567,7 @@ tag_list:
     }
     graph_obj->state = OPENED;
     *gph_obj = graph_obj;
-    AGM_LOGD("graph_handle %x\n", graph_obj->graph_handle);
+    AGM_LOGD("graph_handle %p\n", graph_obj->graph_handle);
 
     goto done;
 
@@ -603,7 +603,7 @@ int graph_close(struct graph_obj *graph_obj)
         return -EINVAL;
     }
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry handle %x\n", graph_obj->graph_handle);
+    AGM_LOGD("entry handle %p\n", graph_obj->graph_handle);
 
     ret = gsl_close(graph_obj->graph_handle);
     if (ret !=0) {
@@ -647,7 +647,7 @@ int graph_prepare(struct graph_obj *graph_obj)
     }
     stream_config = sess_obj->stream_config;
 
-    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
     pthread_mutex_lock(&graph_obj->lock);
     if (graph_obj->state == PREPARED) {
         AGM_LOGD("Graph already prepared");
@@ -732,7 +732,7 @@ int graph_start(struct graph_obj *graph_obj)
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
 
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_START, NULL, 0);
     if (ret !=0) {
@@ -760,7 +760,7 @@ int graph_stop(struct graph_obj *graph_obj,
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
     if (graph_obj->state & (STOPPED)) {
        AGM_LOGE("graph object is already in STOP state\n");
        goto done;
@@ -875,7 +875,7 @@ int graph_set_config(struct graph_obj *graph_obj, void *payload,
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret !=0) {
         ret = ar_err_get_lnx_err_code(ret);
@@ -984,7 +984,7 @@ int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
                     SHMEM_ENDPOINT, &gsl_buff, &size_written);
     if (ret != 0) {
         ret = ar_err_get_lnx_err_code(ret);
-        AGM_LOGE("gsl_write for size %d failed with error %d\n", size, ret);
+        AGM_LOGE("gsl_write for size %zu failed with error %d\n", *size, ret);
         goto done;
     }
     *size = size_written;
@@ -1010,15 +1010,15 @@ int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
     gsl_buff.addr = (uint8_t *)(buffer);
 
     ret = gsl_read(graph_obj->graph_handle,
-                    SHMEM_ENDPOINT, &gsl_buff, &size_read);
+                    SHMEM_ENDPOINT, &gsl_buff, (uint32_t *)&size_read);
     if ((ret != 0) || (size_read == 0)) {
         ret = ar_err_get_lnx_err_code(ret);
-        AGM_LOGE("size_requested %d size_read %d error %d\n",
-                      size, size_read, ret);
+        AGM_LOGE("size_requested %zu size_read %d error %d\n",
+                  *size, size_read, ret);
     }
     *size = size_read;
     graph_obj->buf_info.timestamp = gsl_buff.timestamp;
-done:
+
     return ret;
 }
 
@@ -1027,7 +1027,7 @@ int graph_add(struct graph_obj *graph_obj,
               struct device_obj *dev_obj)
 {
     int ret = 0;
-    struct session_obj *sess_obj;
+
     struct gsl_cmd_graph_select add_graph;
     module_info_t *mod = NULL;
     struct agm_key_vector_gsl *gkv;
@@ -1039,7 +1039,7 @@ int graph_add(struct graph_obj *graph_obj,
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
 
     if (graph_obj->state < OPENED) {
         AGM_LOGE("Cannot add a graph in %d state\n", graph_obj->state);
@@ -1067,7 +1067,7 @@ int graph_add(struct graph_obj *graph_obj,
         goto done;
     }
     if (dev_obj != NULL) {
-        module_info_t *add_module, *temp_mod = NULL;
+        module_info_t *temp_mod = NULL;
         size_t module_info_size;
         struct gsl_module_id_info *module_info;
         bool mod_present = false;
@@ -1083,7 +1083,7 @@ int graph_add(struct graph_obj *graph_obj,
         ret = gsl_get_tagged_module_info((struct gsl_key_vector *)
                                            &meta_data_kv->gkv,
                                            mod->tag,
-                                           &module_info, &module_info_size);
+                                           &module_info, (uint32_t*) &module_info_size);
         if (ret != 0) {
             ret = ar_err_get_lnx_err_code(ret);
             AGM_LOGE("cannot get tagged module info for module %x\n",
@@ -1181,7 +1181,7 @@ int graph_change(struct graph_obj *graph_obj,
                      struct device_obj *dev_obj)
 {
     int ret = 0;
-    struct session_obj *sess_obj;
+
     struct gsl_cmd_graph_select change_graph;
     module_info_t *mod = NULL;
     struct agm_key_vector_gsl *gkv;
@@ -1193,7 +1193,7 @@ int graph_change(struct graph_obj *graph_obj,
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
 
     if (dev_obj != NULL) {
         mod = NULL;
@@ -1212,7 +1212,7 @@ int graph_change(struct graph_obj *graph_obj,
         ret = gsl_get_tagged_module_info((struct gsl_key_vector *)
                                            &meta_data_kv->gkv,
                                            mod->tag,
-                                           &module_info, &module_info_size);
+                                           &module_info, (uint32_t*) &module_info_size);
         if (ret != 0) {
             ret = ar_err_get_lnx_err_code(ret);
             AGM_LOGE("cannot get tagged module info for module %x\n",
@@ -1325,7 +1325,7 @@ int graph_remove(struct graph_obj *graph_obj,
         return -EINVAL;
     }
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %x\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
 
     /**
      *graph_remove would only pass the graph which needs to be removed.
@@ -1431,7 +1431,7 @@ done:
 }
 
 size_t graph_get_hw_processed_buff_cnt(struct graph_obj *graph_obj,
-                                       enum direction dir)
+                                       enum direction dir __unused)
 {
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object or null callback\n");
@@ -1506,8 +1506,8 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
         AGM_LOGE("gsl_get_custom_config command failed with error %d\n", ret);
         goto get_fail;
     }
-    AGM_LOGV("session_time: msw[%ld], lsw[%ld], at: msw[%ld], \
-                          lsw[%ld] ts: msw[%ld], lsw[%ld]\n",
+    AGM_LOGV("session_time: msw[%u], lsw[%u], at: msw[%u], \
+                          lsw[%u] ts: msw[%u], lsw[%u]\n",
               sess_time->session_time.value_msw,
               sess_time->session_time.value_lsw,
               sess_time->absolute_time.value_msw,
@@ -1583,8 +1583,9 @@ static int graph_fill_buf_info(struct graph_obj *gph_obj,
 		AGM_LOGE("Buffer info get failed error %d", ret);
 		goto free_buffs;
 	}
-	AGM_LOGD("%s - metadata %lx\n", __func__, shmem_buf_info->buffs[0].metadata);
-	AGM_LOGD("shmem_buf_info size %d - addr %lx\n", shmem_buf_info->size, shmem_buf_info->buffs[0].addr);
+
+	AGM_LOGD("%s - metadata %llx\n", __func__, (unsigned long long) shmem_buf_info->buffs[0].metadata);
+	AGM_LOGD("shmem_buf_info size %d - addr %p\n", shmem_buf_info->size, shmem_buf_info->buffs[0].addr);
 
 	shmem_handle = (struct ar_shmem_handle *)shmem_buf_info->buffs[0].metadata;
 	if (shmem_handle) {

@@ -2,6 +2,7 @@ ifeq ($(call is-board-platform-in-list, sdm845),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
+LOCAL_CFLAGS += -Wall
 LOCAL_SRC_FILES := \
                    ipc_proxy_server.cpp
 

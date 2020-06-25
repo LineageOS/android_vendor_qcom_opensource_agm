@@ -222,7 +222,7 @@ static int agm_get_session_handle(struct agm_pcm_priv *priv,
         return -EINVAL;
 
     *handle = priv->handle;
-    if (NULL == *handle)
+    if (!*handle)
         return -EINVAL;
 
     return 0;
@@ -477,7 +477,7 @@ static int agm_pcm_readi_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
     return ret;
 }
 
-static int agm_pcm_ttstamp(struct pcm_plugin *plugin, int *tstamp)
+static int agm_pcm_ttstamp(struct pcm_plugin *plugin, int *tstamp __unused)
 {
     struct agm_pcm_priv *priv = plugin->priv;
     uint64_t handle;
@@ -619,8 +619,8 @@ static int agm_pcm_poll(struct pcm_plugin *plugin, struct pollfd *pfd,
     return ret;
 }
 
-static void* agm_pcm_mmap(struct pcm_plugin *plugin, void *addr, size_t length, int prot,
-                               int flags, off_t offset)
+static void* agm_pcm_mmap(struct pcm_plugin *plugin, void *addr __unused, size_t length, int prot __unused,
+                               int flags __unused, off_t offset)
 {
     struct agm_pcm_priv *priv = plugin->priv;
     struct agm_buf_info *buf_info = NULL;
@@ -669,7 +669,7 @@ static void* agm_pcm_mmap(struct pcm_plugin *plugin, void *addr, size_t length, 
                 boundary *= 2;
 
             priv->pos_buf->boundary = boundary;
-            AGM_LOGE("%s: boundary: 0x%x, size_frames: 0x%x\n",
+            AGM_LOGE("%s: boundary: 0x%x, size_frames: 0x%lx\n",
                     __func__, boundary, priv->total_size_frames);
         }
     }

@@ -46,7 +46,7 @@
 static bool agm_initialized = 0;
 static pthread_t ats_thread;
 
-static void *ats_init_thread(void *obj)
+static void *ats_init_thread(void *obj __unused)
 {
     int ret = 0;
     while(1) {

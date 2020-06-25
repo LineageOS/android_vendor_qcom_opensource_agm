@@ -256,7 +256,7 @@ struct agm_meta_data_gsl* metadata_merge(int num, ...)
     return merged;
 }
 
-int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size,
+int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size __unused,
                                               uint8_t *metadata)
 {
 

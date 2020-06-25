@@ -16,6 +16,7 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 
 LOCAL_CFLAGS := -Wno-unused-parameter
 LOCAL_CFLAGS += -DCARD_DEF_FILE=\"/vendor/etc/card-defs.xml\"
+LOCAL_CFLAGS += -Wall
 
 LOCAL_SRC_FILES  := src/snd-card-parser.c
 
