@@ -1498,7 +1498,7 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
     header->module_instance_id = graph_obj->spr_miid;
     header->param_id = PARAM_ID_SPR_SESSION_TIME;
     header->error_code = 0x0;
-    header->param_size = payload_size;
+    header->param_size = (uint32_t)sizeof(struct param_id_spr_session_time_t);
 
     ret = gsl_get_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret != 0) {
