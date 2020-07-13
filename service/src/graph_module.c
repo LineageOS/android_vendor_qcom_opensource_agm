@@ -218,6 +218,7 @@ static int configure_codec_dma_ep(struct module_info *mod,
     if (chmap[0] < dev_obj->media_config.channels) {
         AGM_LOGE("Mismatch in num channels, expected %d, received %d",
                  dev_obj->media_config.channels, chmap[0]);
+        ret = -EINVAL;
         goto done;
     }
 
@@ -562,6 +563,7 @@ static int configure_slimbus_ep(struct module_info *mod,
     if (chmap[0] < dev_obj->media_config.channels) {
         AGM_LOGE("Mismatch in num channels, expected %d, received %d",
                  dev_obj->media_config.channels, chmap[0]);
+        ret = -EINVAL;
         goto done;
     }
 
