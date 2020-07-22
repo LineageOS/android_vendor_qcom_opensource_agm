@@ -225,7 +225,7 @@ static int configure_codec_dma_ep(struct module_info *mod,
     header->module_instance_id = mod->miid;
     header->param_id = PARAM_ID_CODEC_DMA_INTF_CFG;
     header->error_code = 0x0;
-    header->param_size = payload_sz - sizeof(struct apm_module_param_data_t);
+    header->param_size = sizeof(struct param_id_codec_dma_intf_cfg_t);
 
     codec_config->lpaif_type = hw_ep_info.ep_config.cdc_dma_i2s_tdm_config.lpaif_type;
     codec_config->intf_indx = hw_ep_info.ep_config.cdc_dma_i2s_tdm_config.intf_idx;
@@ -570,7 +570,7 @@ static int configure_slimbus_ep(struct module_info *mod,
     header->module_instance_id = mod->miid;
     header->param_id = PARAM_ID_SLIMBUS_CONFIG;
     header->error_code = 0x0;
-    header->param_size = payload_sz - sizeof(struct apm_module_param_data_t);
+    header->param_size = sizeof(struct param_id_slimbus_cfg_t);
     slimbus_cfg->slimbus_dev_id = hw_ep_info.ep_config.slim_config.dev_id;
 
     AGM_LOGD("slimbus intf cfg dev id %d ch %d", slimbus_cfg->slimbus_dev_id,
@@ -628,7 +628,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
     header->module_instance_id = mod->miid;
     header->param_id = PARAM_ID_HW_EP_MF_CFG;
     header->error_code = 0x0;
-    header->param_size = (uint32_t)payload_size;
+    header->param_size = sizeof(struct param_id_hw_ep_mf_t);
 
     hw_ep_media_conf->sample_rate = media_config.rate;
     hw_ep_media_conf->bit_width = get_pcm_bit_width(media_config.format);
@@ -750,7 +750,9 @@ int configure_output_media_format(struct module_info *mod,
     header->module_instance_id = mod->miid;
     header->param_id = PARAM_ID_PCM_OUTPUT_FORMAT_CFG;
     header->error_code = 0x0;
-    header->param_size = (uint32_t)payload_size;
+    header->param_size = sizeof(struct media_format_t) +
+                         sizeof(struct payload_pcm_output_format_cfg_t) +
+                         sizeof(uint8_t)*num_channels;
 
     media_fmt_hdr->data_format = AGM_DATA_FORMAT_FIXED_POINT;
     media_fmt_hdr->fmt_id = MEDIA_FMT_ID_PCM;
@@ -1067,6 +1069,7 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
     struct apm_module_param_data_t *header;
     uint8_t *payload = NULL;
     size_t payload_size = 0, real_fmt_id = 0;
+    size_t actual_param_sz = 0;
 
     if (is_format_bypassed(sess_obj->media_config.format)) {
         AGM_LOGI("%s: bypass shared mem ep config for format %x",
@@ -1084,6 +1087,11 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
          */
         return 0;
     }
+    /*
+     *We get the actual size of the PID being sent before the payload_size
+     *is updated for 8 byte alignment.
+     */
+    actual_param_sz = payload_size - sizeof(struct apm_module_param_data_t);
 
     /*ensure that the payloadsize is byte multiple atleast*/
     ALIGN_PAYLOAD(payload_size, 8);
@@ -1098,7 +1106,7 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
     header->module_instance_id = mod->miid;
     header->param_id = PARAM_ID_MEDIA_FORMAT;
     header->error_code = 0x0;
-    header->param_size = payload_size;
+    header->param_size = actual_param_sz;
 
     ret =  set_compressed_media_format(sess_obj->media_config.format,
                              media_fmt_hdr, sess_obj);
@@ -1169,7 +1177,9 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     header->module_instance_id = mod->miid;
     header->param_id = PARAM_ID_MEDIA_FORMAT;
     header->error_code = 0x0;
-    header->param_size = (uint32_t)payload_size;
+    header->param_size = sizeof(struct media_format_t) +
+                         sizeof(struct payload_media_fmt_pcm_t) +
+                         sizeof(uint8_t)*num_channels;
 
     media_fmt_hdr->data_format = AGM_DATA_FORMAT_FIXED_POINT;
     media_fmt_hdr->fmt_id = MEDIA_FMT_ID_PCM;
@@ -1258,7 +1268,7 @@ int configure_spr(struct module_info *spr_mod,
     header->module_instance_id = spr_mod->miid;
     header->param_id = PARAM_ID_SPR_DELAY_PATH_END;
     header->error_code = 0x0;
-    header->param_size = payload_size;
+    header->param_size = sizeof(struct param_id_spr_delay_path_end_t);
 
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
