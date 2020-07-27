@@ -64,22 +64,10 @@ struct chunk_fmt {
     uint16_t bits_per_sample;
 };
 
-char *audio_interface_name[] = {
-    "CODEC_DMA-LPAIF_WSA-RX-0",
-    "CODEC_DMA-LPAIF_WSA-RX-1",
-    "MI2S-LPAIF_AXI-RX-PRIMARY",
-    "TDM-LPAIF_AXI-RX-PRIMARY",
-    "AUXPCM-LPAIF_AXI-RX-PRIMARY",
-    "SLIM-DEV1-RX-0",
-    "DISPLAY_PORT-RX",
-    "USB_AUDIO-RX",
-};
-
 static int close = 0;
 
-void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int channels,
-                 unsigned int rate, unsigned int bits, unsigned int period_size,
-                 unsigned int period_count, unsigned int audio_intf);
+void play_sample(FILE *file, unsigned int card, unsigned int device,
+                 struct chunk_fmt fmt, struct device_config *dev_config);
 
 void stream_close(int sig)
 {
@@ -94,17 +82,15 @@ int main(int argc, char **argv)
     struct riff_wave_header riff_wave_header;
     struct chunk_header chunk_header;
     struct chunk_fmt chunk_fmt;
-    unsigned int device = 0;
-    unsigned int card = 0;
-    unsigned int audio_intf = 0;
-    unsigned int period_size = 1024;
-    unsigned int period_count = 4;
+    unsigned int card = 100, device = 100;
+    char *intf_name;
+    struct device_config config;
     char *filename;
-    int more_chunks = 1;
+    int more_chunks = 1, ret = 0;
 
     if (argc < 2) {
-        printf("Usage: %s file.wav [-D card] [-d device] [-p period_size]"
-                " [-n n_periods] [-o audio_intf_id]\n", argv[0]);
+        printf("Usage: %s file.wav [-D card] [-d device] [-i device_id]\n",
+                argv[0]);
         return 1;
     }
 
@@ -151,94 +137,35 @@ int main(int argc, char **argv)
             if (*argv)
                 device = atoi(*argv);
         }
-        if (strcmp(*argv, "-p") == 0) {
-            argv++;
-            if (*argv)
-                period_size = atoi(*argv);
-        }
-        if (strcmp(*argv, "-n") == 0) {
-            argv++;
-            if (*argv)
-                period_count = atoi(*argv);
-        }
         if (strcmp(*argv, "-D") == 0) {
             argv++;
             if (*argv)
                 card = atoi(*argv);
         }
-        if (strcmp(*argv, "-o") == 0) {
+        if (strcmp(*argv, "-i") == 0) {
             argv++;
             if (*argv)
-                audio_intf = atoi(*argv);
-            if (audio_intf >= sizeof(audio_interface_name)/sizeof(char *)) {
-                printf("Invalid audio interface index denoted by -i\n");
-                fclose(file);
-                return 1;
-            }
+                intf_name = *argv;
         }
         if (*argv)
             argv++;
     }
 
-    play_sample(file, card, device, chunk_fmt.num_channels, chunk_fmt.sample_rate,
-                chunk_fmt.bits_per_sample, period_size, period_count, audio_intf);
+    ret = get_device_media_config(BACKEND_CONF_FILE, intf_name, &config);
+    if (ret) {
+        printf("Invalid input, entry not found for : %s\n", intf_name);
+        fclose(file);
+        return ret;
+    }
+    play_sample(file, card, device, chunk_fmt, &config);
 
     fclose(file);
 
     return 0;
 }
 
-int check_param(struct pcm_params *params, unsigned int param, unsigned int value,
-                 char *param_name, char *param_unit)
-{
-    unsigned int min;
-    unsigned int max;
-    int is_within_bounds = 1;
-
-    min = pcm_params_get_min(params, param);
-    if (value < min) {
-        printf("%s is %u%s, device only supports >= %u%s\n", param_name, value,
-                param_unit, min, param_unit);
-        is_within_bounds = 0;
-    }
-
-    max = pcm_params_get_max(params, param);
-    if (value > max) {
-        printf("%s is %u%s, device only supports <= %u%s\n", param_name, value,
-                param_unit, max, param_unit);
-        is_within_bounds = 0;
-    }
-
-    return is_within_bounds;
-}
-
-int sample_is_playable(unsigned int card, unsigned int device, unsigned int channels,
-                        unsigned int rate, unsigned int bits, unsigned int period_size,
-                        unsigned int period_count)
-{
-    struct pcm_params *params;
-    int can_play;
-
-    params = pcm_params_get(card, device, PCM_OUT);
-    if (params == NULL) {
-        printf("Unable to open PCM device %u.\n", device);
-        return 0;
-    }
-
-    can_play = check_param(params, PCM_PARAM_RATE, rate, "Sample rate", "Hz");
-    can_play &= check_param(params, PCM_PARAM_CHANNELS, channels, "Sample", " channels");
-    can_play &= check_param(params, PCM_PARAM_SAMPLE_BITS, bits, "Bitrate", " bits");
-    can_play &= check_param(params, PCM_PARAM_PERIOD_SIZE, period_size, "Period size", " frames");
-    can_play &= check_param(params, PCM_PARAM_PERIODS, period_count, "Period count", " periods");
-
-    pcm_params_free(params);
-
-    return can_play;
-}
-
-void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int channels,
-                 unsigned int rate, unsigned int bits, unsigned int period_size,
-                 unsigned int period_count, unsigned int audio_intf)
+void play_sample(FILE *file, unsigned int card, unsigned int device,
+                 struct chunk_fmt fmt, struct device_config *dev_config)
 {
     struct pcm_config config;
     struct pcm *pcm;
@@ -246,23 +173,25 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     char *buffer;
     int size;
     int num_read;
-    char *intf_name = audio_interface_name[audio_intf];
+    char *name = dev_config->name;
 
     memset(&config, 0, sizeof(config));
-    config.channels = channels;
-    config.rate = rate;
-    config.period_size = period_size;
-    config.period_count = period_count;
-    if (bits == 32)
+    config.channels = fmt.num_channels;
+    config.rate = fmt.sample_rate;
+    config.period_size = 1024;
+    config.period_count = 4;
+    if (fmt.bits_per_sample == 32)
         config.format = PCM_FORMAT_S32_LE;
-    else if (bits == 24)
+    else if (fmt.bits_per_sample == 24)
         config.format = PCM_FORMAT_S24_3LE;
-    else if (bits == 16)
+    else if (fmt.bits_per_sample == 16)
         config.format = PCM_FORMAT_S16_LE;
     config.start_threshold = 0;
     config.stop_threshold = 0;
     config.silence_threshold = 0;
 
+    printf("Backend %s rate ch bit : %d, %d, %d\n", name,
+            dev_config->rate, dev_config->ch, dev_config->bits);
     mixer = mixer_open(card);
     if (!mixer) {
         printf("Failed to open mixer\n");
@@ -270,19 +199,21 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     }
 
     /* set device/audio_intf media config mixer control */
-    if (set_agm_device_media_config(mixer, channels, rate, bits, intf_name)) {
+    if (set_agm_device_media_config(mixer, dev_config->ch, dev_config->rate,
+                                    dev_config->bits, name)) {
         printf("Failed to set device media config\n");
         goto err_close_mixer;
     }
 
     /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, intf_name, PLAYBACK, rate, bits)) {
+    if (set_agm_audio_intf_metadata(mixer, name, PLAYBACK,
+                                    dev_config->rate, dev_config->bits)) {
         printf("Failed to set device metadata\n");
         goto err_close_mixer;
     }
 
     /* set audio interface metadata mixer control */
-    if (set_agm_stream_metadata(mixer, device, PCM_LL_PLAYBACK, STREAM_PCM, NULL)) {
+    if (set_agm_stream_metadata(mixer, device, PCM_LL_PLAYBACK, PLAYBACK, STREAM_PCM, NULL)) {
         printf("Failed to set pcm metadata\n");
         goto err_close_mixer;
     }
@@ -290,8 +221,15 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     /* Note:  No common metadata as of now*/
 
     /* connect pcm stream to audio intf */
-    if (connect_agm_audio_intf_to_stream(mixer, device, intf_name, STREAM_PCM, true)) {
+    if (connect_agm_audio_intf_to_stream(mixer, device, name, STREAM_PCM, true)) {
         printf("Failed to connect pcm to audio interface\n");
+        goto err_close_mixer;
+    }
+
+    if (configure_mfc(mixer, device, name, PER_STREAM_PER_DEVICE_MFC,
+                           STREAM_PCM, dev_config->rate, dev_config->ch,
+                           dev_config->bits)) {
+        printf("Failed to configure pspd mfc\n");
         goto err_close_mixer;
     }
 
@@ -309,7 +247,8 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
         goto err_close_pcm;
     }
 
-    printf("Playing sample: %u ch, %u hz, %u bit\n", channels, rate, bits);
+    printf("Playing sample: %u ch, %u hz, %u bit\n", fmt.num_channels,
+            fmt.sample_rate, fmt.bits_per_sample);
 
     if (pcm_start(pcm) < 0) {
         printf("start error\n");
@@ -330,7 +269,7 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     } while (!close && num_read > 0);
 
     /* connect pcm stream to audio intf */
-    connect_agm_audio_intf_to_stream(mixer, device, intf_name, STREAM_PCM, false);
+    connect_agm_audio_intf_to_stream(mixer, device, name, STREAM_PCM, false);
 
     free(buffer);
 err_close_pcm:

@@ -17,7 +17,8 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_HEADER_LIBRARIES := libar-acdbdata
 
 LOCAL_SHARED_LIBRARIES := \
-        libtinyalsa
+        libtinyalsa \
+        libexpat
 
 LOCAL_VENDOR_MODULE := true
 
@@ -27,6 +28,7 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 LOCAL_SRC_FILES := agmplay.c
 
 LOCAL_MODULE := agmplay
@@ -45,6 +47,7 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 
 LOCAL_SRC_FILES := agmcap.c
 
@@ -67,6 +70,7 @@ LOCAL_C_INCLUDES += $(TOP)/external/tinycompress/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 
 LOCAL_ADDITIONAL_DEPENDENCIES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
