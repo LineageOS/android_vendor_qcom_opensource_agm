@@ -196,8 +196,10 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff,
     }
 
     ret = agm_session_write(handle, (void *)buff, (size_t*)&size);
-    if (ret)
+    if (ret) {
+        errno = ret;
         return ret;
+    }
 
     pthread_mutex_lock(&priv->lock);
     buf_cnt = size / priv->buffer_config.size;
@@ -814,8 +816,10 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     }
 
     ret = agm_session_open(session_id, sess_mode, &handle);
-    if (ret)
+    if (ret) {
+        errno = ret;
         goto err_card_put;
+    }
     ret = agm_session_register_cb(session_id, &agm_compress_event_cb,
                                   AGM_EVENT_DATA_PATH, agm_compress_plugin);
     if (ret)
