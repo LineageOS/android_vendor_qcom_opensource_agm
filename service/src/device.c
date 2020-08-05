@@ -169,7 +169,6 @@ int device_open(struct device_obj *dev_obj)
     config.start_threshold = config.period_size / 4;
     config.stop_threshold = INT_MAX;
 
-    update_sysfs_fd(dev_obj->pcm_id, DEVICE_ENABLE);
     pcm = pcm_open(dev_obj->card_id, dev_obj->pcm_id, dev_obj->pcm_flags,
                 &config);
     if (!pcm || !pcm_is_ready(pcm)) {
@@ -178,9 +177,9 @@ int device_open(struct device_obj *dev_obj)
                 config.channels, config.format);
         AGM_LOGE("%s: Period Size %d \n", __func__, config.period_size);
         ret = -EIO;
-        update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
         goto done;
     }
+    update_sysfs_fd(dev_obj->pcm_id, DEVICE_ENABLE);
     dev_obj->pcm = pcm;
     dev_obj->state = DEV_OPENED;
     dev_obj->refcnt.open++;
