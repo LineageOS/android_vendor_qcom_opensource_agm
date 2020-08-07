@@ -1117,6 +1117,7 @@ static int session_close(struct session_obj *sess_obj)
         AGM_LOGE("%s Error:%d closing graph\n", __func__, ret);
     }
     sess_obj->graph = NULL;
+    sess_obj->ec_ref_state = false;
 
     if (sess_mode != AGM_SESSION_NON_TUNNEL) {
         list_for_each(node, &sess_obj->aif_pool) {
