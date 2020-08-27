@@ -386,7 +386,7 @@ static int agm_pcm_sw_params(struct pcm_plugin *plugin,
 
     snd_card_def_get_int(plugin->node, "session_mode", &sess_mode);
 
-    session_config->dir = (plugin->mode == 0 || plugin->mode == 3) ? RX : TX;
+    session_config->dir = (plugin->mode & PCM_IN) ? TX : RX;
     session_config->sess_mode = sess_mode;
     session_config->start_threshold = (uint32_t)sparams->start_threshold;
     session_config->stop_threshold = (uint32_t)sparams->stop_threshold;
