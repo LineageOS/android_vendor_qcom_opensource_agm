@@ -591,6 +591,33 @@ static void graph_event_cb(struct agm_event_cb_params *event_params,
     pthread_mutex_unlock(&sess_obj->cb_pool_lock);
 }
 
+static int session_apply_aif_device_params(struct session_obj *sess_obj,
+        struct device_obj *dev_obj)
+{
+    int ret = 0;
+
+    if (!dev_obj)
+        return ret;
+
+    pthread_mutex_lock(&dev_obj->lock);
+    if (dev_obj->state == DEV_OPENED && dev_obj->params != NULL) {
+        ret = graph_set_config(sess_obj->graph, dev_obj->params,
+                dev_obj->params_size);
+        if (ret)
+            AGM_LOGE("%s Error:%d setting device cached params: %d\n", __func__,
+                    ret, dev_obj->pcm_id);
+
+        // free dev_obj params after setting.
+        // Client need to resend for configuring on next usecase
+        free(dev_obj->params);
+        dev_obj->params = NULL;
+        dev_obj->params_size = 0;
+    }
+    pthread_mutex_unlock(&dev_obj->lock);
+
+    return ret;
+}
+
 static int session_connect_aif(struct session_obj *sess_obj,
                                struct aif *aif_obj, uint32_t opened_count)
 {
@@ -668,7 +695,7 @@ static int session_connect_aif(struct session_obj *sess_obj,
         sess_obj->params_size = 0;
     }
 
-    //step 2.c set cached streamdevice params
+    //step 2.d set cached streamdevice params
     if (aif_obj->params != NULL) {
         ret = graph_set_config(graph, aif_obj->params, aif_obj->params_size);
         if (ret) {
@@ -681,23 +708,11 @@ static int session_connect_aif(struct session_obj *sess_obj,
         aif_obj->params_size = 0;
     }
 
-    //step 2.c set cached device params
-    pthread_mutex_unlock(&aif_obj->dev_obj->lock);
-    if (aif_obj->dev_obj->state == DEV_OPENED && aif_obj->dev_obj->params != NULL) {
-        ret = graph_set_config(graph, aif_obj->dev_obj->params, aif_obj->dev_obj->params_size);
-        if (ret) {
-            AGM_LOGE("%s: Error:%d setting device cached params: %d\n",
-                __func__, ret, aif_obj->dev_obj->pcm_id);
-            pthread_mutex_unlock(&aif_obj->dev_obj->lock);
-            goto graph_cleanup;
-        }
-        // free dev_obj params after setting.
-        // Client need to resend for configuring on next usecase
-        free(aif_obj->dev_obj->params);
-        aif_obj->dev_obj->params = NULL;
-        aif_obj->dev_obj->params_size = 0;
-    }
-    pthread_mutex_unlock(&aif_obj->dev_obj->lock);
+    //step 2.e set cached device params
+    ret = session_apply_aif_device_params(sess_obj, aif_obj->dev_obj);
+    if (ret)
+        goto graph_cleanup;
+
     goto done;
 
 graph_cleanup:
@@ -867,6 +882,18 @@ static int session_prepare(struct session_obj *sess_obj)
         }
     }
 
+    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        list_for_each(node, &sess_obj->aif_pool) {
+            aif_obj = node_to_item(node, struct aif, node);
+            if (!aif_obj) {
+                AGM_LOGE("%s Error:%d could not find aif node\n", __func__, ret);
+                goto done;
+            }
+            ret = session_apply_aif_device_params(sess_obj, aif_obj->dev_obj);
+            if (ret)
+                goto done;
+        }
+    }
     if ((dir == TX) && (sess_obj->state != SESSION_STARTED)) {
         ret = graph_prepare(sess_obj->graph);
         if (ret) {
