@@ -913,7 +913,10 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_AAC;
         media_fmt_hdr->payload_size = fmt_size;
 
-        fmt_pl = (struct payload_media_fmt_aac_t*)media_fmt_hdr->payload;
+        fmt_pl =
+        (struct payload_media_fmt_aac_t*)(((uint8_t*)media_fmt_hdr) +
+            sizeof(struct media_format_t));
+
         memcpy(fmt_pl, &sess_obj->stream_config.codec.aac_dec,
                fmt_size);
         AGM_LOGD("AAC payload: fmt:%d, Obj_type:%d, ch:%d, SR:%d",
@@ -929,7 +932,8 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_FLAC;
         media_fmt_hdr->payload_size = fmt_size;
 
-        fmt_pl = (struct payload_media_fmt_flac_t*)media_fmt_hdr->payload;
+        fmt_pl = (struct payload_media_fmt_flac_t*)(((uint8_t*)media_fmt_hdr) +
+            sizeof(struct media_format_t));
         memcpy(fmt_pl, &sess_obj->stream_config.codec.flac_dec,
                fmt_size);
         AGM_LOGD("FLAC payload: ch:%d, sample_size:%d, SR:%d",
@@ -944,7 +948,8 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_ALAC;
         media_fmt_hdr->payload_size = fmt_size;
 
-        fmt_pl = (struct payload_media_fmt_alac_t*)media_fmt_hdr->payload;
+        fmt_pl = (struct payload_media_fmt_alac_t*)(((uint8_t*)media_fmt_hdr) +
+            sizeof(struct media_format_t));
         memcpy(fmt_pl, &sess_obj->stream_config.codec.alac_dec,
                fmt_size);
         AGM_LOGD("ALAC payload: bit_depth:%d, ch:%d, SR:%d",
@@ -960,7 +965,8 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_ALAC;
         media_fmt_hdr->payload_size = fmt_size;
 
-        fmt_pl = (struct payload_media_fmt_ape_t*)media_fmt_hdr->payload;
+        fmt_pl = (struct payload_media_fmt_ape_t*)(((uint8_t*)media_fmt_hdr) +
+            sizeof(struct media_format_t));
         memcpy(fmt_pl, &sess_obj->stream_config.codec.ape_dec,
                fmt_size);
         AGM_LOGD("APE payload: bit_width:%d, ch:%d, SR:%d",
@@ -976,7 +982,8 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_WMASTD;
         media_fmt_hdr->payload_size = fmt_size;
 
-        fmt_pl = (struct payload_media_fmt_wmastd_t*)media_fmt_hdr->payload;
+        fmt_pl = (struct payload_media_fmt_wmastd_t*)(((uint8_t*)media_fmt_hdr) +
+            sizeof(struct media_format_t));
         memcpy(fmt_pl, &sess_obj->stream_config.codec.wma_dec,
                fmt_size);
         AGM_LOGD("WMA payload: fmt:%d, ch:%d, SR:%d, bit_width:%d",
@@ -992,7 +999,8 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
         media_fmt_hdr->fmt_id = MEDIA_FMT_ID_WMAPRO;
         media_fmt_hdr->payload_size = fmt_size;
 
-        fmt_pl = (struct payload_media_fmt_wmapro_t*)media_fmt_hdr->payload;
+        fmt_pl = (struct payload_media_fmt_wmapro_t*)(((uint8_t*)media_fmt_hdr) +
+            sizeof(struct media_format_t));
         memcpy(fmt_pl, &sess_obj->stream_config.codec.wmapro_dec,
                fmt_size);
         AGM_LOGD("WMAPro payload: fmt:%d, ch:%d, SR:%d, bit_width:%d",
