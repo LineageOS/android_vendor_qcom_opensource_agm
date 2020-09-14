@@ -118,15 +118,6 @@ enum mp3_stereo_mode {
 
 static int verbose;
 
-char *audio_interface_name[] = {
-    "CODEC_DMA-LPAIF_WSA-RX-0",
-    "CODEC_DMA-LPAIF_WSA-RX-1",
-    "MI2S-LPAIF_AXI-RX-PRIMARY",
-    "TDM-LPAIF_AXI-RX-PRIMARY",
-    "AUXPCM-LPAIF_AXI-RX-PRIMARY",
-    "SLIM-DEV1-RX-0",
-};
-
 static void usage(void)
 {
 	fprintf(stderr, "usage: cplay [OPTIONS] filename\n"
@@ -149,7 +140,8 @@ static void usage(void)
 }
 
 void play_samples(char *name, unsigned int card, unsigned int device,
-		unsigned long buffer_size, unsigned int frag, unsigned int audio_intf, unsigned int audio_format, int pause);
+		unsigned long buffer_size, unsigned int frag, unsigned int audio_format,
+        int pause, struct device_config *dev_config);
 
 struct mp3_header {
 	uint16_t sync;
@@ -251,7 +243,9 @@ int main(int argc, char **argv)
 {
 	char *file;
 	unsigned long buffer_size = 0;
-    unsigned int audio_intf = 0;
+	char *intf_name;
+	struct device_config config;
+	int ret = 0;
 	unsigned int card = 0, device = 0, frag = 0, audio_format = 0, pause = 0;
 
 
@@ -282,28 +276,30 @@ int main(int argc, char **argv)
 			if (*argv)
 				pause = atoi(*argv);
 		}
-		if (strcmp(*argv, "-o") == 0) {
+		if (strcmp(*argv, "-i") == 0) {
 			argv++;
 			if (*argv)
-				audio_intf = atoi(*argv);
+				intf_name = *argv;
 		}
 		if (*argv)
 			argv++;
 	}
 
-	if (audio_intf >= sizeof(audio_interface_name)/sizeof(char *)) {
-		printf("Invalid audio interface index denoted by -i\n");
-		return 1;
+	ret = get_device_media_config(BACKEND_CONF_FILE, intf_name, &config);
+	if (ret) {
+		printf("Invalid input, entry not found for : %s\n", intf_name);
+		return ret;
 	}
 
-	play_samples(file, card, device, buffer_size, frag, audio_intf, audio_format, pause);
+	play_samples(file, card, device, buffer_size, frag, audio_format, pause, &config);
 
 	fprintf(stderr, "Finish Playing.... Close Normally\n");
 	exit(EXIT_SUCCESS);
 }
 
 void play_samples(char *name, unsigned int card, unsigned int device,
-		unsigned long buffer_size, unsigned int frag, unsigned int intf, unsigned int format, int pause)
+		unsigned long buffer_size, unsigned int frag, unsigned int format,
+        int pause, struct device_config *dev_config)
 {
 	struct compr_config config;
 	struct snd_codec codec;
@@ -315,7 +311,7 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 	char *buffer;
 	int size, num_read, wrote;
 	unsigned int channels = 0, rate = 0, bits = 0;
-    char *intf_name = audio_interface_name[intf];
+	char *intf_name = dev_config->name;
 
 	if (verbose)
 		printf("%s: entry\n", __func__);
@@ -385,19 +381,21 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 	}
 
 	/* set device/audio_intf media config mixer control */
-	if (set_agm_device_media_config(mixer, channels, 48000, bits, intf_name)) {
+	if (set_agm_device_media_config(mixer, dev_config->ch, dev_config->rate,
+                                    dev_config->bits, intf_name)) {
 		printf("Failed to set device media config\n");
 		goto MIXER_EXIT;
 	}
 
 	/* set audio interface metadata mixer control */
-	if (set_agm_audio_intf_metadata(mixer, intf_name, PLAYBACK, 48000, bits)) {
+	if (set_agm_audio_intf_metadata(mixer, intf_name, PLAYBACK,
+                                    dev_config->rate, dev_config->bits)) {
 		printf("Failed to set device metadata\n");
 		goto MIXER_EXIT;
 	}
 
 	/* set audio interface metadata mixer control */
-	if (set_agm_stream_metadata(mixer, device, COMPRESSED_OFFLOAD_PLAYBACK, STREAM_COMPRESS, NULL)) {
+	if (set_agm_stream_metadata(mixer, device, COMPRESSED_OFFLOAD_PLAYBACK, PLAYBACK, STREAM_COMPRESS, NULL)) {
 		printf("Failed to set stream metadata\n");
 		goto MIXER_EXIT;
 	}
@@ -407,6 +405,13 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 	/* connect stream to audio intf */
 	if (connect_agm_audio_intf_to_stream(mixer, device, intf_name, STREAM_COMPRESS, true)) {
 		printf("Failed to connect stream to audio interface\n");
+		goto MIXER_EXIT;
+	}
+
+	if (configure_mfc(mixer, device, intf_name, PER_STREAM_PER_DEVICE_MFC,
+			STREAM_COMPRESS, dev_config->rate, dev_config->ch,
+			dev_config->bits)) {
+		printf("Failed to configure pspd mfc\n");
 		goto MIXER_EXIT;
 	}
 

@@ -28,6 +28,7 @@
 **/
 
 #include <errno.h>
+#include <expat.h>
 #include <tinyalsa/asoundlib.h>
 #include <sound/asound.h>
 #include <stdbool.h>
@@ -43,6 +44,26 @@
 #define EVENT_ID_DETECTION_ENGINE_GENERIC_INFO 0x0800104F
 
 #define PARAM_ID_DETECTION_ENGINE_GENERIC_EVENT_CFG 0x0800104E
+#define PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT            0x08001024
+
+enum pcm_channel_map
+{
+   PCM_CHANNEL_L = 1,
+   PCM_CHANNEL_R = 2,
+   PCM_CHANNEL_C = 3,
+   PCM_CHANNEL_LS = 4,
+   PCM_CHANNEL_RS = 5,
+   PCM_CHANNEL_LFE = 6,
+};
+/* Payload of the PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT parameter in the
+ Media Format Converter Module. Following this will be the variable payload for channel_map. */
+struct param_id_mfc_output_media_fmt_t
+{
+   int32_t sampling_rate;
+   int16_t bit_width;
+   int16_t num_channels;
+   uint16_t channel_type[0];
+}__attribute__((packed));
 
 struct apm_module_param_data_t
 {
@@ -77,6 +98,8 @@ struct gsl_tag_module_info {
 	/**< variable payload of type struct gsl_tag_module_info_entry */
 };
 
+#define PADDING_8BYTE_ALIGN(x)  ((((x) + 7) & 7) ^ 7)
+
 static unsigned int  bits_to_alsa_format(unsigned int bits)
 {
     switch (bits) {
@@ -90,6 +113,104 @@ static unsigned int  bits_to_alsa_format(unsigned int bits)
     case 16:
         return SNDRV_PCM_FORMAT_S16_LE;
     };
+}
+
+void start_tag(void *userdata, const XML_Char *tag_name, const XML_Char **attr)
+{
+    struct device_config *config = (struct device_config *)userdata;
+
+    if (strncmp(tag_name, "device", strlen("device")) != 0)
+        return;
+
+    if (strcmp(attr[0], "name") != 0) {
+        printf("name not found\n");
+        return;
+    }
+
+    if (strcmp(attr[2], "rate") != 0) {
+        printf("rate not found\n");
+        return;
+    }
+
+    if (strcmp(attr[4], "ch") != 0) {
+        printf("channels not found\n");
+        return;
+    }
+
+    if (strcmp(attr[6], "bits") != 0) {
+        printf("bits not found");
+        return;
+    }
+
+    if (strncmp(config->name, attr[1], sizeof(config->name)))
+        return;
+
+    config->rate = atoi(attr[3]);
+    config->ch = atoi(attr[5]);
+    config->bits = atoi(attr[7]);
+}
+
+int get_device_media_config(char* filename, char *intf_name, struct device_config *config)
+{
+    FILE *file = NULL;
+    XML_Parser parser;
+    int ret = 0;
+    int bytes_read;
+    void *buf = NULL;
+
+    file = fopen(filename, "r");
+    if (!file) {
+        ret = -EINVAL;
+        printf("Failed to open xml file name %s ret %d", filename, ret);
+        goto done;
+    }
+
+    parser = XML_ParserCreate(NULL);
+    if (!parser) {
+        ret = -EINVAL;
+        printf("Failed to create XML ret %d", ret);
+        goto closeFile;
+    }
+    memset(config, 0, sizeof(*config));
+    strlcpy(config->name, intf_name, sizeof(config->name));
+
+    XML_SetUserData(parser, config);
+    XML_SetElementHandler(parser, start_tag, NULL);
+
+    while (1) {
+        buf = XML_GetBuffer(parser, 1024);
+        if (buf == NULL) {
+            ret = -EINVAL;
+            printf("XML_Getbuffer failed ret %d", ret);
+            goto freeParser;
+        }
+
+        bytes_read = fread(buf, 1, 1024, file);
+        if (bytes_read < 0) {
+            ret = -EINVAL;
+            printf("fread failed ret %d", ret);
+            goto freeParser;
+        }
+
+        if (XML_ParseBuffer(parser, bytes_read, bytes_read == 0) == XML_STATUS_ERROR) {
+            ret = -EINVAL;
+            printf("XML ParseBuffer failed for %s file ret %d", filename, ret);
+            goto freeParser;
+        }
+        if (bytes_read == 0 || config->rate != 0)
+            break;
+    }
+
+    if (config->rate == 0) {
+        ret = -EINVAL;
+        printf("Entry not found\n");
+    }
+freeParser:
+    XML_ParserFree(parser);
+closeFile:
+    fclose(file);
+done:
+    return ret;
 }
 
 int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
@@ -106,7 +227,6 @@ int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
     mixer_str = calloc(1, ctl_len);
     snprintf(mixer_str, ctl_len, "%s %s", intf_name, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -119,7 +239,6 @@ int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
     media_config[2] = bits_to_alsa_format(bits);
     media_config[3] = AGM_DATA_FORMAT_FIXED_POINT;
 
-    printf("%s - %ld - %ld - %ld\n", __func__, media_config[0],  media_config[1], media_config[2]);
     ret = mixer_ctl_set_array(ctl, &media_config, sizeof(media_config)/sizeof(media_config[0]));
     free(mixer_str);
     return ret;
@@ -140,7 +259,6 @@ int connect_play_pcm_to_cap_pcm(struct mixer *mixer, unsigned int p_device, unsi
     mixer_str = calloc(1, ctl_len);
     snprintf(mixer_str, ctl_len, "%s%d %s", pcm, c_device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -185,7 +303,6 @@ int connect_agm_audio_intf_to_stream(struct mixer *mixer, unsigned int device, c
     mixer_str = calloc(1, ctl_len);
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -216,7 +333,6 @@ int agm_mixer_set_ecref_path(struct mixer *mixer, unsigned int device, enum stre
     mixer_str = calloc(1, ctl_len);
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -297,7 +413,6 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir d
     }
     snprintf(mixer_str, ctl_len, "%s %s", intf_name, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -334,7 +449,6 @@ int set_agm_stream_metadata_type(struct mixer *mixer, int device, char *val, enu
     mixer_str = calloc(1, ctl_len);
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -347,7 +461,67 @@ int set_agm_stream_metadata_type(struct mixer *mixer, int device, char *val, enu
     return ret;
 }
 
-int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum stream_type stype, char *intf_name)
+void populateChannelMap(uint16_t *pcmChannel, uint8_t numChannel)
+{
+    if (numChannel == 1) {
+        pcmChannel[0] = PCM_CHANNEL_C;
+    } else if (numChannel == 2) {
+        pcmChannel[0] = PCM_CHANNEL_L;
+        pcmChannel[1] = PCM_CHANNEL_R;
+    }
+}
+
+int configure_mfc(struct mixer *mixer, int device, char *intf_name, int tag,
+                  enum stream_type stype, unsigned int rate,
+                  unsigned int channels, unsigned int bits)
+{
+    int ret = 0;
+    uint32_t miid = 0;
+    struct apm_module_param_data_t* header = NULL;
+    struct param_id_mfc_output_media_fmt_t *mfcConf;
+    uint16_t* pcmChannel = NULL;
+    uint8_t* payloadInfo = NULL;
+    size_t payloadSize = 0, padBytes = 0, size;
+
+    ret = agm_mixer_get_miid(mixer, device, intf_name, stype, tag, &miid);
+    if (ret) {
+        printf("%s Get MIID from tag data failed\n", __func__);
+        return ret;
+    }
+
+    payloadSize = sizeof(struct apm_module_param_data_t) +
+                  sizeof(struct param_id_mfc_output_media_fmt_t) +
+                  sizeof(uint16_t)*channels;
+
+    padBytes = PADDING_8BYTE_ALIGN(payloadSize);
+
+    payloadInfo = (uint8_t*) calloc(1, payloadSize + padBytes);
+    if (!payloadInfo) {
+        return -ENOMEM;
+    }
+
+    header = (struct apm_module_param_data_t*)payloadInfo;
+    mfcConf = (struct param_id_mfc_output_media_fmt_t*)(payloadInfo +
+               sizeof(struct apm_module_param_data_t));
+    pcmChannel = (uint16_t*)(payloadInfo + sizeof(struct apm_module_param_data_t) +
+                                       sizeof(struct param_id_mfc_output_media_fmt_t));
+
+    header->module_instance_id = miid;
+    header->param_id = PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT;
+    header->error_code = 0x0;
+    header->param_size = payloadSize - sizeof(struct apm_module_param_data_t);
+
+    mfcConf->sampling_rate = rate;
+    mfcConf->bit_width = bits;
+    mfcConf->num_channels = channels;
+    populateChannelMap(pcmChannel, channels);
+    size = payloadSize + padBytes;
+
+    return agm_mixer_set_param(mixer, device, stype, (void *)payloadInfo, (int)size);
+
+}
+
+int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum dir d, enum stream_type stype, char *intf_name)
 {
     char *stream = "PCM";
     char *control = "metadata";
@@ -356,7 +530,7 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     uint8_t *metadata = NULL;
     struct agm_key_value *gkv = NULL, *ckv = NULL;
     struct prop_data *prop = NULL;
-    uint32_t num_gkv = 1, num_ckv = 1, num_props = 0;
+    uint32_t num_gkv = 2, num_ckv = 1, num_props = 0;
     uint32_t gkv_size, ckv_size, prop_size, index = 0;
     int ctl_len = 0, ret = 0, offset = 0;
     char *type = "ZERO";
@@ -364,26 +538,15 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     if (intf_name)
         type = intf_name;
 
-    printf("%s type  = %s\n", __func__, type);
-
     ret = set_agm_stream_metadata_type(mixer, device, type, stype);
     if (ret)
         return ret;
 
-    if (stype == STREAM_COMPRESS){
+    if (stype == STREAM_COMPRESS)
         stream = "COMPRESS";
-        gkv[index].key = STREAMRX;
-    }
 
-    if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK){
-        num_gkv = 2;
-        gkv[index].key = STREAMRX;
-    }
-
-    if (val == VOICE_UI && intf_name){
-        num_gkv = 2;
-        gkv[index].key = STREAMTX;
-    }
+    if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK)
+        num_gkv += 1;
 
     gkv_size = num_gkv * sizeof(struct agm_key_value);
     ckv_size = num_ckv * sizeof(struct agm_key_value);
@@ -405,22 +568,34 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
         return -ENOMEM;
     }
 
+    if (d == PLAYBACK)
+        gkv[index].key = STREAMRX;
+    else
+        gkv[index].key = STREAMTX;
+
     gkv[index].value = val;
 
     index++;
     if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK) {
         gkv[index].key = INSTANCE;
         gkv[index].value = INSTANCE_1;
+	index++;
     }
 
-    if (val == VOICE_UI && intf_name) {
+    if (d == PLAYBACK) {
+        gkv[index].key = DEVICEPP_RX;
+        gkv[index].value = DEVICEPP_RX_AUDIO_MBDRC;
+    } else {
         gkv[index].key = DEVICEPP_TX;
-        gkv[index].value = DEVICEPP_TX_VOICE_UI_FLUENCE_FFECNS;
+        if (val == VOICE_UI)
+            gkv[index].value = DEVICEPP_TX_VOICE_UI_FLUENCE_FFECNS;
+        else
+            gkv[index].value = DEVICEPP_TX_AUDIO_FLUENCE_SMECNS;
     }
 
     index = 0;
-    ckv[index].key = STREAMTX;
-    ckv[index].value = val;
+    ckv[index].key = VOLUME;
+    ckv[index].value = LEVEL_2;
 
     prop->prop_id = 0;  //Update prop_id here
     prop->num_values = num_props;
@@ -444,7 +619,6 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     }
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -486,7 +660,6 @@ int agm_mixer_register_event(struct mixer *mixer, int device, enum stream_type s
 
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -539,7 +712,6 @@ int agm_mixer_get_miid(struct mixer *mixer, int device, char *intf_name,
 
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -561,14 +733,12 @@ int agm_mixer_get_miid(struct mixer *mixer, int device, char *intf_name,
         return ret;
     }
     tag_info = payload;
-    printf("%s num of tags associated with stream %d is %d\n", __func__, device, tag_info->num_tags);
     ret = -1;
     tag_entry = &tag_info->tag_module_entry[0];
     offset = 0;
     for (i = 0; i < tag_info->num_tags; i++) {
         tag_entry += offset/sizeof(struct gsl_tag_module_info_entry);
 
-        printf("%s tag id[%d] = %lx, num_modules = %lx\n", __func__, i, (unsigned long) tag_entry->tag_id, (unsigned long) tag_entry->num_modules);
         offset = sizeof(struct gsl_tag_module_info_entry) + (tag_entry->num_modules * sizeof(struct gsl_module_id_info_entry));
         if (tag_entry->tag_id == tag_id) {
             struct gsl_module_id_info_entry *mod_info_entry;
@@ -576,7 +746,6 @@ int agm_mixer_get_miid(struct mixer *mixer, int device, char *intf_name,
             if (tag_entry->num_modules) {
                  mod_info_entry = &tag_entry->module_entry[0];
                  *miid = mod_info_entry->module_iid;
-                 printf("MIID is %x\n", *miid);
                  ret = 0;
                  break;
             }
@@ -609,7 +778,6 @@ int agm_mixer_set_param(struct mixer *mixer, int device,
     }
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -620,7 +788,6 @@ int agm_mixer_set_param(struct mixer *mixer, int device,
 
     ret = mixer_ctl_set_array(ctl, payload, size);
 
-    printf("%s %d, cnt %d\n", __func__, ret, size);
     free(mixer_str);
     return ret;
 }
@@ -671,7 +838,6 @@ int agm_mixer_set_param_with_file(struct mixer *mixer, int device,
     }
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -684,7 +850,6 @@ int agm_mixer_set_param_with_file(struct mixer *mixer, int device,
 
     ret = mixer_ctl_set_array(ctl, payload, size);
 
-    printf("%s %d, cnt %d\n", __func__, ret, size);
     free(mixer_str);
     free(payload);
     fclose(fp);
@@ -702,7 +867,6 @@ int agm_mixer_get_event_param(struct mixer *mixer, int device, enum stream_type 
     struct detection_engine_generic_event_cfg *pEventCfg;
     uint8_t* payload = NULL;
     size_t payloadSize = 0;
-    int i;
 
     if (stype == STREAM_COMPRESS)
         stream = "COMPRESS";
@@ -714,7 +878,6 @@ int agm_mixer_get_event_param(struct mixer *mixer, int device, enum stream_type 
 
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -745,10 +908,6 @@ int agm_mixer_get_event_param(struct mixer *mixer, int device, enum stream_type 
          goto exit;
     }
 
-    for (i = 0; i< payloadSize; i++)
-        printf("0x%x ",payload[i]);
-
-    printf("\n");
     memset(payload, 0, payloadSize);
     ret = mixer_ctl_get_array(ctl, payload, payloadSize);
     if (ret) {
@@ -757,10 +916,6 @@ int agm_mixer_get_event_param(struct mixer *mixer, int device, enum stream_type 
     }
 
     printf("received payload data is 0x%x\n", pEventCfg->event_mode);
-    for (i = 0; i< payloadSize; i++)
-        printf("0x%x ",payload[i]);
-
-    printf("\n");
 exit:
     free(mixer_str);
     free(payload);
@@ -786,7 +941,6 @@ int agm_mixer_get_buf_tstamp(struct mixer *mixer, int device, enum stream_type s
 
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
-    printf("%s - mixer -%s-\n", __func__, mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
@@ -800,7 +954,6 @@ int agm_mixer_get_buf_tstamp(struct mixer *mixer, int device, enum stream_type s
          goto exit;
     }
 
-    printf("received timestamp is 0x%llx\n", (unsigned long long) ts);
     *tstamp = ts;
 exit:
     free(mixer_str);

@@ -338,7 +338,7 @@ static void capture_samples(char *name, unsigned int card, unsigned int device,
 
 	/* set audio interface metadata mixer control */
         /* Change pcm_record to compress_record */
-	if (set_agm_stream_metadata(mixer, device, PCM_RECORD, STREAM_COMPRESS, NULL)) {
+	if (set_agm_stream_metadata(mixer, device, PCM_RECORD, CAPTURE, STREAM_COMPRESS, NULL)) {
 		printf("Failed to set stream metadata\n");
 		goto mixer_exit;
 	}

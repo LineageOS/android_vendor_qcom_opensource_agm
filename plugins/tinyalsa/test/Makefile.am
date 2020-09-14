@@ -7,12 +7,12 @@ if !BUILDSYSTEM_OPENWRT
 AM_CFLAGS += -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/
 endif
 AM_CFLAGS += $(GLIB_CFLAGS) -Dstrlcpy=g_strlcpy -Dstrlcat=g_strlcat -include glib.h
+AM_CFLAGS += -DBACKEND_CONF_FILE=\"/etc/backend_conf.xml\"
 
 lib_LTLIBRARIES      = libagmmixer.la
 libagmmixer_la_SOURCES   = agmmixer.c
 libagmmixer_la_CFLAGS := $(AM_CFLAGS)
 libagmmixer_la_LDFLAGS   = -ltinyalsa -avoid-version
-
 bin_PROGRAMS := agmplay
 agmplay_SOURCES  := agmplay.c
 

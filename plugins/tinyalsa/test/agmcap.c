@@ -63,20 +63,11 @@ struct wav_header {
 
 int capturing = 1;
 
-char *audio_interface_name[] = {
-    "CODEC_DMA-LPAIF_VA-TX-0",
-    "CODEC_DMA-LPAIF_VA-TX-1",
-    "CODEC_DMA-LPAIF_RXTX-TX-3",
-    "MI2S-LPAIF_AXI-TX-PRIMARY",
-    "AUXPCM-LPAIF_AXI-TX-PRIMARY",
-    "SLIM-DEV1-TX-0",
-    "USB_AUDIO-TX",
-};
-
 static unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
                             unsigned int channels, unsigned int rate,
                             enum pcm_format format, unsigned int period_size,
-                            unsigned int period_count, unsigned int cap_time, unsigned int audio_intf);
+                            unsigned int period_count, unsigned int cap_time,
+                            struct device_config *dev_config);
 
 static void sigint_handler(int sig)
 {
@@ -96,13 +87,15 @@ int main(int argc, char **argv)
     unsigned int period_size = 1024;
     unsigned int period_count = 4;
     unsigned int cap_time = 0;
-    unsigned int audio_intf = 0;
+    char *intf_name;
+    struct device_config config;
     enum pcm_format format;
+    int ret = 0;
 
     if (argc < 2) {
         printf("Usage: %s file.wav [-D card] [-d device]"
                 " [-c channels] [-r rate] [-b bits] [-p period_size]"
-                " [-n n_periods] [-T capture time] [-i audio_intf id]\n", argv[0]);
+                " [-n n_periods] [-T capture time] [-i intf_name]\n", argv[0]);
         return 1;
     }
 
@@ -151,12 +144,7 @@ int main(int argc, char **argv)
         if (strcmp(*argv, "-i") == 0) {
             argv++;
             if (*argv)
-                audio_intf = atoi(*argv);
-            if (audio_intf >= sizeof(audio_interface_name)/sizeof(char *)) {
-                printf("Invalid audio interface index denoted by -i\n");
-                fclose(file);
-                return 1;
-            }
+                intf_name = *argv;
         }
         if (*argv)
             argv++;
@@ -187,6 +175,13 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    ret = get_device_media_config(BACKEND_CONF_FILE, intf_name, &config);
+    if (ret) {
+        printf("Invalid input, entry not found for %s\n", intf_name);
+        fclose(file);
+        return ret;
+    }
+
     header.bits_per_sample = pcm_format_to_bits(format);
     header.byte_rate = (header.bits_per_sample / 8) * channels * rate;
     header.block_align = channels * (header.bits_per_sample / 8);
@@ -201,7 +196,7 @@ int main(int argc, char **argv)
     signal(SIGTERM, sigint_handler);
     frames = capture_sample(file, card, device, header.num_channels,
                             header.sample_rate, format,
-                            period_size, period_count, cap_time, audio_intf);
+                            period_size, period_count, cap_time, &config);
     printf("Captured %u frames\n", frames);
 
     /* write header now all information is known */
@@ -218,13 +213,14 @@ int main(int argc, char **argv)
 unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
                             unsigned int channels, unsigned int rate,
                             enum pcm_format format, unsigned int period_size,
-                            unsigned int period_count, unsigned int cap_time, unsigned int audio_intf)
+                            unsigned int period_count, unsigned int cap_time,
+                            struct device_config *dev_config)
 {
     struct pcm_config config;
     struct pcm *pcm;
     struct mixer *mixer;
     char *buffer;
-    char *intf_name = audio_interface_name[audio_intf];
+    char *intf_name = dev_config->name;
     unsigned int size;
     unsigned int bytes_read = 0;
     unsigned int frames = 0;
@@ -248,25 +244,29 @@ unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
     }
 
     /* set device/audio_intf media config mixer control */
-    if (set_agm_device_media_config(mixer, channels, rate,
-                                    pcm_format_to_bits(format), intf_name)) {
+    if (set_agm_device_media_config(mixer, dev_config->ch, dev_config->rate,
+                                    dev_config->bits, intf_name)) {
         printf("Failed to set device media config\n");
         goto err_close_mixer;
     }
 
     /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, intf_name, CAPTURE, rate, pcm_format_to_bits(format))) {
+    if (set_agm_audio_intf_metadata(mixer, intf_name, CAPTURE, dev_config->rate, dev_config->bits)) {
         printf("Failed to set device metadata\n");
         goto err_close_mixer;
     }
 
     /* set stream metadata mixer control */
-    if (set_agm_stream_metadata(mixer, device, PCM_RECORD, STREAM_PCM, NULL)) {
+    if (set_agm_stream_metadata(mixer, device, PCM_RECORD, CAPTURE, STREAM_PCM, NULL)) {
         printf("Failed to set pcm metadata\n");
         goto err_close_mixer;
     }
 
-    /* Note:  No common metadata as of now*/
+    if (configure_mfc(mixer, device, intf_name, TAG_STREAM_MFC,
+                     STREAM_PCM, rate, channels, pcm_format_to_bits(format))) {
+        printf("Failed to configure pspd mfc\n");
+        goto err_close_mixer;
+    }
 
     /* connect pcm stream to audio intf */
     if (connect_agm_audio_intf_to_stream(mixer, device, intf_name, STREAM_PCM, true)) {

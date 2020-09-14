@@ -278,12 +278,12 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
     }
 
     /* set stream metadata mixer control */
-    if (set_agm_stream_metadata(mixer, device, VOICE_UI, STREAM_PCM, NULL)) {
+    if (set_agm_stream_metadata(mixer, device, VOICE_UI, CAPTURE, STREAM_PCM, NULL)) {
         printf("Failed to set pcm metadata\n");
         goto err_close_mixer;
     }
 
-    if (set_agm_stream_metadata(mixer, device, VOICE_UI, STREAM_PCM, intf_name)) {
+    if (set_agm_stream_metadata(mixer, device, VOICE_UI, CAPTURE, STREAM_PCM, intf_name)) {
         printf("Failed to set pcm metadata\n");
         goto err_close_mixer;
     }
