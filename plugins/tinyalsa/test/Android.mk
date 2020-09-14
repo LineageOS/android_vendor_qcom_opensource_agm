@@ -4,7 +4,7 @@ ifneq ($(BUILD_TINY_ANDROID),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/acdbdata/
 LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-result
@@ -16,7 +16,7 @@ LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := \
-        libtinyalsa \
+        libqti-tinyalsa \
         libexpat
 
 LOCAL_VENDOR_MODULE := true
@@ -24,7 +24,7 @@ LOCAL_VENDOR_MODULE := true
 include $(BUILD_SHARED_LIBRARY)
 include $(CLEAR_VARS)
 
-LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/acdbdata/
 LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-result
@@ -36,14 +36,14 @@ LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := \
-        libtinyalsa\
+        libqti-tinyalsa\
         libagmmixer
 
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_EXECUTABLE)
 include $(CLEAR_VARS)
 
-LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/acdbdata/
 LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-result
@@ -56,7 +56,7 @@ LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := \
-        libtinyalsa\
+        libqti-tinyalsa\
         libagmmixer
 
 LOCAL_VENDOR_MODULE := true
@@ -64,8 +64,8 @@ include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
 
-LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
-LOCAL_C_INCLUDES += $(TOP)/external/tinycompress/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinycompress/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/acdbdata/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
@@ -81,8 +81,8 @@ LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := \
-        libtinyalsa\
-        libtinycompress\
+        libqti-tinyalsa\
+        libqti-tinycompress\
         libagmmixer
 
 LOCAL_VENDOR_MODULE := true

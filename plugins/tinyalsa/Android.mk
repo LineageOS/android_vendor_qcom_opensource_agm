@@ -5,7 +5,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_USE_VNDK := true
-LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/snd-card-parser/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/ar_osal
@@ -19,7 +19,7 @@ LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := \
-        libtinyalsa \
+        libqti-tinyalsa \
         libsndcardparser \
         libagmclient \
         libutils \
@@ -41,7 +41,7 @@ include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_USE_VNDK := true
-LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/snd-card-parser/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/ar_osal
@@ -55,7 +55,7 @@ LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := \
-        libtinyalsa \
+        libqti-tinyalsa \
         libsndcardparser \
         libagmclient \
         libcutils \
@@ -76,8 +76,8 @@ include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_USE_VNDK := true
-LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
-LOCAL_C_INCLUDES += $(TOP)/external/tinycompress/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinycompress/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/agm/
@@ -94,8 +94,8 @@ LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := \
-        libtinyalsa \
-        libtinycompress \
+        libqti-tinyalsa \
+        libqti-tinycompress \
         libsndcardparser \
         libagmclient \
         libutils \

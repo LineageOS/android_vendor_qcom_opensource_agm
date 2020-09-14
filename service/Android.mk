@@ -23,7 +23,7 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/ar_osal
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/gsl
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/acdb
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/acdbdata
-LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_CFLAGS     := $(agm-def)
 LOCAL_CFLAGS += -Wno-tautological-compare
 LOCAL_CFLAGS += -Wno-macro-redefined
@@ -53,7 +53,7 @@ LOCAL_SHARED_LIBRARIES := \
          liblx-osal \
          libaudioroute \
          libats \
-         libtinyalsa
+         libqti-tinyalsa
 
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DYNAMIC_LOG)), true)
       LOCAL_CFLAGS += -DDYNAMIC_LOG_ENABLED
