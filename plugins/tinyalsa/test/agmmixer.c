@@ -548,6 +548,13 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK)
         num_gkv += 1;
 
+    if (val == VOICE_UI) {
+        if (intf_name)
+            num_gkv = 2;
+        else
+            num_gkv = 3;
+    }
+
     gkv_size = num_gkv * sizeof(struct agm_key_value);
     ckv_size = num_ckv * sizeof(struct agm_key_value);
     prop_size = sizeof(struct prop_data) + (num_props * sizeof(uint32_t));
@@ -568,29 +575,47 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
         return -ENOMEM;
     }
 
-    if (d == PLAYBACK)
-        gkv[index].key = STREAMRX;
-    else
-        gkv[index].key = STREAMTX;
-
-    gkv[index].value = val;
-
-    index++;
-    if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK) {
-        gkv[index].key = INSTANCE;
-        gkv[index].value = INSTANCE_1;
-	index++;
-    }
-
-    if (d == PLAYBACK) {
-        gkv[index].key = DEVICEPP_RX;
-        gkv[index].value = DEVICEPP_RX_AUDIO_MBDRC;
-    } else {
-        gkv[index].key = DEVICEPP_TX;
-        if (val == VOICE_UI)
+    if (val == VOICE_UI) {
+        if (intf_name) {
+            gkv[index].key = DEVICEPP_TX;
             gkv[index].value = DEVICEPP_TX_VOICE_UI_FLUENCE_FFECNS;
+            index++;
+            gkv[index].key = DEVICETX;
+            gkv[index].value = HANDSETMIC;
+            index++;
+        } else {
+            gkv[index].key = STREAMTX;
+            gkv[index].value = val;
+            index++;
+            gkv[index].key = INSTANCE;
+            gkv[index].value = INSTANCE_1;
+            index++;
+            gkv[index].key = VOICE_UI_STREAM_CONFIG;
+            gkv[index].value = VUI_STREAM_CFG_SVA;
+            index++;
+        }
+    } else {
+        if (d == PLAYBACK)
+            gkv[index].key = STREAMRX;
         else
+            gkv[index].key = STREAMTX;
+
+        gkv[index].value = val;
+
+        index++;
+        if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK) {
+            gkv[index].key = INSTANCE;
+            gkv[index].value = INSTANCE_1;
+            index++;
+        }
+
+        if (d == PLAYBACK) {
+            gkv[index].key = DEVICEPP_RX;
+            gkv[index].value = DEVICEPP_RX_AUDIO_MBDRC;
+        } else {
+            gkv[index].key = DEVICEPP_TX;
             gkv[index].value = DEVICEPP_TX_AUDIO_FLUENCE_SMECNS;
+        }
     }
 
     index = 0;

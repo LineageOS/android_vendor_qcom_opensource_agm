@@ -87,5 +87,26 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+
+LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/acdbdata/
+LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
+
+LOCAL_SRC_FILES := agm_voiceui.c
+
+LOCAL_MODULE := agmvoiceui
+LOCAL_MODULE_OWNER         := qti
+LOCAL_MODULE_TAGS := optional
+
+LOCAL_SHARED_LIBRARIES := \
+        libtinyalsa\
+        libagmmixer
+
+LOCAL_VENDOR_MODULE := true
+include $(BUILD_EXECUTABLE)
 endif
 endif

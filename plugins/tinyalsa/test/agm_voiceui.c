@@ -299,8 +299,8 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
         goto err_close_mixer;
     }
 
-    param_buf = merge_payload(5, &param_size, "/etc/sound_model", "/etc/wakeup_config", "/etc/event_config",
-                                 "/etc/buffer_config", "/etc/stream_setup_duration");
+    param_buf = merge_payload(5, &param_size, "/vendor/etc/sound_model", "/vendor/etc/wakeup_config", "/vendor/etc/event_config",
+                                 "/vendor/etc/buffer_config", "/vendor/etc/stream_setup_duration");
 
     if (agm_mixer_set_param(mixer, device, STREAM_PCM, param_buf, param_size)) {
         printf("setparam failed\n");
@@ -371,10 +371,8 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
 
     record_lab_buffer(pcm, cap_time);
 
-    agm_mixer_get_event_param(mixer, device, STREAM_PCM, miid);
-
     /* Reset Engine */
-    if (agm_mixer_set_param_with_file(mixer, device, STREAM_PCM, "/etc/engine_reset")) {
+    if (agm_mixer_set_param_with_file(mixer, device, STREAM_PCM, "/vendor/etc/engine_reset")) {
         printf("stream setup duration configuration failed\n");
         goto err_close_pcm;
     }
