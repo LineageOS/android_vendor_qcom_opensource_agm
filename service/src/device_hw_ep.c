@@ -83,7 +83,7 @@ static int populate_hw_ep_intf_idx(hw_ep_info_t *hw_ep_info, char *intf_idx)
         else if (!strcmp(intf_idx, "4"))
             cdc_dma_i2s_tdm_config->intf_idx = CODEC_RX4;
         else {
-             AGM_LOGE("%s: No matching intf_idx found\n",__func__);
+             AGM_LOGE("No matching intf_idx found\n");
              return -EINVAL;
         }
         break;
@@ -101,12 +101,12 @@ static int populate_hw_ep_intf_idx(hw_ep_info_t *hw_ep_info, char *intf_idx)
         else if(!strcmp(intf_idx, "QUINARY"))
             cdc_dma_i2s_tdm_config->intf_idx = PCM_INTF_IDX_QUINARY;
         else {
-            AGM_LOGE("%s: No matching intf_idx found\n", __func__);
+            AGM_LOGE("No matching intf_idx found\n");
             return -EINVAL;
         }
         break;
     default:
-        AGM_LOGE("%s: Unsupported HW endpoint %d\n", __func__, hw_ep_info->intf);
+        AGM_LOGE("Unsupported HW endpoint %d\n", hw_ep_info->intf);
         return -EINVAL;
     }
 
@@ -132,7 +132,7 @@ static int populate_hw_ep_intf(hw_ep_info_t *hw_ep_info, char *intf)
     else if (!strcmp(intf, "PCM_RT_PROXY"))
         hw_ep_info->intf = PCM_RT_PROXY;
     else {
-        AGM_LOGE("%s: No matching intf found\n",__func__);
+        AGM_LOGE("No matching intf found\n");
         return -EINVAL;
     }
     return 0;
@@ -145,7 +145,7 @@ static int populate_hw_ep_direction(hw_ep_info_t *hw_ep_info, char *dir)
     else if (!strcmp(dir, "TX"))
         hw_ep_info->dir = AUDIO_INPUT;
     else {
-        AGM_LOGE("%s: No matching dir found\n",__func__);
+        AGM_LOGE("No matching dir found\n");
         return -EINVAL;
     }
     return 0;
@@ -160,7 +160,7 @@ static int populate_pcm_rt_proxy_ep_info(hw_ep_info_t *hw_ep_info, char *value)
     sscanf(value, "%20[^-]-%60s", arg, value);
     ret = populate_hw_ep_direction(hw_ep_info, arg);
     if (ret) {
-        AGM_LOGE("%s: failed to parse direction\n", __func__);
+        AGM_LOGE("failed to parse direction\n");
         return ret;
     }
 
@@ -225,7 +225,7 @@ static int populate_cdc_dma_i2s_tdm_pcm_ep_info(hw_ep_info_t *hw_ep_info, char *
     else if (!strcmp(lpaif_type, "LPAIF_AXI"))
         cdc_dma_i2s_tdm_config->lpaif_type = LPAIF_AXI;
     else {
-        AGM_LOGE("%s: No matching lpaif_type found\n",__func__);
+        AGM_LOGE("No matching lpaif_type found\n");
         return -EINVAL;
     }
 
@@ -244,7 +244,7 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj)
     int ret = 0;
 
     if (dev_obj == NULL) {
-        AGM_LOGE("%s: Invalid device object\n",__func__);
+        AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
@@ -268,7 +268,7 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj)
     case PCM_RT_PROXY:
         return populate_pcm_rt_proxy_ep_info(&dev_obj->hw_ep_info, value);
     default:
-        AGM_LOGE("%s: Unsupported interface name %s\n", __func__, dev_obj->name);
+        AGM_LOGE("Unsupported interface name %s\n", __func__, dev_obj->name);
         return -EINVAL;
     }
 }

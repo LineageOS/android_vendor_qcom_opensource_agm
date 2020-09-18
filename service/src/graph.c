@@ -881,7 +881,7 @@ int graph_set_config(struct graph_obj *graph_obj, void *payload,
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret !=0) {
         ret = ar_err_get_lnx_err_code(ret);
-        AGM_LOGE("%s: graph_set_config failed %d\n", __func__, ret);
+        AGM_LOGE("graph_set_config failed %d\n", ret);
     }
 
     pthread_mutex_unlock(&graph_obj->lock);
@@ -903,7 +903,7 @@ int graph_get_config(struct graph_obj *graph_obj, void *payload,
     ret = gsl_get_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret !=0) {
         ret = ar_err_get_lnx_err_code(ret);
-        AGM_LOGE("%s: graph_get_config failed %d", __func__, ret);
+        AGM_LOGE("graph_get_config failed %d", ret);
     }
     pthread_mutex_unlock(&graph_obj->lock);
 
@@ -1567,14 +1567,14 @@ static int graph_fill_buf_info(struct graph_obj *gph_obj,
 
 	shmem_buf_info = calloc(1, sizeof(struct gsl_cmd_get_shmem_buf_info));
 	if (!shmem_buf_info) {
-		AGM_LOGE("%s: shmem_buf_info allocation failed\n", __func__);
+		AGM_LOGE("shmem_buf_info allocation failed\n");
 		return -ENOMEM;
 	}
 
 	shmem_buf_info->num_buffs = 1;
 	shmem_buf_info->buffs = calloc(shmem_buf_info->num_buffs, sizeof(struct gsl_shmem_buf));
 	if (!shmem_buf_info->buffs) {
-		AGM_LOGE("%s: buf allocation failed\n", __func__);
+		AGM_LOGE("buf allocation failed\n");
 		ret = -ENOMEM;
 		goto free_shbuf_info;
 	}
@@ -1586,7 +1586,7 @@ static int graph_fill_buf_info(struct graph_obj *gph_obj,
 		goto free_buffs;
 	}
 
-	AGM_LOGD("%s - metadata %llx\n", __func__, (unsigned long long) shmem_buf_info->buffs[0].metadata);
+	AGM_LOGD("metadata %llx\n", (unsigned long long) shmem_buf_info->buffs[0].metadata);
 	AGM_LOGD("shmem_buf_info size %d - addr %p\n", shmem_buf_info->size, shmem_buf_info->buffs[0].addr);
 
 	shmem_handle = (struct ar_shmem_handle *)shmem_buf_info->buffs[0].metadata;

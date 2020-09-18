@@ -185,7 +185,7 @@ struct agm_meta_data_gsl* metadata_merge(int num, ...)
 
     merged = calloc(1, sizeof(struct agm_meta_data_gsl));
     if (!merged) {
-        AGM_LOGE("%s: No memory to create merged metadata\n", __func__);
+        AGM_LOGE("No memory to create merged metadata\n");
         return NULL;
     }
 
@@ -203,14 +203,14 @@ struct agm_meta_data_gsl* metadata_merge(int num, ...)
 
     merged->gkv.kv = calloc(merged->gkv.num_kvs, sizeof(struct agm_key_value));
     if (!merged->gkv.kv) {
-        AGM_LOGE("%s: No memory to merge gkv\n", __func__);
+        AGM_LOGE("No memory to merge gkv\n");
         free(merged);
         return NULL;
     }
 
     merged->ckv.kv = calloc(merged->ckv.num_kvs, sizeof(struct agm_key_value));
     if (!merged->ckv.kv) {
-        AGM_LOGE("%s No memory to merge ckv\n", __func__);
+        AGM_LOGE("No memory to merge ckv\n");
         free(merged->gkv.kv);
         free(merged);
         return NULL;
@@ -219,7 +219,7 @@ struct agm_meta_data_gsl* metadata_merge(int num, ...)
     merged->sg_props.values = calloc(merged->sg_props.num_values,
                                                sizeof(uint32_t));
     if (!merged->sg_props.values) {
-        AGM_LOGE("%s No memory to merge properties\n", __func__);
+        AGM_LOGE("No memory to merge properties\n");
         free(merged->gkv.kv);
         free(merged->ckv.kv);
         free(merged);
@@ -265,7 +265,7 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size __unused,
     dest->gkv.num_kvs = NUM_GKV(metadata);
     dest->gkv.kv =  calloc(dest->gkv.num_kvs, sizeof(struct agm_key_value));
     if (!dest->gkv.kv) {
-        AGM_LOGE("%s: Memory allocation failed to copy GKV\n", __func__);
+        AGM_LOGE("Memory allocation failed to copy GKV\n");
         ret = -ENOMEM;
         return ret;
     }
@@ -275,7 +275,7 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size __unused,
     dest->ckv.num_kvs = NUM_CKV(metadata);
     dest->ckv.kv =  calloc(dest->ckv.num_kvs, sizeof(struct agm_key_value));
     if (!dest->ckv.kv) {
-        AGM_LOGE("%s: Memory allocation failed to copy CKV\n", __func__);
+        AGM_LOGE("Memory allocation failed to copy CKV\n");
         metadata_free(dest);
         ret = -ENOMEM;
         return ret;
@@ -287,7 +287,7 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size __unused,
     dest->sg_props.num_values = NUM_PROPS(metadata);
     dest->sg_props.values =  calloc(dest->sg_props.num_values, sizeof(uint32_t));
     if (!dest->sg_props.values) {
-        AGM_LOGE("%s: Memory allocation failed to copy properties\n", __func__);
+        AGM_LOGE("Memory allocation failed to copy properties\n");
         metadata_free(dest);
         ret = -ENOMEM;
         return ret;

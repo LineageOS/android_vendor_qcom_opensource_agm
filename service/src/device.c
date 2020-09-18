@@ -107,7 +107,7 @@ static void update_sysfs_fd (int8_t pcm_id, int8_t state)
         if (sysfs_fd >= 0) {
             write(sysfs_fd, buf, MAX_USR_INPUT);
         } else {
-            AGM_LOGE("%s: invalid file handle\n", __func__);
+            AGM_LOGE("invalid file handle\n");
         }
     }
 }
@@ -134,7 +134,7 @@ int device_get_snd_card_id()
     struct device_obj *dev_obj = device_list[0];
 
     if (dev_obj == NULL) {
-        AGM_LOGE("%s: Invalid device object\n", __func__);
+        AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
     return dev_obj->card_id;
@@ -147,14 +147,14 @@ int device_open(struct device_obj *dev_obj)
     struct pcm_config config;
 
     if (dev_obj == NULL) {
-        AGM_LOGE("%s: Invalid device object\n", __func__);
+        AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&dev_obj->lock);
     if (dev_obj->refcnt.open) {
-        AGM_LOGE("%s: PCM device %u already opened\n",
-                           __func__, dev_obj->pcm_id);
+        AGM_LOGI("PCM device %u already opened\n",
+                 dev_obj->pcm_id);
         dev_obj->refcnt.open++;
         goto done;
     }
@@ -172,10 +172,10 @@ int device_open(struct device_obj *dev_obj)
     pcm = pcm_open(dev_obj->card_id, dev_obj->pcm_id, dev_obj->pcm_flags,
                 &config);
     if (!pcm || !pcm_is_ready(pcm)) {
-        AGM_LOGE("%s: Unable to open PCM device %u (%s) rate %u ch %d fmt %u",
-                __func__, dev_obj->pcm_id, pcm_get_error(pcm), config.rate,
+        AGM_LOGE("Unable to open PCM device %u (%s) rate %u ch %d fmt %u",
+                dev_obj->pcm_id, pcm_get_error(pcm), config.rate,
                 config.channels, config.format);
-        AGM_LOGE("%s: Period Size %d \n", __func__, config.period_size);
+        AGM_LOGE("Period Size %d \n", config.period_size);
         ret = -EIO;
         goto done;
     }
@@ -193,22 +193,22 @@ int device_prepare(struct device_obj *dev_obj)
     int ret = 0;
 
     if (dev_obj == NULL) {
-        AGM_LOGE("%s: Invalid device object\n", __func__);
+        AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&dev_obj->lock);
     if (dev_obj->refcnt.prepare) {
-        AGM_LOGD("%s: PCM device %u already in prepare state\n",
-              __func__, dev_obj->pcm_id);
+        AGM_LOGD("PCM device %u already in prepare state\n",
+              dev_obj->pcm_id);
         dev_obj->refcnt.prepare++;
         pthread_mutex_unlock(&dev_obj->lock);
         return ret;
     }
     ret = pcm_prepare(dev_obj->pcm);
     if (ret) {
-        AGM_LOGE("%s: PCM device %u prepare failed, ret = %d\n",
-              __func__, dev_obj->pcm_id, ret);
+        AGM_LOGE("PCM device %u prepare failed, ret = %d\n",
+              dev_obj->pcm_id, ret);
         goto done;
     }
 
@@ -225,21 +225,21 @@ int device_start(struct device_obj *dev_obj)
     int ret = 0;
 
     if (dev_obj == NULL) {
-        AGM_LOGE("%s: Invalid device object\n", __func__);
+        AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&dev_obj->lock);
     if (dev_obj->state < DEV_PREPARED) {
-            AGM_LOGE("%s: PCM device %u not yet prepared, exiting\n",
-                  __func__, dev_obj->pcm_id);
+            AGM_LOGE("PCM device %u not yet prepared, exiting\n",
+                  dev_obj->pcm_id);
             ret =  -1;
             goto done;
     }
 
     if (dev_obj->refcnt.start) {
-        AGM_LOGE("%s: PCM device %u already in start state\n",
-              __func__, dev_obj->pcm_id);
+        AGM_LOGI("PCM device %u already in start state\n",
+              dev_obj->pcm_id);
         dev_obj->refcnt.start++;
         goto done;
     }
@@ -257,14 +257,14 @@ int device_stop(struct device_obj *dev_obj)
     int ret = 0;
 
     if(dev_obj == NULL) {
-        AGM_LOGE("%s: Invalid device object\n", __func__);
+        AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
     pthread_mutex_lock(&dev_obj->lock);
     if (!dev_obj->refcnt.start) {
-        AGM_LOGE("%s: PCM device %u already stopped\n",
-              __func__, dev_obj->pcm_id);
+        AGM_LOGE("PCM device %u already stopped\n",
+              dev_obj->pcm_id);
         goto done;
     }
 
@@ -272,8 +272,8 @@ int device_stop(struct device_obj *dev_obj)
     if (dev_obj->refcnt.start == 0) {
         ret = pcm_stop(dev_obj->pcm);
         if (ret) {
-            AGM_LOGE("%s: PCM device %u stop failed, ret = %d\n",
-                    __func__, dev_obj->pcm_id, ret);
+            AGM_LOGE("PCM device %u stop failed, ret = %d\n",
+                    dev_obj->pcm_id, ret);
         }
         dev_obj->state = DEV_STOPPED;
     }
@@ -288,7 +288,7 @@ int device_close(struct device_obj *dev_obj)
     int ret = 0;
 
     if (dev_obj == NULL) {
-        AGM_LOGE("%s: Invalid device object\n", __func__);
+        AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
@@ -297,8 +297,8 @@ int device_close(struct device_obj *dev_obj)
         update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
         ret = pcm_close(dev_obj->pcm);
         if (ret) {
-            AGM_LOGE("%s: PCM device %u close failed, ret = %d\n",
-                     __func__, dev_obj->pcm_id, ret);
+            AGM_LOGE("PCM device %u close failed, ret = %d\n",
+                     dev_obj->pcm_id, ret);
         }
         dev_obj->state = DEV_CLOSED;
         dev_obj->refcnt.prepare = 0;
@@ -338,8 +338,8 @@ int device_get_aif_info_list(struct aif_info *aif_list, size_t *audio_intfs)
 int device_get_obj(uint32_t device_idx, struct device_obj **dev_obj)
 {
     if (device_idx > num_audio_intfs) {
-        AGM_LOGE("%s: Invalid device_id %u, max_supported device id: %d\n",
-                __func__, device_idx, num_audio_intfs);
+        AGM_LOGE("Invalid device_id %u, max_supported device id: %d\n",
+                device_idx, num_audio_intfs);
         return -EINVAL;
     }
 
@@ -351,7 +351,7 @@ int device_set_media_config(struct device_obj *dev_obj,
           struct agm_media_config *device_media_config)
 {
    if (dev_obj == NULL || device_media_config == NULL) {
-       AGM_LOGE("%s: Invalid device object\n", __func__);
+       AGM_LOGE("Invalid device object\n");
        return -EINVAL;
    }
    dev_obj->media_config.channels = device_media_config->channels;
@@ -384,8 +384,8 @@ int device_set_params(struct device_obj *dev_obj,
 
    dev_obj->params = calloc(1, size);
    if (!dev_obj->params) {
-       AGM_LOGE("%s: No memory for dev params on dev_id:%d\n",
-                                   __func__, dev_obj->pcm_id);
+       AGM_LOGE("No memory for dev params on dev_id:%d\n",
+                                   dev_obj->pcm_id);
        ret = -EINVAL;
        goto done;
    }
@@ -408,13 +408,13 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
     if (mixer == NULL) {
         card_id = device_get_snd_card_id();
         if (card_id < 0) {
-            AGM_LOGE("%s: failed to get card_id", __func__);
+            AGM_LOGE("failed to get card_id");
             return -EINVAL;
         }
 
         mixer = mixer_open(card_id);
         if (!mixer) {
-            AGM_LOGE("%s: failed to get mixer handle", __func__);
+            AGM_LOGE("failed to get mixer handle");
             return -EINVAL;
         }
     }
@@ -422,13 +422,13 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
     ctl_len = strlen(dev_obj->name) + 1 + strlen("Channel Map") + 1;
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str) {
-        AGM_LOGE("%s: Failed to allocate memory for mixer_str", __func__);
+        AGM_LOGE("Failed to allocate memory for mixer_str");
         return -ENOMEM;
     }
 
     payload = calloc(16, sizeof(uint32_t));
     if (!payload) {
-        AGM_LOGE("%s: Failed to allocate memory for payload", __func__);
+        AGM_LOGE("Failed to allocate memory for payload");
         ret = -ENOMEM;
         goto done;
     }
@@ -467,8 +467,8 @@ int parse_snd_card()
 
     fp = fopen(PCM_DEVICE_FILE, "r");
     if (!fp) {
-        AGM_LOGE("%s: ERROR. %s file open failed\n",
-                         __func__, PCM_DEVICE_FILE);
+        AGM_LOGE("ERROR. %s file open failed\n",
+                         PCM_DEVICE_FILE);
         return -ENODEV;
     }
 
@@ -488,12 +488,12 @@ int parse_snd_card()
         struct device_obj *dev_obj = calloc(1, sizeof(struct device_obj));
 
         if (!dev_obj) {
-            AGM_LOGE("%s: failed to allocate device_obj mem\n", __func__);
+            AGM_LOGE("failed to allocate device_obj mem\n");
             ret = -ENOMEM;
             goto free_device;
         }
 
-        AGM_LOGV("%s: buffer: %s\n", __func__, buffer);
+        AGM_LOGV("buffer: %s\n", buffer);
         /* For Non-DPCM Dai-links, it is in the format of:
          * <card_num>-<pcm_device_id>: <pcm->idname> : <pcm->name> :
                                                 <playback/capture> 1
@@ -512,8 +512,8 @@ int parse_snd_card()
         /* populate the hw_ep_ifo for all the available pcm-id's*/
         ret = populate_device_hw_ep_info(dev_obj);
         if (ret) {
-           AGM_LOGE("%s: hw_ep_info parsing failed %s\n",
-                                __func__, dev_obj->name);
+           AGM_LOGE("hw_ep_info parsing failed %s\n",
+                                dev_obj->name);
            free(dev_obj);
            ret = 0;
            continue;
@@ -571,7 +571,7 @@ void device_deinit()
     unsigned int list_count = 0;
     struct device_obj *dev_obj = NULL;
 
-    AGM_LOGE("%s:device deinit called\n", __func__);
+    AGM_LOGE("%s:device deinit called\n");
     for (list_count = 0; list_count < num_audio_intfs; list_count++) {
         dev_obj = device_list[list_count];
         metadata_free(&dev_obj->metadata);

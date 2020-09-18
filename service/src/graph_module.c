@@ -1072,8 +1072,8 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
     size_t actual_param_sz = 0;
 
     if (is_format_bypassed(sess_obj->media_config.format)) {
-        AGM_LOGI("%s: bypass shared mem ep config for format %x",
-                    __func__, sess_obj->media_config.format);
+        AGM_LOGI("bypass shared mem ep config for format %x",
+                 sess_obj->media_config.format);
         return 0;
     }
 
