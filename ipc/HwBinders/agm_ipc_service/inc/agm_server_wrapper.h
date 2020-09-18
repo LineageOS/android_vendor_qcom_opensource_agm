@@ -32,6 +32,7 @@
 #include <vendor/qti/hardware/AGMIPC/1.0/IAGM.h>
 #include <hidl/MQDescriptor.h>
 #include <hidl/Status.h>
+#include <vector>
 #include <cutils/list.h>
 #include "agm_api.h"
 #include "inc/AGMCallback.h"
@@ -61,7 +62,9 @@ bool client_list_init = false;
 
 typedef struct {
    struct listnode list;
+   uint32_t session_id;
    uint64_t handle;
+   std::vector<std::pair<int, int>> shared_mem_fd_list;
 } agm_client_session_handle;
 
 typedef struct {
@@ -69,6 +72,7 @@ typedef struct {
     uint32_t pid;
     struct listnode agm_client_hndl_list;
 } client_info;
+
 void add_handle_to_list(uint64_t handle);
 
 namespace vendor {
@@ -229,6 +233,19 @@ struct AGM : public IAGM {
     Return<int32_t> ipc_agm_set_gapless_session_metadata(uint64_t hndl,
                                               AgmGaplessSilenceType type,
                                               uint32_t silence) override;
+    Return<int32_t> ipc_agm_session_set_non_tunnel_mode_config(uint64_t hndl,
+                       const hidl_vec<AgmSessionConfig>& session_config,
+                       const hidl_vec<AgmMediaConfig>& in_media_config,
+                       const hidl_vec<AgmMediaConfig>& out_media_config,
+                       const hidl_vec<AgmBufferConfig>& in_buffer_config,
+                       const hidl_vec<AgmBufferConfig>& out_buffer_config) override;
+    Return<void> ipc_agm_session_write_with_metadata(uint64_t hndl, const hidl_vec<AgmBuff>& buff,
+                                               uint32_t consumed_size,
+                                               ipc_agm_session_write_with_metadata_cb) override;
+    Return<void> ipc_agm_session_read_with_metadata(uint64_t hndl, const hidl_vec<AgmBuff>& buff,
+                                               uint32_t captured_size,
+                                               ipc_agm_session_read_with_metadata_cb) override;
+
     int is_agm_initialized() { return agm_initialized;}
 
 private:

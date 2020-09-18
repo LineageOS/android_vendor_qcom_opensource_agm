@@ -48,6 +48,18 @@ extern "C" {
 
 struct session_obj;
 
+/**<
+ * used to indicate a given buffer is the final buffer, client will get
+ * notified once the buffer has been rendered
+ */
+#define AGM_BUFF_FLAG_EOS 0x1
+
+/**< true if buffer has a valid timestamp */
+#define AGM_BUFF_FLAG_TS_VALID 0x2
+
+/*Enables SRCM event in metadata on the read path*/
+#define AGM_SESSION_FLAG_INBAND_SRCM 0x1
+
 /**
  * A single entry of a Key Vector
  */
@@ -81,6 +93,12 @@ enum agm_media_format
     AGM_FORMAT_WMASTD,          /**< WMA codec */
     AGM_FORMAT_WMAPRO,          /**< WMA pro codec */
     AGM_FORMAT_VORBIS,          /**< Vorbis codec */
+    AGM_FORMAT_AMR_NB,          /**< AMR NB codec */
+    AGM_FORMAT_AMR_WB,          /**< AMR WB codec */
+    AGM_FORMAT_AMR_WB_PLUS,     /**< AMR WB Plus codec */
+    AGM_FORMAT_EVRC,            /**< EVRC codec */
+    AGM_FORMAT_G711,            /**< G711 codec */
+    AGM_FORMAT_QCELP,            /**< G711 codec */
     AGM_FORMAT_MAX,
 };
 
@@ -110,6 +128,7 @@ enum agm_data_mode
     AGM_DATA_BLOCKING,      /**< Blocking mode */
     AGM_DATA_NON_BLOCKING,  /**< Non blocking mode */
     AGM_DATA_PUSH_PULL,     /**< Push Pull mode */
+    AGM_DATA_EXTERN_MEM,    /**< Push Pull mode */
     AGM_DATA_MODE_MAX,
 };
 
@@ -121,6 +140,22 @@ enum agm_session_mode
     AGM_SESSION_DEFAULT,         /**< Normal agm tunnel session*/
     AGM_SESSION_NO_HOST,         /**< Hostless mode */
     AGM_SESSION_NON_TUNNEL,      /**< Non tunnel mode */
+};
+
+struct agm_extern_alloc_buff_info{
+    int      alloc_handle;/**< unique handle identifying extern mem allocation */
+    uint32_t alloc_size;  /**< size of external allocation */
+    uint32_t offset;      /**< offset of buffer within extern allocation */
+};
+
+struct agm_buff {
+    uint64_t timestamp; /**< timestamp in micro-secs */
+    uint32_t flags; /**< bitmasked flags for e.g. AGM_BUFF_FLAG_EOS */
+    uint32_t size; /**< size of buffer in bytes */
+    uint8_t *addr; /**< data buffer */
+    uint32_t metadata_size; /**< size of metadata blob */
+    uint8_t *metadata; /**< Blob for metadata */
+    struct agm_extern_alloc_buff_info alloc_info; /**< holds info for extern buff */
 };
 
 /**
@@ -294,6 +329,7 @@ struct agm_session_config {
     uint32_t stop_threshold;   /**< stop_th6reshold: number of buffers * buffer size */
     union agm_session_codec codec; /**< codec configuration */
     enum agm_data_mode data_mode; /**< compress format ID */
+    uint32_t sess_flags; /**< pass session specific flags e.g enable inband SRCM event*/
 };
 
 /**
@@ -302,6 +338,7 @@ struct agm_session_config {
 struct agm_buffer_config {
     uint32_t count; /**< number of buffers */
     size_t size;    /**< size of each buffer */
+    size_t max_metadata_size; /**< max metadata size a client attaches to a buffer */
 };
 
 /**
@@ -350,6 +387,13 @@ enum event_type
 {
     AGM_EVENT_DATA_PATH = 1,/**< Events on the Data path, READ_DONE or WRITE_DONE */
     AGM_EVENT_MODULE,       /**< Events raised by modules */
+};
+
+struct agm_event_read_write_done_payload {
+    uint32_t tag; /**< tag that was used to read/write this buffer */
+    uint32_t status; /**< data buffer status as defined in ar_osal_error.h */
+    uint32_t md_status; /**< meta-data status as defined in ar_osal_error.h */
+    struct agm_buff buff; /**< buffer that was passed to agm_read/agm_write */
 };
 
 /**
@@ -912,6 +956,58 @@ int agm_register_service_crash_callback(agm_service_crash_cb cb,
   */
 int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_type type,
                                      uint32_t silence);
+
+/**
+ * \brief Write data buffers with metadata to session
+ *
+ * \param[in] handle: session handle returned from
+ *  	 agm_session_open
+ * \param[in] buff: agm_buffer where data will be copied from
+ * \param[in] consumed size: Actual number of bytes that were consumed by AGM
+ *
+ * \return 0 on success, error code otherwise
+ */
+int agm_session_write_with_metadata(uint64_t hndl, struct agm_buff *buff,
+                                    uint32_t *consumed_size);
+
+/**
+ * \brief Read data buffers with metadata to session
+ *
+ * \param[in] handle: session handle returned from
+ *  	 agm_session_open
+ * \param[in] buff: agm_buffer where data will be copied to
+ * \param[in] captured_size: Actual number of bytes that were captured
+ *
+ * \return 0 on success, error code otherwise
+ */
+int agm_session_read_with_metadata(uint64_t hndl, struct agm_buff *buff,
+                                    uint32_t *captured_size);
+
+/**
+ * \brief Helps set config for non tunnel mode (rx and tx path)
+ *
+ * \param[in] handle: session handle returned from
+ *  	 agm_session_open
+ * \param[in] session_config - valid stream configuration of the
+ *       sessions
+ * \param[in] in_media_config - valid media configuration of the
+ *       input data.
+ * \param[in] in_buffer_config - buffer configuration for the
+ *       input data path.
+ * \param[in] out_media_config - valid media configuration of the
+ *       output data.
+ * \param[in] out_buffer_config - buffer configuration for the
+ *       output data path.
+ *
+ * \return 0 on success, error code otherwise
+ */
+int agm_session_set_non_tunnel_mode_config(uint64_t hndl,
+                                       struct agm_session_config *session_config,
+                                       struct agm_media_config *in_media_config,
+                                       struct agm_media_config *out_media_config,
+                                       struct agm_buffer_config *in_buffer_config,
+                                       struct agm_buffer_config *out_buffer_config);
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif

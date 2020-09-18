@@ -62,6 +62,59 @@ Return<int32_t> AGMCallback::event_callback(uint32_t session_id,
     return int32_t {};
 }
 
+Return<int32_t> AGMCallback::event_callback_rw_done(uint32_t session_id,
+                                const hidl_vec<AgmReadWriteEventCbParams>& event_params,
+                                uint64_t clbk_data) {
+    ALOGV("%s called \n", __func__);
+    ClntClbk *cl_clbk_data;
+    cl_clbk_data = (ClntClbk *) clbk_data;
+    struct agm_event_cb_params *event_params_l = NULL;
+    struct agm_event_read_write_done_payload rw_payload = {0};
+    const native_handle *allochandle = nullptr;
+
+    struct agm_buff *buffer = &rw_payload.buff;
+
+    const AgmEventReadWriteDonePayload *rw_payload_hidl = NULL;
+
+    event_params_l = (struct agm_event_cb_params*) calloc(1,
+                     (sizeof(struct agm_event_cb_params) +
+                      sizeof(struct agm_event_read_write_done_payload)));
+
+
+    event_params_l->event_payload_size = sizeof(rw_payload);
+    event_params_l->event_id = event_params.data()->event_id;
+    event_params_l->source_module_id = event_params.data()->source_module_id;
+
+    rw_payload_hidl = event_params.data()->rw_payload.data();
+    rw_payload.tag = rw_payload_hidl->tag;
+    rw_payload.status = rw_payload_hidl->status;
+    rw_payload.md_status = rw_payload_hidl->md_status;
+    buffer->timestamp = rw_payload_hidl->buff.timestamp;
+    buffer->flags = rw_payload_hidl->buff.flags;
+    buffer->size = rw_payload_hidl->buff.size;
+    allochandle = rw_payload_hidl->buff.alloc_info.alloc_handle.handle();
+    buffer->alloc_info.alloc_handle = allochandle->data[1];
+    ALOGE("alloc handleinput[0] %d and input[1] %d ", allochandle->data[0], allochandle->data[1]);
+    buffer->alloc_info.alloc_size = rw_payload_hidl->buff.alloc_info.alloc_size;
+    buffer->alloc_info.offset = rw_payload_hidl->buff.alloc_info.offset;
+
+    if (rw_payload_hidl->buff.metadata_size > 0) {
+        buffer->metadata_size = rw_payload_hidl->buff.metadata_size;
+        buffer->metadata = (uint8_t *)calloc(1, rw_payload_hidl->buff.metadata_size);
+        memcpy(buffer->metadata, rw_payload_hidl->buff.metadata.data(),
+               buffer->metadata_size);
+    }
+    memcpy(event_params_l->event_payload, &rw_payload, sizeof(rw_payload));
+
+    ALOGV("event_params payload_size %d", event_params_l->event_payload_size);
+    agm_event_cb clbk_func = cl_clbk_data->get_clbk_func();
+    clbk_func(session_id, event_params_l, cl_clbk_data->get_clnt_data());
+    if (buffer->metadata)
+       free(buffer->metadata);
+    free(event_params_l);
+    return int32_t {};
+}
+
 
 }  // namespace implementation
 }  // namespace V1_0

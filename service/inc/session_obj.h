@@ -83,14 +83,18 @@ struct session_obj {
     struct listnode cb_pool;
     struct graph_obj *graph;
     struct agm_session_config stream_config;
-    struct agm_media_config media_config;
-    struct agm_buffer_config buffer_config;
+    struct agm_media_config in_media_config;
+    struct agm_media_config out_media_config;
+    struct agm_buffer_config in_buffer_config;
+    struct agm_buffer_config out_buffer_config;
     void *params;
     size_t params_size;
     uint32_t loopback_sess_id;
     bool loopback_state;
     uint32_t ec_ref_aif_id;
     bool ec_ref_state;
+    uint32_t rx_metadata_sz;
+    uint32_t tx_metadata_sz;
     pthread_mutex_t lock;
     pthread_mutex_t cb_pool_lock;
 };
@@ -164,4 +168,17 @@ int session_obj_get_sess_buf_info(struct session_obj *sess_obj,
 int session_obj_set_gapless_metadata(struct session_obj *sess_obj,
                                      enum agm_gapless_silence_type type,
                                      uint32_t silence);
+int session_obj_write_with_metadata(struct session_obj *sess_obj,
+                                    struct agm_buff *buff,
+                                    uint32_t *consumed_size);
+int session_obj_read_with_metadata(struct session_obj *sess_obj,
+                                   struct agm_buff *buff,
+                                   uint32_t *captured_size);
+int session_obj_set_non_tunnel_mode_config(struct session_obj *sess_obj,
+                                   struct agm_session_config *session_config,
+                                   struct agm_media_config *in_media_config,
+                                   struct agm_media_config *out_media_config,
+                                   struct agm_buffer_config *rx_buffer_config,
+                                   struct agm_buffer_config *tx_buffer_config);
+
 #endif

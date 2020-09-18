@@ -32,4 +32,6 @@ package vendor.qti.hardware.AGMIPC@1.0;
 interface IAGMCallback
 {
     event_callback (uint32_t session_id, vec<AgmEventCbParams> event_params, uint64_t clbk_data) generates(int32_t ret);
+    event_callback_rw_done (uint32_t session_id, vec<AgmReadWriteEventCbParams> rw_done_payload, uint64_t clbk_data)
+                            generates(int32_t ret);
 };

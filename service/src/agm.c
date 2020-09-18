@@ -724,3 +724,45 @@ int agm_set_gapless_session_metadata(uint64_t handle,
     return session_obj_set_gapless_metadata((struct session_obj *) handle, type,
                                              silence);
 }
+
+int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buff,
+                                    uint32_t *consumed_size)
+{
+    if (!handle) {
+        AGM_LOGE("%s Invalid handle\n", __func__);
+        return -EINVAL;
+    }
+    return session_obj_write_with_metadata((struct session_obj *) handle, buff,
+                                            consumed_size);
+}
+
+int agm_session_read_with_metadata(uint64_t handle __unused, struct agm_buff *buff __unused,
+                                    uint32_t *captured_size __unused)
+{
+    if (!handle) {
+        AGM_LOGE("%s Invalid handle\n", __func__);
+        return -EINVAL;
+    }
+    return session_obj_read_with_metadata((struct session_obj *) handle, buff,
+                                           captured_size);
+}
+
+int agm_session_set_non_tunnel_mode_config(uint64_t handle,
+                                       struct agm_session_config *session_config,
+                                       struct agm_media_config *in_media_config,
+                                       struct agm_media_config *out_media_config,
+                                       struct agm_buffer_config *in_buffer_config,
+                                       struct agm_buffer_config *out_buffer_config)
+{
+    if (!handle) {
+        AGM_LOGE("%s Invalid handle\n", __func__);
+        return -EINVAL;
+    }
+
+    return session_obj_set_non_tunnel_mode_config((struct session_obj *) handle,
+                                            session_config,
+                                            in_media_config,
+                                            out_media_config,
+                                            in_buffer_config,
+                                            out_buffer_config);
+}

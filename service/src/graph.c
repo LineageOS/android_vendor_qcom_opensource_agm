@@ -146,63 +146,122 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     size_t size = 0;
     enum gsl_cmd_id cmd_id;
     enum agm_data_mode mode = sess_obj->stream_config.data_mode;
-
+    struct agm_buffer_config buffer_config = {0};
 
     if (gph_obj->is_config_buf_params_done) {
         AGM_LOGD("configure buf params already done");
         return 0;
     }
 
-    AGM_LOGD("%s sess buf_sz %zu num_bufs %d\n", sess_obj->stream_config.dir == RX?
-                 "Playback":"Capture", sess_obj->buffer_config.size,
-                  sess_obj->buffer_config.count);
-
-    if (mode == AGM_DATA_PUSH_PULL) {
-        buf_config.buff_size = sess_obj->buffer_config.count *
-            sess_obj->buffer_config.size;
-        buf_config.num_buffs = 1;
-    } else {
-        buf_config.buff_size = (uint32_t)sess_obj->buffer_config.size;
-        buf_config.num_buffs = sess_obj->buffer_config.count;
-    }
-    buf_config.start_threshold = sess_obj->stream_config.start_threshold;
-    buf_config.stop_threshold = sess_obj->stream_config.stop_threshold;
-
-    if (mode == AGM_DATA_PUSH_PULL)
-        buf_config.shmem_ep_tag = PULL_PUSH_SHMEM_ENDPOINT;
-    else
-        buf_config.shmem_ep_tag = SHMEM_ENDPOINT;
-    /**
-     *TODO:expose a flag to chose between different data passing modes
-     *BLOCKING/NON-BLOCKING/SHARED_MEM.
+    /*
+     *In case of non-tunnel mode we configure
+     *read and write buffer params together
      */
-    if (mode == AGM_DATA_BLOCKING)
-        buf_config.attributes = GSL_DATA_MODE_BLOCKING;
-    else if (mode == AGM_DATA_NON_BLOCKING)
-        buf_config.attributes = GSL_DATA_MODE_NON_BLOCKING;
-    else if (mode == AGM_DATA_PUSH_PULL)
-        buf_config.attributes = GSL_DATA_MODE_PUSH_PULL;
-    else {
-        AGM_LOGE("Unsupported buffer mode : %d, Default to Blocking\n", mode);
-        buf_config.attributes = GSL_DATA_MODE_BLOCKING;
+    if (sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) {
+
+        /*configure read params*/
+        AGM_LOGD("read params: mode %d sess buf_sz %zu num_bufs %d metadata %d \n",
+                 mode, sess_obj->in_buffer_config.size,
+                 sess_obj->in_buffer_config.count,
+                 sess_obj->in_buffer_config.max_metadata_size);
+
+        buf_config.start_threshold = sess_obj->stream_config.start_threshold;
+        buf_config.stop_threshold = sess_obj->stream_config.stop_threshold;
+        buf_config.buff_size = (uint32_t)sess_obj->in_buffer_config.size;
+        buf_config.num_buffs = sess_obj->in_buffer_config.count;
+        buf_config.max_metadata_size = sess_obj->in_buffer_config.max_metadata_size;
+        if (mode == AGM_DATA_BLOCKING)
+            buf_config.attributes = GSL_DATA_MODE_BLOCKING;
+        else if (mode == AGM_DATA_EXTERN_MEM)
+            buf_config.attributes = GSL_DATA_MODE_EXTERN_MEM;
+        else if (mode == AGM_DATA_NON_BLOCKING)
+            buf_config.attributes = GSL_DATA_MODE_NON_BLOCKING;
+        else {
+            AGM_LOGE("Unsupported buffer mode : %d, Default to Blocking\n", mode);
+            buf_config.attributes = GSL_DATA_MODE_BLOCKING;
+        }
+        buf_config.shmem_ep_tag = RD_SHMEM_ENDPOINT;
+
+        size = sizeof(struct gsl_cmd_configure_read_write_params);
+
+        cmd_id = GSL_CMD_CONFIGURE_READ_PARAMS;
+
+        ret = gsl_ioctl(gph_obj->graph_handle, cmd_id, &buf_config, size);
+        if (ret != 0)
+            goto done;
+
+        /*configure write params, note that only few parameters change for read and write params
+         * e.g, attributes, start_threshold, stop_threshold are same for both.
+         */
+        AGM_LOGD("write params: mode %d sess buf_sz %zu num_bufs %d metadata %d \n",
+                 mode, sess_obj->out_buffer_config.size,
+                 sess_obj->out_buffer_config.count,
+                 sess_obj->out_buffer_config.max_metadata_size);
+
+        buf_config.buff_size = (uint32_t)sess_obj->out_buffer_config.size;
+        buf_config.num_buffs = sess_obj->out_buffer_config.count;
+        buf_config.max_metadata_size = sess_obj->out_buffer_config.max_metadata_size;
+        buf_config.shmem_ep_tag = WR_SHMEM_ENDPOINT;
+        cmd_id = GSL_CMD_CONFIGURE_WRITE_PARAMS;
+
+        ret = gsl_ioctl(gph_obj->graph_handle, cmd_id, &buf_config, size);
+
+    } else {
+        if (sess_obj->stream_config.dir == TX)
+            buffer_config = sess_obj->in_buffer_config;
+        else
+            buffer_config = sess_obj->out_buffer_config;
+
+        AGM_LOGD("%s sess buf_sz %zu num_bufs %d\n", sess_obj->stream_config.dir == RX?
+                 "Playback":"Capture", buffer_config.size,
+                  buffer_config.count);
+
+        if (mode == AGM_DATA_PUSH_PULL) {
+            buf_config.buff_size = buffer_config.count *
+                buffer_config.size;
+            buf_config.num_buffs = 1;
+        } else {
+            buf_config.buff_size = (uint32_t)buffer_config.size;
+            buf_config.num_buffs = buffer_config.count;
+        }
+        buf_config.start_threshold = sess_obj->stream_config.start_threshold;
+        buf_config.stop_threshold = sess_obj->stream_config.stop_threshold;
+
+        if (mode == AGM_DATA_PUSH_PULL)
+            buf_config.shmem_ep_tag = PULL_PUSH_SHMEM_ENDPOINT;
+        else
+            buf_config.shmem_ep_tag = SHMEM_ENDPOINT;
+        /**
+         *TODO:expose a flag to chose between different data passing modes
+         *BLOCKING/NON-BLOCKING/SHARED_MEM.
+         */
+        if (mode == AGM_DATA_BLOCKING)
+            buf_config.attributes = GSL_DATA_MODE_BLOCKING;
+        else if (mode == AGM_DATA_EXTERN_MEM)
+            buf_config.attributes = GSL_DATA_MODE_EXTERN_MEM;
+        else if (mode == AGM_DATA_NON_BLOCKING)
+            buf_config.attributes = GSL_DATA_MODE_NON_BLOCKING;
+        else if (mode == AGM_DATA_PUSH_PULL)
+            buf_config.attributes = GSL_DATA_MODE_PUSH_PULL;
+        else {
+            AGM_LOGE("Unsupported buffer mode : %d, Default to Blocking\n", mode);
+            buf_config.attributes = GSL_DATA_MODE_BLOCKING;
+        }
+
+        size = sizeof(struct gsl_cmd_configure_read_write_params);
+
+        if (sess_obj->stream_config.dir == RX)
+           cmd_id = GSL_CMD_CONFIGURE_WRITE_PARAMS;
+        else
+           cmd_id = GSL_CMD_CONFIGURE_READ_PARAMS;
+
+        ret = gsl_ioctl(gph_obj->graph_handle, cmd_id, &buf_config, size);
     }
-
-    size = sizeof(struct gsl_cmd_configure_read_write_params);
-
-    if (sess_obj->stream_config.dir == RX)
-       cmd_id = GSL_CMD_CONFIGURE_WRITE_PARAMS;
-    else
-       cmd_id = GSL_CMD_CONFIGURE_READ_PARAMS;
-
-    ret = gsl_ioctl(gph_obj->graph_handle, cmd_id, &buf_config, size);
-
+done:
     if (ret != 0) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("Buffer configuration failed error %d\n", ret);
-    } else {
-       gph_obj->buf_config  = buf_config;
-    }
-    if (ret == 0)
+    } else
         gph_obj->is_config_buf_params_done = true;
 
     AGM_LOGD("exit");
@@ -996,31 +1055,37 @@ int graph_set_cal(struct graph_obj *graph_obj,
      return ret;
 }
 
-int graph_write(struct graph_obj *graph_obj, void *buffer, size_t *size)
+int graph_write(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *size)
 {
     int ret = 0;
-    struct gsl_buff gsl_buff;
+    struct gsl_buff gsl_buff = {0};
     uint32_t size_written = 0;
+    uint32_t write_mod_tag = SHMEM_ENDPOINT;
 
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
-    // TODO: update below check
-   /* if (!(graph_obj->state & (PREPARED|STARTED))) {
-        AGM_LOGE("Cannot add a graph in start state");
-        ret = -EINVAL;
-        goto done;
-    }*/
 
-    /*TODO: Update the write api to take timeStamps/other buffer meta data*/
-    gsl_buff.timestamp = 0x0;
-    /*TODO: get the FLAG info from client e.g. FLAG_EOS)*/
-    gsl_buff.flags = 0;
-    gsl_buff.size = *size;
-    gsl_buff.addr = (uint8_t *)(buffer);
+    /*
+     *In case of non-tunnel mode session we have two shared memory endpoints
+     *One for read from the graph and other for writing into the graph
+     */
+    if (graph_obj->sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL)
+        write_mod_tag = WR_SHMEM_ENDPOINT;
+
+    gsl_buff.timestamp = buffer->timestamp;
+    gsl_buff.flags = buffer->flags;
+    gsl_buff.size = buffer->size;
+    gsl_buff.addr = buffer->addr;
+    gsl_buff.metadata_size = buffer->metadata_size;
+    gsl_buff.metadata = buffer->metadata;
+    gsl_buff.alloc_info.alloc_handle = buffer->alloc_info.alloc_handle;
+    gsl_buff.alloc_info.alloc_size = buffer->alloc_info.alloc_size;
+    gsl_buff.alloc_info.offset = buffer->alloc_info.offset;
+
     ret = gsl_write(graph_obj->graph_handle,
-                    SHMEM_ENDPOINT, &gsl_buff, &size_written);
+                    write_mod_tag, &gsl_buff, &size_written);
     if (ret != 0) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("gsl_write for size %zu failed with error %d\n", *size, ret);
@@ -1031,25 +1096,36 @@ done:
     return ret;
 }
 
-int graph_read(struct graph_obj *graph_obj, void *buffer, size_t *size)
+int graph_read(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *size)
 {
     int ret = 0;
-    struct gsl_buff gsl_buff;
+    struct gsl_buff gsl_buff = {0};
     int size_read = 0;
+    uint32_t read_mod_tag = SHMEM_ENDPOINT;
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
+    /*
+     *In case of non-tunnel mode session we have two shared memory endpoints
+     *in a single graph, one to read from the graph and other for writing into
+     *the graph
+     */
+    if (graph_obj->sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL)
+        read_mod_tag = RD_SHMEM_ENDPOINT;
 
-    /*TODO: Update the write api to take timeStamps/other buffer meta data*/
-    gsl_buff.timestamp = 0x0;
-    /*TODO: get the FLAG info from client e.g. FLAG_EOS)*/
-    gsl_buff.flags = 0;
-    gsl_buff.size = *size;
-    gsl_buff.addr = (uint8_t *)(buffer);
+    gsl_buff.timestamp = buffer->timestamp;
+    gsl_buff.flags = buffer->flags;
+    gsl_buff.size = buffer->size;
+    gsl_buff.addr = buffer->addr;
+    gsl_buff.metadata_size = buffer->metadata_size;
+    gsl_buff.metadata = buffer->metadata;
+    gsl_buff.alloc_info.alloc_handle = buffer->alloc_info.alloc_handle;
+    gsl_buff.alloc_info.alloc_size = buffer->alloc_info.alloc_size;
+    gsl_buff.alloc_info.offset = buffer->alloc_info.offset;
 
     ret = gsl_read(graph_obj->graph_handle,
-                    SHMEM_ENDPOINT, &gsl_buff, (uint32_t *)&size_read);
+                    read_mod_tag, &gsl_buff, (uint32_t *)&size_read);
     if ((ret != 0) || (size_read == 0)) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("size_requested %zu size_read %d error %d\n",
@@ -1647,42 +1723,46 @@ free_shbuf_info:
 
 int graph_get_buf_info(struct graph_obj *graph_obj, struct agm_buf_info *buf_info, uint32_t flag)
 {
-	struct session_obj *sess_obj = NULL;
-	enum gsl_cmd_id cmd_id;
-	int ret = -EINVAL;
+    struct session_obj *sess_obj = NULL;
+    enum gsl_cmd_id cmd_id;
+    int ret = -EINVAL;
+    struct agm_buffer_config buffer_config = {0};
 
-	sess_obj = graph_obj->sess_obj;
+    sess_obj = graph_obj->sess_obj;
+    if (sess_obj == NULL) {
+        AGM_LOGE("invalid sess object");
+        return -EINVAL;
+    }
+    if (sess_obj->stream_config.dir == TX)
+        buffer_config = sess_obj->in_buffer_config;
+    else
+        buffer_config = sess_obj->out_buffer_config;
 
-	if (sess_obj == NULL) {
-		AGM_LOGE("invalid sess object");
-		return -EINVAL;
-	}
-    if ((sess_obj->buffer_config.count == 0) ||
-        (sess_obj->buffer_config.size == 0)) {
+    if ((buffer_config.count == 0) ||
+        (buffer_config.size == 0)) {
         AGM_LOGE("invalid buffer count or size");
         return -EINVAL;
     }
 
     configure_buffer_params(graph_obj, sess_obj);
+    if (flag & DATA_BUF) {
+        if (sess_obj->stream_config.dir == RX)
+            cmd_id = GSL_CMD_GET_WRITE_BUFF_INFO;
+        else
+            cmd_id = GSL_CMD_GET_READ_BUFF_INFO;
 
-	if (flag & DATA_BUF) {
-		if (sess_obj->stream_config.dir == RX)
-			cmd_id = GSL_CMD_GET_WRITE_BUFF_INFO;
-		else
-			cmd_id = GSL_CMD_GET_READ_BUFF_INFO;
+        ret = graph_fill_buf_info(graph_obj, buf_info, cmd_id, DATA_BUF);
+    }
 
-		ret = graph_fill_buf_info(graph_obj, buf_info, cmd_id, DATA_BUF);
-	}
+    if (flag & POS_BUF) {
+        if (sess_obj->stream_config.dir == RX)
+            cmd_id = GSL_CMD_GET_WRITE_POS_BUFF_INFO;
+        else
+            cmd_id = GSL_CMD_GET_READ_POS_BUFF_INFO;
 
-	if (flag & POS_BUF) {
-		if (sess_obj->stream_config.dir == RX)
-			cmd_id = GSL_CMD_GET_WRITE_POS_BUFF_INFO;
-		else
-			cmd_id = GSL_CMD_GET_READ_POS_BUFF_INFO;
-
-		ret = graph_fill_buf_info(graph_obj, buf_info, cmd_id, POS_BUF);
-	}
-	return ret;
+        ret = graph_fill_buf_info(graph_obj, buf_info, cmd_id, POS_BUF);
+    }
+    return ret;
 }
 
 int graph_set_gapless_metadata(struct graph_obj *graph_obj,

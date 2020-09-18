@@ -32,6 +32,7 @@
 #include <log/log.h>
 #include <cutils/list.h>
 #include <pthread.h>
+#include "gsl_intf.h"
 #include <hwbinder/IPCThreadState.h>
 
 void client_death_notifier::serviceDied(uint64_t cookie,
@@ -79,6 +80,7 @@ void client_death_notifier::serviceDied(uint64_t cookie,
                     if (hndl->handle) {
                         agm_session_close(hndl->handle);
                         list_remove(sess_node);
+                        hndl->shared_mem_fd_list.clear();
                         free(hndl);
                     }
                 }
@@ -91,7 +93,75 @@ void client_death_notifier::serviceDied(uint64_t cookie,
     ALOGV("%s: exit\n", __func__);
 }
 
-void add_handle_to_list(uint64_t handle)
+int check_and_find_input_fd(uint64_t sess_handle, int input_fd, int *dup_fd)
+{
+    struct listnode *node = NULL;
+    struct listnode *tempnode = NULL;
+    agm_client_session_handle *hndle = NULL;
+    client_info *handle = NULL;
+    struct listnode *sess_node = NULL;
+    struct listnode *sess_tempnode = NULL;
+    ALOGE("%s:%d",__func__,__LINE__);
+    pthread_mutex_lock(&client_list_lock);
+    list_for_each_safe(node, tempnode, &client_list) {
+        handle = node_to_item(node, client_info, list);
+    ALOGE("%s:%d",__func__,__LINE__);
+        list_for_each_safe(sess_node, sess_tempnode,
+                                     &handle->agm_client_hndl_list) {
+            hndle = node_to_item(sess_node,
+                                     agm_client_session_handle,
+                                     list);
+    ALOGE("%s:%d stored handle %x input handle %x",__func__,__LINE__, hndle->handle,sess_handle);
+            if (hndle->handle == sess_handle) {
+                for (int i = 0; i < hndle->shared_mem_fd_list.size(); i++) {
+                     ALOGE("fd list dup fd %d payload fd %d", hndle->shared_mem_fd_list[i].second,
+                            input_fd);
+                     if (hndle->shared_mem_fd_list[i].first == input_fd) {
+                        *dup_fd = hndle->shared_mem_fd_list[i].second;
+                        ALOGE("input fd %d found, return already dupped fd %d", input_fd, *dup_fd);
+                        pthread_mutex_unlock(&client_list_lock);
+                        return 0;
+                     }
+                }
+            }
+        }
+    }
+    pthread_mutex_unlock(&client_list_lock);
+    return -1;
+}
+
+void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
+{
+    struct listnode *node = NULL;
+    struct listnode *tempnode = NULL;
+    agm_client_session_handle *hndle = NULL;
+    client_info *handle = NULL;
+    struct listnode *sess_node = NULL;
+    struct listnode *sess_tempnode = NULL;
+
+    ALOGE("%s:%d",__func__,__LINE__);
+    pthread_mutex_lock(&client_list_lock);
+    list_for_each_safe(node, tempnode, &client_list) {
+        handle = node_to_item(node, client_info, list);
+        list_for_each_safe(sess_node, sess_tempnode,
+                                     &handle->agm_client_hndl_list) {
+    ALOGE("%s:%d",__func__,__LINE__);
+            hndle = node_to_item(sess_node,
+                                     agm_client_session_handle,
+                                     list);
+            if (hndle->handle == sess_handle) {
+                hndle->shared_mem_fd_list.push_back(std::make_pair(input_fd, dup_fd));
+                ALOGE("sess_handle %x, session_id:%d input_fd %d, dup fd %d", hndle->handle,
+                       hndle->session_id, input_fd, dup_fd);
+            }
+         }
+    }
+    pthread_mutex_unlock(&client_list_lock);
+
+
+}
+
+void add_handle_to_list(uint32_t session_id, uint64_t handle)
 {
     struct listnode *node = NULL;
     client_info *client_handle = NULL;
@@ -122,7 +192,8 @@ void add_handle_to_list(uint64_t handle)
                     goto exit;
                 }
                 hndl->handle = handle;
-                ALOGV("%s: Adding node to client handle list \n", __func__);
+                hndl->session_id = session_id;
+                ALOGE("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
                 list_add_tail(&client_handle_temp->agm_client_hndl_list, &hndl->list);
                 flag = 1;
                 break;
@@ -139,7 +210,8 @@ void add_handle_to_list(uint64_t handle)
                 goto exit;
             }
             hndl->handle = handle;
-            ALOGV("%s: Adding 1st node to client handle list \n", __func__);
+            hndl->session_id = session_id;
+            ALOGE("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
             list_add_tail(&client_handle->agm_client_hndl_list, &hndl->list);
         }
     }
@@ -162,19 +234,111 @@ void ipc_callback (uint32_t session_id,
           session_id, client_data);
     SrvrClbk *sr_clbk_dat;
     sr_clbk_dat = (SrvrClbk *) client_data;
-    hidl_vec<AgmEventCbParams> evt_param_l;
-    evt_param_l.resize(sizeof(struct agm_event_cb_params) +
-                            evt_param->event_payload_size);
-    evt_param_l.data()->source_module_id = evt_param->source_module_id;
-    evt_param_l.data()->event_payload_size = evt_param->event_payload_size;
-    evt_param_l.data()->event_id = evt_param->event_id;
-    evt_param_l.data()->event_payload.resize(evt_param->event_payload_size);
-    int8_t *dst = (int8_t *)evt_param_l.data()->event_payload.data();
-    int8_t *src = (int8_t *)evt_param->event_payload;
-    memcpy(dst, src, evt_param->event_payload_size);
     sp<IAGMCallback> clbk_bdr = sr_clbk_dat->clbk_binder;
-    clbk_bdr->event_callback(session_id, evt_param_l,
-                              sr_clbk_dat->get_clnt_data());
+    hidl_vec<AgmEventCbParams> evt_param_l;
+    hidl_vec<AgmReadWriteEventCbParams> rw_evt_param_hidl;
+    AgmReadWriteEventCbParams *rw_evt_param = NULL;
+    AgmEventReadWriteDonePayload *rw_payload = NULL;
+    struct gsl_event_read_write_done_payload *rw_done_payload;
+    uint32_t eventId = evt_param->event_id;
+
+    /*
+     *In case of EXTERN_MEM and SHMEM mode only we have a
+     *valid payload for READ/WRITE_DONE event
+     */
+    if ((evt_param->event_payload_size > 0) && ((eventId == AGM_EVENT_READ_DONE) ||
+                               (eventId == AGM_EVENT_WRITE_DONE))) {
+
+        /*
+         *iterate over list of sessions to find the original fd that was input
+         *during write/read
+        */
+        struct listnode *node = NULL;
+        struct listnode *tempnode = NULL;
+        agm_client_session_handle *hndle = NULL;
+        client_info *handle = NULL;
+        struct listnode *sess_node = NULL;
+        struct listnode *sess_tempnode = NULL;
+        int input_fd = -1;
+
+        rw_done_payload = (struct gsl_event_read_write_done_payload *)evt_param->event_payload;
+
+        pthread_mutex_lock(&client_list_lock);
+        list_for_each_safe(node, tempnode, &client_list) {
+            handle = node_to_item(node, client_info, list);
+            list_for_each_safe(sess_node, sess_tempnode,
+                                         &handle->agm_client_hndl_list) {
+                hndle = node_to_item(sess_node,
+                                         agm_client_session_handle,
+                                         list);
+                if (hndle->session_id == session_id) {
+                    for (int i = 0; i < hndle->shared_mem_fd_list.size(); i++) {
+                         ALOGE("fd_list [input - dup ] [%d %d] list size %d \n",
+                               hndle->shared_mem_fd_list[i].first, hndle->shared_mem_fd_list[i].second,
+                               hndle->shared_mem_fd_list.size());
+                         if (hndle->shared_mem_fd_list[i].second == rw_done_payload->buff.alloc_info.alloc_handle) {
+                             input_fd = hndle->shared_mem_fd_list[i].first;
+                             ALOGE("input fd %d  payload fd %d\n", input_fd,
+                                   rw_done_payload->buff.alloc_info.alloc_handle);
+                             break;
+                         }
+                    }
+                }
+            }
+        }
+        pthread_mutex_unlock(&client_list_lock);
+        /*
+         *In case of EXTERN_MEM and SHMEM mode only we have a
+         *valid payload for READ/WRITE_DONE event, as of now we dont
+         *support SHMEM mode on LX
+         */
+        native_handle_t *allocHidlHandle = nullptr;
+        allocHidlHandle = native_handle_create(1, 1);
+        ALOGE("%s:%d", __func__,__LINE__);
+        rw_evt_param_hidl.resize(sizeof(struct AgmReadWriteEventCbParams));
+        rw_evt_param = rw_evt_param_hidl.data();
+        rw_evt_param->source_module_id = evt_param->source_module_id;
+        rw_evt_param->event_payload_size = sizeof(struct agm_event_read_write_done_payload);
+        rw_evt_param->event_id = evt_param->event_id;
+        rw_evt_param->rw_payload.resize(sizeof(struct agm_event_read_write_done_payload));
+        rw_payload = rw_evt_param->rw_payload.data();
+        rw_payload->tag = rw_done_payload->tag;
+        rw_payload->md_status = rw_done_payload->md_status;
+        rw_payload->status = rw_done_payload->status;
+        rw_payload->buff.timestamp = rw_done_payload->buff.timestamp;
+        rw_payload->buff.flags = rw_done_payload->buff.flags;
+        rw_payload->buff.size = rw_done_payload->buff.size;
+
+        allocHidlHandle->data[0] = rw_done_payload->buff.alloc_info.alloc_handle;
+        allocHidlHandle->data[1] = input_fd;
+        rw_payload->buff.alloc_info.alloc_handle = hidl_memory("ar_alloc_handle", hidl_handle(allocHidlHandle),
+                                           rw_done_payload->buff.alloc_info.alloc_size);
+        rw_payload->buff.alloc_info.alloc_size = rw_done_payload->buff.alloc_info.alloc_size;
+        rw_payload->buff.alloc_info.offset = rw_done_payload->buff.alloc_info.offset;
+        if (rw_done_payload->buff.metadata_size > 0) {
+            rw_payload->buff.metadata_size = rw_done_payload->buff.metadata_size;
+            rw_payload->buff.metadata.resize(rw_done_payload->buff.metadata_size);
+            memcpy(rw_payload->buff.metadata.data(), rw_done_payload->buff.metadata,
+                   rw_done_payload->buff.metadata_size);
+        }
+        ALOGE("%s:%d", __func__,__LINE__);
+        clbk_bdr->event_callback_rw_done(session_id, rw_evt_param_hidl,
+                                  sr_clbk_dat->get_clnt_data());
+
+        ALOGE("%s:%d", __func__,__LINE__);
+    } else {
+        evt_param_l.resize(sizeof(struct agm_event_cb_params) +
+                                evt_param->event_payload_size);
+        evt_param_l.data()->source_module_id = evt_param->source_module_id;
+        evt_param_l.data()->event_payload_size = evt_param->event_payload_size;
+        evt_param_l.data()->event_id = evt_param->event_id;
+        evt_param_l.data()->event_payload.resize(evt_param->event_payload_size);
+        int8_t *dst = (int8_t *)evt_param_l.data()->event_payload.data();
+        int8_t *src = (int8_t *)evt_param->event_payload;
+        memcpy(dst, src, evt_param->event_payload_size);
+        clbk_bdr->event_callback(session_id, evt_param_l,
+                                  sr_clbk_dat->get_clnt_data());
+    }
 }
 // Methods from ::vendor::qti::hardware::AGMIPC::V1_0::IAGM follow.
 Return<int32_t> AGM::ipc_agm_init() {
@@ -480,7 +644,7 @@ Return<void> AGM::ipc_agm_session_open(uint32_t session_id,
     *handle_ret.data() = handle;
     _hidl_cb(ret, handle_ret);
     if (!ret)
-        add_handle_to_list(handle);
+        add_handle_to_list(session_id, handle);
     ALOGV("%s : handle received is : %llx",__func__, (unsigned long long) handle);
     return Void();
 }
@@ -830,6 +994,181 @@ Return<int32_t> AGM::ipc_agm_set_gapless_session_metadata(uint64_t hndl,
     ALOGV("%s : handle = %lu \n", __func__, hndl);
     return agm_set_gapless_session_metadata(hndl, type_local, silence);
 }
+
+Return<int32_t> AGM::ipc_agm_session_set_non_tunnel_mode_config(uint64_t hndl,
+                const hidl_vec<AgmSessionConfig>& session_config,
+                const hidl_vec<AgmMediaConfig>& in_media_config,
+                const hidl_vec<AgmMediaConfig>& out_media_config,
+                const hidl_vec<AgmBufferConfig>& in_buffer_config,
+                const hidl_vec<AgmBufferConfig>& out_buffer_config) {
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
+
+    struct agm_media_config *in_media_config_local, *out_media_config_local = NULL;
+    int32_t ret = 0;
+    in_media_config_local = (struct agm_media_config*)
+                                    calloc(1, sizeof(struct agm_media_config));
+    if (in_media_config_local == NULL) {
+        ALOGE("%s: Cannot allocate memory for media_config_local\n", __func__);
+        return -ENOMEM;
+    }
+
+    out_media_config_local = (struct agm_media_config*)
+                                    calloc(1, sizeof(struct agm_media_config));
+    if (out_media_config_local == NULL) {
+        ALOGE("%s: Cannot allocate memory for media_config_local\n", __func__);
+        return -ENOMEM;
+    }
+
+    in_media_config_local->rate = in_media_config.data()->rate;
+    in_media_config_local->channels = in_media_config.data()->channels;
+    in_media_config_local->format = (enum agm_media_format) in_media_config.data()->format;
+    in_media_config_local->data_format = (enum agm_media_format) in_media_config.data()->data_format;
+
+    out_media_config_local->rate = out_media_config.data()->rate;
+    out_media_config_local->channels = out_media_config.data()->channels;
+    out_media_config_local->format = (enum agm_media_format) out_media_config.data()->format;
+    out_media_config_local->data_format = (enum agm_media_format) out_media_config.data()->data_format;
+
+
+    struct agm_session_config *session_config_local = NULL;
+    session_config_local = (struct agm_session_config*)
+                                  calloc(1, sizeof(struct agm_session_config));
+    if (session_config_local == NULL) {
+        ALOGE("%s: Cannot allocate memory for session_config_local\n", __func__);
+        return -ENOMEM;
+    }
+    memcpy(session_config_local,
+           session_config.data(),
+           sizeof(struct agm_session_config));
+
+    struct agm_buffer_config *in_buffer_config_local, *out_buffer_config_local = NULL;
+    in_buffer_config_local = (struct agm_buffer_config*)
+                                   calloc(1, sizeof(struct agm_buffer_config));
+    if (in_buffer_config_local == NULL) {
+        ALOGE("%s: Cannot allocate memory for buffer_config_local\n", __func__);
+        return -ENOMEM;
+    }
+
+    out_buffer_config_local = (struct agm_buffer_config*)
+                                   calloc(1, sizeof(struct agm_buffer_config));
+    if (out_buffer_config_local == NULL) {
+        ALOGE("%s: Cannot allocate memory for buffer_config_local\n", __func__);
+        return -ENOMEM;
+    }
+
+    in_buffer_config_local->count = in_buffer_config.data()->count;
+    in_buffer_config_local->size = in_buffer_config.data()->size;
+    in_buffer_config_local->max_metadata_size = in_buffer_config.data()->max_metadata_size;
+
+    out_buffer_config_local->count = out_buffer_config.data()->count;
+    out_buffer_config_local->size = out_buffer_config.data()->size;
+    out_buffer_config_local->max_metadata_size = out_buffer_config.data()->max_metadata_size;
+
+    ret = agm_session_set_non_tunnel_mode_config(hndl,
+                                  session_config_local,
+                                  in_media_config_local,
+                                  out_media_config_local,
+                                  in_buffer_config_local,
+                                  out_buffer_config_local);
+    free(session_config_local);
+    free(in_media_config_local);
+    free(out_media_config_local);
+    free(in_buffer_config_local);
+    free(out_buffer_config_local);
+    return ret;
+}
+
+Return<void> AGM::ipc_agm_session_write_with_metadata(uint64_t hndl, const hidl_vec<AgmBuff>& buff_hidl,
+                                               uint32_t consumed_sz,
+                                               ipc_agm_session_write_with_metadata_cb _hidl_cb)
+{
+    int32_t ret = -EINVAL;
+    struct agm_buff buf;
+    uint32_t bufSize;
+    int dup_fd = -1;
+    uint32_t consumed_size = consumed_sz;
+
+    bufSize = buff_hidl.data()->size;
+    buf.addr = (uint8_t *)calloc(1, bufSize);
+    buf.size = (size_t)bufSize;
+    buf.timestamp = buff_hidl.data()->timestamp;
+    buf.flags = buff_hidl.data()->flags;
+    if (buff_hidl.data()->metadata_size) {
+        buf.metadata_size = buff_hidl.data()->metadata_size;
+        buf.metadata = (uint8_t *)calloc(1, buf.metadata_size);
+        memcpy(buf.metadata, buff_hidl.data()->metadata.data(),
+               buf.metadata_size);
+    }
+    const native_handle *allochandle = nullptr;
+    allochandle = buff_hidl.data()->alloc_info.alloc_handle.handle();
+    if (check_and_find_input_fd(hndl, allochandle->data[1], &dup_fd)) {
+        buf.alloc_info.alloc_handle = dup(allochandle->data[0]);
+        add_fd_to_list(hndl, allochandle->data[1], buf.alloc_info.alloc_handle);
+    } else {
+        buf.alloc_info.alloc_handle = dup_fd;
+    }
+    buf.alloc_info.alloc_size = buff_hidl.data()->alloc_info.alloc_size;
+    buf.alloc_info.offset = buff_hidl.data()->alloc_info.offset;
+    if (bufSize)
+        memcpy(buf.addr, buff_hidl.data()->buffer.data(), bufSize);
+    ALOGE("%s:%d sz %d", __func__,__LINE__,bufSize);
+    ret = agm_session_write_with_metadata(hndl, &buf, &consumed_size);
+    _hidl_cb(ret, consumed_size);
+    free(buf.addr);
+    return Void();
+}
+
+Return<void> AGM::ipc_agm_session_read_with_metadata(uint64_t hndl, const hidl_vec<AgmBuff>& inBuff_hidl,
+                                               uint32_t captured_sz,
+                                               ipc_agm_session_read_with_metadata_cb _hidl_cb)
+{
+    struct agm_buff buf;
+    int32_t ret = 0;
+    hidl_vec<AgmBuff> outBuff_hidl;
+    uint32_t bufSize;
+    uint32_t captured_size = captured_sz;
+    int dup_fd = -1;
+
+    bufSize = inBuff_hidl.data()->size;
+    buf.addr = (uint8_t *)calloc(1, bufSize);
+    buf.size = (size_t)bufSize;
+    buf.metadata_size = inBuff_hidl.data()->metadata_size;
+    buf.metadata = (uint8_t *)calloc(1, buf.metadata_size);
+    const native_handle *allochandle = nullptr;
+    allochandle = inBuff_hidl.data()->alloc_info.alloc_handle.handle();
+
+    if (check_and_find_input_fd(hndl, allochandle->data[1], &dup_fd)) {
+        buf.alloc_info.alloc_handle = dup(allochandle->data[0]);
+        add_fd_to_list(hndl, allochandle->data[1], buf.alloc_info.alloc_handle);
+    } else {
+        buf.alloc_info.alloc_handle = dup_fd;
+    }
+
+    buf.alloc_info.alloc_size = inBuff_hidl.data()->alloc_info.alloc_size;
+    buf.alloc_info.offset = inBuff_hidl.data()->alloc_info.offset;
+    ALOGE("%s:%d sz %d", __func__,__LINE__,bufSize);
+    ret = agm_session_read_with_metadata(hndl, &buf, &captured_size);
+    if (ret > 0) {
+        outBuff_hidl.resize(sizeof(struct agm_buff));
+        outBuff_hidl.data()->size = (uint32_t)buf.size;
+        outBuff_hidl.data()->buffer.resize(buf.size);
+        memcpy(outBuff_hidl.data()->buffer.data(), buf.addr,
+               buf.size);
+        outBuff_hidl.data()->timestamp = buf.timestamp;
+        if (buf.metadata_size) {
+           outBuff_hidl.data()->metadata.resize(buf.metadata_size);
+           outBuff_hidl.data()->metadata_size = buf.metadata_size;
+           memcpy(outBuff_hidl.data()->metadata.data(),
+                  buf.metadata, buf.metadata_size);
+        }
+    }
+    _hidl_cb(ret, outBuff_hidl, captured_size);
+    if (buf.addr)
+       free(buf.addr);
+
+     return Void();
+}
+
 }  // namespace implementation
 }  // namespace V1_0
 }  // namespace AGMIPC

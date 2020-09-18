@@ -708,3 +708,157 @@ int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_t
     }
     return -EINVAL;
 }
+
+int agm_session_set_non_tunnel_mode_config(uint64_t handle,
+                            struct agm_session_config *session_config,
+                            struct agm_media_config *in_media_config,
+                            struct agm_media_config *out_media_config,
+                            struct agm_buffer_config *in_buffer_config,
+                            struct agm_buffer_config *out_buffer_config) {
+
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long)handle);
+
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+        hidl_vec<AgmSessionConfig> session_config_hidl;
+        session_config_hidl.resize(sizeof(struct agm_session_config));
+        memcpy(session_config_hidl.data(),
+               session_config,
+               sizeof(struct agm_session_config));
+
+        hidl_vec<AgmMediaConfig> in_media_config_hidl, out_media_config_hidl;
+        in_media_config_hidl.resize(sizeof(struct agm_media_config));
+        in_media_config_hidl.data()->rate = in_media_config->rate;
+        in_media_config_hidl.data()->channels = in_media_config->channels;
+        in_media_config_hidl.data()->format =
+                       (::vendor::qti::hardware::AGMIPC::V1_0::AgmMediaFormat) in_media_config->format;
+        in_media_config_hidl.data()->data_format = in_media_config->data_format;
+
+        out_media_config_hidl.resize(sizeof(struct agm_media_config));
+        out_media_config_hidl.data()->rate = out_media_config->rate;
+        out_media_config_hidl.data()->channels = out_media_config->channels;
+        out_media_config_hidl.data()->format =
+                       (::vendor::qti::hardware::AGMIPC::V1_0::AgmMediaFormat) out_media_config->format;
+        out_media_config_hidl.data()->data_format = out_media_config->data_format;
+
+        hidl_vec<AgmBufferConfig> in_buffer_config_hidl, out_buffer_config_hidl;
+        in_buffer_config_hidl.resize(sizeof(struct agm_buffer_config));
+        in_buffer_config_hidl.data()->count = in_buffer_config->count;
+        in_buffer_config_hidl.data()->size = in_buffer_config->size;
+        in_buffer_config_hidl.data()->max_metadata_size = in_buffer_config->max_metadata_size;
+
+        out_buffer_config_hidl.resize(sizeof(struct agm_buffer_config));
+        out_buffer_config_hidl.data()->count = out_buffer_config->count;
+        out_buffer_config_hidl.data()->size = out_buffer_config->size;
+        out_buffer_config_hidl.data()->max_metadata_size = out_buffer_config->max_metadata_size;
+
+        ALOGV("%s : Exit", __func__);
+        return agm_client->ipc_agm_session_set_non_tunnel_mode_config(handle,
+                                                      session_config_hidl,
+                                                      in_media_config_hidl,
+                                                      out_media_config_hidl,
+                                                      in_buffer_config_hidl,
+                                                      out_buffer_config_hidl);
+    }
+    return -EINVAL;
+}
+
+int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, uint32_t *consumed_size)
+{
+    ALOGV("%s called with handle = %x \n", __func__, handle);
+    int32_t ret = -EINVAL;
+
+    if (!agm_server_died) {
+        ALOGE("%s:%d hndl %p",__func__, __LINE__, handle );
+        android::sp<IAGM> agm_client = get_agm_server();
+        hidl_vec<AgmBuff> buf_hidl;
+        native_handle_t *allocHidlHandle = nullptr;
+        allocHidlHandle = native_handle_create(1, 1);
+        allocHidlHandle->data[0] = buf->alloc_info.alloc_handle;
+        allocHidlHandle->data[1] = buf->alloc_info.alloc_handle;
+        buf_hidl.resize(sizeof(struct agm_buff));
+        AgmBuff *agmBuff = buf_hidl.data();
+        agmBuff->size = buf->size;
+        agmBuff->buffer.resize(buf->size);
+        agmBuff->flags = buf->flags;
+        agmBuff->timestamp = buf->timestamp;
+        if (buf->size && buf->addr)
+            memcpy(agmBuff->buffer.data(), buf->addr, buf->size);
+        if ((buf->metadata_size > 0) && buf->metadata) {
+            agmBuff->metadata_size = buf->metadata_size;
+            agmBuff->metadata.resize(buf->metadata_size);
+            memcpy(agmBuff->metadata.data(),
+                   buf->metadata, buf->metadata_size);
+         }
+         agmBuff->alloc_info.alloc_handle = hidl_memory("ar_alloc_handle", hidl_handle(allocHidlHandle),
+                    buf->alloc_info.alloc_size);
+
+        ALOGE("%s:%d: fd [0] %d fd [1] %d", __func__,__LINE__, allocHidlHandle->data[0], allocHidlHandle->data[1]);
+         agmBuff->alloc_info.alloc_size = buf->alloc_info.alloc_size;
+         agmBuff->alloc_info.offset = buf->alloc_info.offset;
+         agm_client->ipc_agm_session_write_with_metadata(
+                                            handle, buf_hidl,
+                                            *consumed_size,
+                                      [&](int32_t _ret, uint32_t cnt)
+                                           {
+                                             ret = _ret;
+                                             if (ret != -ENOMEM)
+                                                 *consumed_size = (size_t) cnt;
+                                           });
+    }
+    return ret;
+}
+
+int agm_session_read_with_metadata(uint64_t handle, struct agm_buff  *buf, uint32_t *captured_size)
+{
+    int ret = -EINVAL;
+    ALOGE("%s:%d size %d",__func__,__LINE__, buf->size);
+    if (handle == NULL)
+       goto done;
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+        native_handle_t *allocHidlHandle = nullptr;
+        allocHidlHandle = native_handle_create(1, 1);
+        allocHidlHandle->data[0] = buf->alloc_info.alloc_handle;
+        allocHidlHandle->data[1] = buf->alloc_info.alloc_handle;
+
+        hidl_vec<AgmBuff> buf_hidl;
+        buf_hidl.resize(sizeof(struct agm_buff));
+        AgmBuff *agmBuff = buf_hidl.data();
+        agmBuff->size = buf->size;
+        agmBuff->metadata_size = buf->metadata_size;
+        agmBuff->alloc_info.alloc_handle = hidl_memory("ar_alloc_handle", hidl_handle(allocHidlHandle),
+                    buf->alloc_info.alloc_size);
+        agmBuff->alloc_info.alloc_size = buf->alloc_info.alloc_size;
+        agmBuff->alloc_info.offset = buf->alloc_info.offset;
+
+        ALOGE("%s:%d size %d %d", __func__, __LINE__, buf_hidl.data()->size, buf->size);
+        ALOGE("%s:%d: fd [0] %d fd [1] %d", __func__,__LINE__, allocHidlHandle->data[0], allocHidlHandle->data[1]);
+        agm_client->ipc_agm_session_read_with_metadata(handle, buf_hidl, *captured_size,
+               [&](int32_t ret_, hidl_vec<AgmBuff> ret_buf_hidl, uint32_t captured_size_ret)
+                  {
+                      if (ret_ > 0) {
+                          if (ret_buf_hidl.data()->size > buf->size) {
+                              ALOGE("ret buf sz %d bigger than request buf sz %d",
+                                     ret_buf_hidl.data()->size, buf->size);
+                              ret_ = -ENOMEM;
+                           } else {
+                                if ((buf->metadata_size > 0) && buf->metadata)
+                                     memcpy(buf->metadata,
+                                           ret_buf_hidl.data()->metadata.data(),
+                                           ret_buf_hidl.data()->metadata_size);
+                                     buf->timestamp = ret_buf_hidl.data()->timestamp;
+                           }
+                           buf->flags = ret_buf_hidl.data()->flags;
+                           if (buf->addr)
+                               memcpy(buf->addr,
+                                      ret_buf_hidl.data()->buffer.data(),
+                                       buf->size);
+                           *captured_size = captured_size_ret;
+                      }
+                      ret = ret_;
+                  });
+    }
+done:
+    return ret;
+}

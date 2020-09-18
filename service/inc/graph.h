@@ -172,7 +172,7 @@ int graph_start(struct graph_obj *gph_obj);
  *
  * return num of bytes read on success or error code on failure.
  */
-int graph_read(struct graph_obj *gph_obj, void *buffer, size_t *size);
+int graph_read(struct graph_obj *gph_obj, struct agm_buff *buffer, size_t *size);
 
 /**
  *\brief write audio data to be rendered
@@ -182,7 +182,7 @@ int graph_read(struct graph_obj *gph_obj, void *buffer, size_t *size);
  *
  * return zero on success or error code on failure.
  */
-int graph_write(struct graph_obj *gph_obj, void *buffer, size_t *size);
+int graph_write(struct graph_obj *gph_obj, struct agm_buff *buffer, size_t *size);
 
 /**
  *\brief pause an existing graph.

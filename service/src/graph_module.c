@@ -148,14 +148,15 @@ int get_pcm_bit_width(enum agm_media_format fmt_id)
     return bit_width;
 }
 
-static int get_media_bit_width(struct session_obj *sess_obj)
+static int get_media_bit_width(struct session_obj *sess_obj,
+                               struct agm_media_config *media_config)
 {
     int bit_width = 16;
 
-    if (is_format_pcm(sess_obj->media_config.format))
-        return get_pcm_bit_width(sess_obj->media_config.format);
+    if (is_format_pcm(media_config->format))
+        return get_pcm_bit_width(media_config->format);
 
-    switch (sess_obj->media_config.format) {
+    switch (media_config->format) {
     case AGM_FORMAT_FLAC:
         bit_width = sess_obj->stream_config.codec.flac_dec.sample_size;
         break;
@@ -715,9 +716,15 @@ int configure_output_media_format(struct module_info *mod,
     uint8_t *channel_map;
     int ret = 0;
     int num_channels = MONO;
+    struct agm_media_config media_config = {0};
 
-    AGM_LOGV("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
-    num_channels = sess_obj->media_config.channels;
+    if (sess_obj->stream_config.dir == TX)
+        media_config = sess_obj->in_media_config;
+    else
+        media_config = sess_obj->out_media_config;
+
+    AGM_LOGD("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
+    num_channels = media_config.channels;
 
     payload_size = sizeof(struct apm_module_param_data_t) +
                    sizeof(struct media_format_t) +
@@ -761,7 +768,7 @@ int configure_output_media_format(struct module_info *mod,
                                     sizeof(uint8_t) * num_channels);
 
     pcm_output_fmt_payload->endianness = PCM_LITTLE_ENDIAN;
-    pcm_output_fmt_payload->bit_width = get_media_bit_width(sess_obj);
+    pcm_output_fmt_payload->bit_width = get_media_bit_width(sess_obj, &media_config);
     /**
      *alignment field is referred to only in case where bit width is
      *24 and bits per sample is 32, tiny alsa only supports 24 bit
@@ -772,15 +779,15 @@ int configure_output_media_format(struct module_info *mod,
     pcm_output_fmt_payload->num_channels = num_channels;
 
     if (sess_obj->stream_config.dir == TX &&
-            is_format_pcm(sess_obj->media_config.format)) {
+            is_format_pcm(media_config.format)) {
         /*for PCM capture usecase, we want native data to be captured hence
           configure pcm convertor accordingly*/
         pcm_output_fmt_payload->bits_per_sample =
-                             GET_BITS_PER_SAMPLE(sess_obj->media_config.format,
+                             GET_BITS_PER_SAMPLE(media_config.format,
                                                  pcm_output_fmt_payload->bit_width);
 
         pcm_output_fmt_payload->q_factor =
-                             GET_Q_FACTOR(sess_obj->media_config.format,
+                             GET_Q_FACTOR(media_config.format,
                                           pcm_output_fmt_payload->bit_width);
     } else {
         switch (pcm_output_fmt_payload->bit_width) {
@@ -807,7 +814,8 @@ int configure_output_media_format(struct module_info *mod,
         }
     }
 
-    if (sess_obj->stream_config.dir == RX)
+    if (sess_obj->stream_config.dir == RX &&
+           (sess_obj->stream_config.sess_mode != AGM_SESSION_NON_TUNNEL))
         pcm_output_fmt_payload->interleaved = PCM_DEINTERLEAVED_UNPACKED;
     else
         pcm_output_fmt_payload->interleaved = PCM_INTERLEAVED;
@@ -876,6 +884,30 @@ static int get_media_fmt_id_and_size(enum agm_media_format fmt_id,
     case AGM_FORMAT_VORBIS:
         format_size = 0;
         *real_fmt_id = MEDIA_FMT_VORBIS;
+        break;
+    case AGM_FORMAT_AMR_NB:
+        format_size = 0;
+        *real_fmt_id = MEDIA_FMT_AMRNB;
+        break;
+    case AGM_FORMAT_AMR_WB:
+        format_size = 0;
+        *real_fmt_id = MEDIA_FMT_AMRWB;
+        break;
+    case AGM_FORMAT_AMR_WB_PLUS:
+        format_size = 0;
+        *real_fmt_id = MEDIA_FMT_AMRWBPLUS;
+        break;
+    case AGM_FORMAT_EVRC:
+        format_size = 0;
+        *real_fmt_id = MEDIA_FMT_EVRC;
+        break;
+    case AGM_FORMAT_G711:
+        format_size = 0;
+        *real_fmt_id = MEDIA_FMT_G711;
+        break;
+    case AGM_FORMAT_QCELP:
+        format_size = 0;
+        *real_fmt_id = MEDIA_FMT_QCELP;
         break;
     default:
         ret = -EINVAL;
@@ -1034,11 +1066,11 @@ int configure_placeholder_dec(struct module_info *mod,
     }
 
     /* 1. Configure placeholder decoder with Real ID */
-    ret = get_media_fmt_id_and_size(sess_obj->media_config.format,
+    ret = get_media_fmt_id_and_size(sess_obj->out_media_config.format,
                                     &payload_size, &real_fmt_id);
     if (ret) {
         AGM_LOGD("module is not configured for format: %d\n",
-                 sess_obj->media_config.format);
+                 sess_obj->out_media_config.format);
         /* If ret is non-zero then placeholder module would be
          * configured by client so return from here.
          */
@@ -1054,6 +1086,10 @@ int configure_placeholder_dec(struct module_info *mod,
              tkv.kvp->value);
     ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)mod->gkv,
                          TAG_STREAM_PLACEHOLDER_DECODER, &tkv);
+
+    if (tkv.kvp)
+        free(tkv.kvp);
+
     if (ret != 0) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("set_config command failed with error: %d", ret);
@@ -1068,6 +1104,59 @@ int configure_placeholder_dec(struct module_info *mod,
     return ret;
 }
 
+/**
+ *Configure placeholder encoder
+*/
+int configure_placeholder_enc(struct module_info *mod,
+                              struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct gsl_key_vector tkv;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+
+    size_t payload_size = 0, real_fmt_id = 0;
+
+    AGM_LOGE("enter");
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object");
+        return -EINVAL;
+    }
+
+    /* 1. Configure placeholder encoder with Real ID */
+    ret = get_media_fmt_id_and_size(sess_obj->out_media_config.format,
+                                    &payload_size, &real_fmt_id);
+    if (ret) {
+        AGM_LOGD("module is not configured for format: %d\n",
+                 sess_obj->out_media_config.format);
+        /* If ret is non-zero then placeholder module would be
+         * configured by client so return from here.
+         */
+        return 0;
+    }
+
+    tkv.num_kvps = 1;
+    tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
+    tkv.kvp->key = MEDIA_FMT_ID;
+    tkv.kvp->value = real_fmt_id;
+
+    AGM_LOGD("Placeholder mod TKV key:%0x value: %0x", tkv.kvp->key,
+             tkv.kvp->value);
+    ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)mod->gkv,
+                         TAG_STREAM_PLACEHOLDER_ENCODER, &tkv);
+
+    if (tkv.kvp)
+        free(tkv.kvp);
+
+    if (ret != 0) {
+        ret = ar_err_get_lnx_err_code(ret);
+        AGM_LOGE("set_config command failed with error: %d", ret);
+        return ret;
+    }
+
+    return ret;
+}
+
+
 int configure_compress_shared_mem_ep(struct module_info *mod,
                             struct graph_obj *graph_obj)
 {
@@ -1079,17 +1168,18 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
     size_t payload_size = 0, real_fmt_id = 0;
     size_t actual_param_sz = 0;
 
-    if (is_format_bypassed(sess_obj->media_config.format)) {
-        AGM_LOGI("bypass shared mem ep config for format %x",
-                 sess_obj->media_config.format);
+    if (is_format_bypassed(sess_obj->out_media_config.format) ||
+        sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) {
+        AGM_LOGI("bypass shared mem ep config for format %x or sess_mode %d",
+                 sess_obj->out_media_config.format, sess_obj->stream_config.sess_mode);
         return 0;
     }
 
-    ret = get_media_fmt_id_and_size(sess_obj->media_config.format,
+    ret = get_media_fmt_id_and_size(sess_obj->out_media_config.format,
                                     &payload_size, &real_fmt_id);
     if (ret) {
         AGM_LOGD("module is not configured for format: %d\n",
-                 sess_obj->media_config.format);
+                 sess_obj->out_media_config.format);
         /* If ret is non-zero then shared memory module would be
          * configured by client so return from here.
          */
@@ -1116,11 +1206,11 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
     header->error_code = 0x0;
     header->param_size = actual_param_sz;
 
-    ret =  set_compressed_media_format(sess_obj->media_config.format,
+    ret =  set_compressed_media_format(sess_obj->out_media_config.format,
                              media_fmt_hdr, sess_obj);
     if (ret) {
         AGM_LOGD("Shared mem EP is not configured for format: %d\n",
-                 sess_obj->media_config.format);
+                 sess_obj->out_media_config.format);
         /* If ret is non-zero then shared memory module would be
          * configured by client so return from here.
          */
@@ -1153,7 +1243,7 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     uint8_t *channel_map;
 
     AGM_LOGD("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
-    num_channels = sess_obj->media_config.channels;
+    num_channels = sess_obj->out_media_config.channels;
 
     payload_size = sizeof(struct apm_module_param_data_t) +
                    sizeof(struct media_format_t) +
@@ -1195,8 +1285,8 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
                                      sizeof(uint8_t) * num_channels);
 
     media_fmt_payload->endianness = PCM_LITTLE_ENDIAN;
-    media_fmt_payload->bit_width = get_media_bit_width(sess_obj);
-    media_fmt_payload->sample_rate = sess_obj->media_config.rate;
+    media_fmt_payload->bit_width = get_pcm_bit_width(sess_obj->out_media_config.format);
+    media_fmt_payload->sample_rate = sess_obj->out_media_config.rate;
     /**
      *alignment field is referred to only in case where bit width is
      *24 and bits per sample is 32, tiny alsa only supports 24 bit
@@ -1206,9 +1296,9 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     media_fmt_payload->alignment = PCM_LSB_ALIGNED;
     media_fmt_payload->num_channels = num_channels;
     media_fmt_payload->bits_per_sample =
-                             GET_BITS_PER_SAMPLE(sess_obj->media_config.format,
+                             GET_BITS_PER_SAMPLE(sess_obj->out_media_config.format,
                                                  media_fmt_payload->bit_width);
-    media_fmt_payload->q_factor = GET_Q_FACTOR(sess_obj->media_config.format,
+    media_fmt_payload->q_factor = GET_Q_FACTOR(sess_obj->out_media_config.format,
                                                media_fmt_payload->bit_width);
     /**
      *#TODO:As of now channel_map is not part of media_config
@@ -1229,13 +1319,17 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     return ret;
 }
 
-int configure_shared_mem_ep(struct module_info *mod,
+int configure_wr_shared_mem_ep(struct module_info *mod,
                             struct graph_obj *graph_obj)
 {
     int ret = 0;
     struct session_obj *sess_obj = graph_obj->sess_obj;
 
-    if (is_format_pcm(sess_obj->media_config.format))
+    /*
+     *This is for the write shared mem endpoint,
+     *hence we use out media config.
+     */
+    if (is_format_pcm(sess_obj->out_media_config.format))
         ret = configure_pcm_shared_mem_ep(mod, graph_obj);
     else
         ret = configure_compress_shared_mem_ep(mod, graph_obj);
@@ -1245,6 +1339,75 @@ int configure_shared_mem_ep(struct module_info *mod,
 
     return 0;
 }
+
+int configure_rd_shared_mem_ep(struct module_info *mod,
+                            struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+    struct apm_module_param_data_t *header;
+    struct param_id_rd_sh_mem_cfg_t *rd_sh_mem_cfg;
+    uint8_t *payload = NULL;
+    size_t payload_size = 0;
+
+    /*
+     *Note: read shared mem ep is configured only in case of non-tunnel
+     *decode sessions where the client has configured the session with
+     *AGM_SESSION_FLAG_INBAND_SRCM flag
+     *In case of non-tunnel encode sessions, we set the num_frames_per_buff cfg
+     *as a part of calibration itself.
+     */
+    if ((sess_obj->stream_config.sess_flags & AGM_SESSION_FLAG_INBAND_SRCM));
+        goto done;
+
+    AGM_LOGD("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
+
+    payload_size = sizeof(struct apm_module_param_data_t) +
+                    sizeof(struct param_id_rd_sh_mem_cfg_t);
+
+    /*ensure that the payloadszie is byte multiple atleast*/
+    ALIGN_PAYLOAD(payload_size, 8);
+
+    payload = calloc(1,(size_t)payload_size);
+    if (!payload) {
+        AGM_LOGE("Not enough memory for payload");
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    header = (struct apm_module_param_data_t*)payload;
+
+    rd_sh_mem_cfg = (struct param_id_rd_sh_mem_cfg_t *)(payload
+                       + sizeof(struct apm_module_param_data_t));
+
+    header->module_instance_id = mod->miid;
+    header->param_id = PARAM_ID_RD_SH_MEM_CFG;
+    header->error_code = 0x0;
+    header->param_size = sizeof(struct param_id_rd_sh_mem_cfg_t);
+
+    if (is_format_pcm(sess_obj->in_media_config.format))
+       rd_sh_mem_cfg->num_frames_per_buffer = 0x0; /*As many frames as possible*/
+    else
+       /*TODO:This is encode usecase hence ideally client wont enable SRCM event
+        *Even if the client wants it enabled, then we configure 1 frame every for
+        *every read call;
+        */
+       rd_sh_mem_cfg->num_frames_per_buffer = 0x1;
+
+    rd_sh_mem_cfg->metadata_control_flags = 0x2; /*ENABLE_MEDIA_FORMAT_MD*/
+
+    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
+    if (ret != 0) {
+        ret = ar_err_get_lnx_err_code(ret);
+        AGM_LOGE("custom_config command for module %d failed with error %d",
+                      mod->tag, ret);
+    }
+    free(payload);
+    AGM_LOGD("exit");
+done:
+    return ret;
+}
+
 
 int configure_spr(struct module_info *spr_mod,
                             struct graph_obj *graph_obj)
@@ -1352,6 +1515,11 @@ module_info_t stream_module_list[] = {
         .configure = configure_output_media_format,
     },
     {
+        .module = MODULE_PLACEHOLDER_ENCODER,
+        .tag = TAG_STREAM_PLACEHOLDER_ENCODER,
+        .configure = configure_placeholder_enc,
+    },
+    {
         .module = MODULE_PLACEHOLDER_DECODER,
         .tag = TAG_STREAM_PLACEHOLDER_DECODER,
         .configure = configure_placeholder_dec,
@@ -1362,9 +1530,9 @@ module_info_t stream_module_list[] = {
         .configure = configure_output_media_format,
     },
     {
-        .module = MODULE_SHARED_MEM,
+        .module = MODULE_WR_SHARED_MEM,
         .tag = STREAM_INPUT_MEDIA_FORMAT,
-        .configure = configure_shared_mem_ep,
+        .configure = configure_wr_shared_mem_ep,
     },
     {
         .module = MODULE_STREAM_PAUSE,
@@ -1380,6 +1548,11 @@ module_info_t stream_module_list[] = {
         .module = MODULE_STREAM_GAPLESS,
         .tag = MODULE_GAPLESS,
         .configure = configure_gapless,
+    },
+    {
+        .module = MODULE_RD_SHARED_MEM,
+        .tag = RD_SHMEM_ENDPOINT,
+        .configure = configure_rd_shared_mem_ep,
     },
 };
 

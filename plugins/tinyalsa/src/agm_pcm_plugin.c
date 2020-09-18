@@ -351,6 +351,7 @@ static int agm_pcm_hw_params(struct pcm_plugin *plugin,
     media_config->format = param_get_mask_val(params, SNDRV_PCM_HW_PARAM_FORMAT);
 
     buffer_config->count = param_get_int(params, SNDRV_PCM_HW_PARAM_PERIODS);
+    buffer_config->max_metadata_size = 0;
     priv->period_size = param_get_int(params, SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
     /* period size in bytes */
     buffer_config->size = agm_pcm_frames_to_bytes(media_config,

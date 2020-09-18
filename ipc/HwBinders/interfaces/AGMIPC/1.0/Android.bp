@@ -41,6 +41,10 @@ hidl_interface {
         "EventType",
         "MmapBufInfo",
         "AgmGaplessSilenceType",
+        "AgmBuff",
+        "AgmExternAllocBuffInfo",
+        "AgmEventReadWriteDonePayload",
+        "AgmReadWriteEventCbParams"
     ],
     gen_java: false,
 }

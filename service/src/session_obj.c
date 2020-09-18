@@ -878,9 +878,7 @@ static int session_prepare(struct session_obj *sess_obj)
            ret = -EINVAL;
            goto done;
         }
-    }
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
             if (!aif_obj) {
@@ -891,16 +889,15 @@ static int session_prepare(struct session_obj *sess_obj)
             if (ret)
                 goto done;
         }
-    }
-    if ((dir == TX) && (sess_obj->state != SESSION_STARTED)) {
-        ret = graph_prepare(sess_obj->graph);
-        if (ret) {
-            AGM_LOGE("Error:%d preparing graph\n", ret);
-            goto done;
-        }
-    }
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        if ((dir == TX) && (sess_obj->state != SESSION_STARTED)) {
+            ret = graph_prepare(sess_obj->graph);
+            if (ret) {
+                AGM_LOGE("Error:%d preparing graph\n", ret);
+                goto done;
+            }
+        }
+
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
             if (!aif_obj) {
@@ -918,16 +915,21 @@ static int session_prepare(struct session_obj *sess_obj)
                 aif_obj->state = AIF_PREPARED;
             }
         }
-    }
 
-    if ((dir == RX) && (sess_obj->state != SESSION_STARTED)) {
+        if ((dir == RX) && (sess_obj->state != SESSION_STARTED)) {
+            ret = graph_prepare(sess_obj->graph);
+            if (ret) {
+                AGM_LOGE("Error:%d preparing graph\n", ret);
+                goto done;
+            }
+        }
+    } else if(sess_obj->state != SESSION_STARTED) {
         ret = graph_prepare(sess_obj->graph);
         if (ret) {
-            AGM_LOGE("Error:%d preparing graph\n", ret);
-            goto done;
+             AGM_LOGE("Error:%d preparing graph\n", ret);
+             goto done;
         }
     }
-
     sess_obj->state = SESSION_PREPARED;
     return ret;
 
@@ -955,63 +957,61 @@ static int session_start(struct session_obj *sess_obj)
             ret = -EINVAL;
             goto done;
         }
-    }
 
-    if (dir == TX) {
+        if (dir == TX) {
 
-        // For loopback, check if the playback session is in STARTED state,
-        //otherwise return failure
-        if (sess_obj->loopback_state == true) {
-            ret = session_obj_get(sess_obj->loopback_sess_id, &pb_obj);
+            // For loopback, check if the playback session is in STARTED state,
+            //otherwise return failure
+            if (sess_obj->loopback_state == true) {
+                ret = session_obj_get(sess_obj->loopback_sess_id, &pb_obj);
+                if (ret) {
+                    AGM_LOGE("Error:%d getting session object with \
+                              session id:%d\n",
+                              ret, sess_obj->loopback_sess_id);
+                    goto done;
+                }
+
+                if (pb_obj->state != SESSION_STARTED) {
+                    AGM_LOGE("Error:%d Playback session with session id:%d\n"
+                              "not in STARTED state, current state:%d\n",
+                              ret, pb_obj->sess_id, pb_obj->state);
+                    ret = -EINVAL;
+                    goto done;
+                }
+            }
+
+            /*
+             * For ec ref, check if the device object is in STARTED,
+             * otherwise return failure.
+             * The RX(EC) device EP should be in started state, this ensures
+             * the RX EP is configured and hence capture session start() succeeds
+             * if RX(EC) device EP is not started, graph_start of capture will fail.
+             */
+            if (sess_obj->ec_ref_state == true) {
+                ret = device_get_obj(sess_obj->ec_ref_aif_id, &ec_ref_dev_obj);
+                if (ret) {
+                    AGM_LOGE("Error:%d getting device object with aif id:%d\n",
+                            ret, sess_obj->ec_ref_aif_id);
+                    goto done;
+                }
+
+                if (ec_ref_dev_obj->state != DEV_STARTED) {
+                    AGM_LOGE("Error:%d Device object with aif id:%d\n"
+                              "not in STARTED state, current state:%d\n",
+                              ret, sess_obj->ec_ref_aif_id,
+                            ec_ref_dev_obj->state);
+                    ret = -EINVAL;
+                    goto done;
+                }
+            }
+
+            ret = graph_start(sess_obj->graph);
             if (ret) {
-                AGM_LOGE("Error:%d getting session object with \
-                          session id:%d\n",
-                          ret, sess_obj->loopback_sess_id);
-                goto done;
-            }
-
-            if (pb_obj->state != SESSION_STARTED) {
-                AGM_LOGE("Error:%d Playback session with session id:%d\n"
-                          "not in STARTED state, current state:%d\n",
-                          ret, pb_obj->sess_id, pb_obj->state);
-                ret = -EINVAL;
+                AGM_LOGE("Error:%d starting graph\n", ret);
                 goto done;
             }
         }
 
-        /*
-         * For ec ref, check if the device object is in STARTED,
-         * otherwise return failure.
-         * The RX(EC) device EP should be in started state, this ensures
-         * the RX EP is configured and hence capture session start() succeeds
-         * if RX(EC) device EP is not started, graph_start of capture will fail.
-         */
-        if (sess_obj->ec_ref_state == true) {
-            ret = device_get_obj(sess_obj->ec_ref_aif_id, &ec_ref_dev_obj);
-            if (ret) {
-                AGM_LOGE("Error:%d getting device object with aif id:%d\n",
-                        ret, sess_obj->ec_ref_aif_id);
-                goto done;
-            }
-
-            if (ec_ref_dev_obj->state != DEV_STARTED) {
-                AGM_LOGE("Error:%d Device object with aif id:%d\n"
-                          "not in STARTED state, current state:%d\n",
-                          ret, sess_obj->ec_ref_aif_id,
-                        ec_ref_dev_obj->state);
-                ret = -EINVAL;
-                goto done;
-            }
-        }
-
-        ret = graph_start(sess_obj->graph);
-        if (ret) {
-            AGM_LOGE("Error:%d starting graph\n", ret);
-            goto done;
-        }
-    }
-
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
             if (!aif_obj) {
@@ -1030,9 +1030,16 @@ static int session_start(struct session_obj *sess_obj)
                 aif_obj->state = AIF_STARTED;
             }
         }
-    }
 
-    if (dir == RX) {
+        if (dir == RX) {
+            ret = graph_start(sess_obj->graph);
+            if (ret) {
+                AGM_LOGE("Error:%d starting graph\n", ret);
+                goto unwind;
+            }
+        }
+
+    } else {
         ret = graph_start(sess_obj->graph);
         if (ret) {
             AGM_LOGE("Error:%d starting graph\n", ret);
@@ -1078,15 +1085,15 @@ static int session_stop(struct session_obj *sess_obj)
         goto done;
     }
 
-    if (dir == RX) {
-        ret = graph_stop(sess_obj->graph, NULL);
-        if (ret) {
-            AGM_LOGE("Error:%d stopping graph\n", ret);
-            goto done;
-        }
-    }
-
     if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+        if (dir == RX) {
+            ret = graph_stop(sess_obj->graph, NULL);
+            if (ret) {
+                AGM_LOGE("Error:%d stopping graph\n", ret);
+                goto done;
+            }
+        }
+
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
             if (!aif_obj) {
@@ -1103,15 +1110,19 @@ static int session_stop(struct session_obj *sess_obj)
                 aif_obj->state = AIF_STOPPED;
             }
         }
-    }
 
-    if (dir == TX) {
-        ret = graph_stop(sess_obj->graph, NULL);
-        if (ret) {
-            AGM_LOGE("Error:%d stopping graph\n", ret);
+        if (dir == TX) {
+            ret = graph_stop(sess_obj->graph, NULL);
+            if (ret) {
+                AGM_LOGE("Error:%d stopping graph\n", ret);
+            }
         }
+    } else {
+            ret = graph_stop(sess_obj->graph, NULL);
+            if (ret) {
+                AGM_LOGE("Error:%d stopping graph\n", ret);
+            }
     }
-
     sess_obj->state = SESSION_STOPPED;
 
 done:
@@ -1852,8 +1863,16 @@ int session_obj_set_config(struct session_obj *sess_obj,
     pthread_mutex_lock(&sess_obj->lock);
 
     sess_obj->stream_config = *stream_config;
-    sess_obj->media_config = *media_config;
-    sess_obj->buffer_config = *buffer_config;
+
+    if (sess_obj->stream_config.dir == TX) {
+        /*Capture session config*/
+        sess_obj->in_media_config = *media_config;
+        sess_obj->in_buffer_config = *buffer_config;
+    } else {
+        /*Playback session config*/
+        sess_obj->out_media_config = *media_config;
+        sess_obj->out_buffer_config = *buffer_config;
+    }
 
     pthread_mutex_unlock(&sess_obj->lock);
     return 0;
@@ -1947,6 +1966,7 @@ int session_obj_resume(struct session_obj *sess_obj)
 int session_obj_read(struct session_obj *sess_obj, void *buff, size_t *count)
 {
     int ret = 0;
+    struct agm_buff buffer = {0};
 
     pthread_mutex_lock(&sess_obj->lock);
     if (sess_obj->state == SESSION_CLOSED) {
@@ -1958,7 +1978,12 @@ int session_obj_read(struct session_obj *sess_obj, void *buff, size_t *count)
     }
     pthread_mutex_unlock(&sess_obj->lock);
 
-    ret = graph_read(sess_obj->graph, buff, count);
+    buffer.timestamp = 0x0;
+    buffer.flags = 0;
+    buffer.size = *count;
+    buffer.addr = (uint8_t *)(buff);
+
+    ret = graph_read(sess_obj->graph, &buffer, count);
     if (ret) {
         AGM_LOGE("Error:%d reading from graph\n", ret);
     }
@@ -1970,6 +1995,7 @@ done:
 int session_obj_write(struct session_obj *sess_obj, void *buff, size_t *count)
 {
     int ret = 0;
+    struct agm_buff buffer = {0};
 
     pthread_mutex_lock(&sess_obj->lock);
     if (sess_obj->state == SESSION_CLOSED) {
@@ -1981,7 +2007,12 @@ int session_obj_write(struct session_obj *sess_obj, void *buff, size_t *count)
     }
     pthread_mutex_unlock(&sess_obj->lock);
 
-    ret = graph_write(sess_obj->graph, buff, count);
+    buffer.timestamp = 0x0;
+    buffer.flags = 0;
+    buffer.size = *count;
+    buffer.addr = (uint8_t *)(buff);
+
+    ret = graph_write(sess_obj->graph, &buffer, count);
     if (ret) {
         AGM_LOGE("Error:%d writing to graph\n", ret);
     }
@@ -2220,3 +2251,71 @@ done:
     pthread_mutex_unlock(&sess_obj->lock);
     return ret;
 }
+
+int session_obj_write_with_metadata(struct session_obj *sess_obj,
+                                    struct agm_buff *buffer,
+                                    uint32_t *consumed_size)
+{
+    int ret = 0;
+
+    pthread_mutex_lock(&sess_obj->lock);
+    if (sess_obj->state == SESSION_CLOSED) {
+        AGM_LOGE("Cannot issue write in state:%d\n",
+                            sess_obj->state);
+        ret = -EINVAL;
+        pthread_mutex_unlock(&sess_obj->lock);
+        goto done;
+    }
+    pthread_mutex_unlock(&sess_obj->lock);
+    ret = graph_write(sess_obj->graph, buffer, consumed_size);
+    if (ret) {
+        AGM_LOGE("Error:%d writing to graph\n", ret);
+    }
+
+done:
+    return ret;
+}
+
+int session_obj_read_with_metadata(struct session_obj *sess_obj,
+                                   struct agm_buff *buffer,
+                                   uint32_t *captured_size)
+{
+    int ret = 0;
+    pthread_mutex_lock(&sess_obj->lock);
+    if (sess_obj->state == SESSION_CLOSED) {
+        AGM_LOGE("Cannot issue read in state:%d\n",
+                           sess_obj->state);
+        ret = -EINVAL;
+        pthread_mutex_unlock(&sess_obj->lock);
+        goto done;
+    }
+    pthread_mutex_unlock(&sess_obj->lock);
+
+    ret = graph_read(sess_obj->graph, buffer, captured_size);
+    if (ret) {
+        AGM_LOGE("Error:%d reading from graph\n", ret);
+    }
+
+done:
+    return ret;
+}
+
+int session_obj_set_non_tunnel_mode_config(struct session_obj *sess_obj,
+                                    struct agm_session_config *session_config,
+                                    struct agm_media_config *in_media_config,
+                                    struct agm_media_config *out_media_config,
+                                    struct agm_buffer_config *in_buffer_config,
+                                    struct agm_buffer_config *out_buffer_config)
+{
+    int ret = 0;
+
+    pthread_mutex_lock(&sess_obj->lock);
+    sess_obj->stream_config = *session_config;
+    sess_obj->in_media_config = *in_media_config;
+    sess_obj->out_media_config = *out_media_config;
+    sess_obj->in_buffer_config = *in_buffer_config;
+    sess_obj->out_buffer_config = *out_buffer_config;
+    pthread_mutex_unlock(&sess_obj->lock);
+    return ret;
+}
+

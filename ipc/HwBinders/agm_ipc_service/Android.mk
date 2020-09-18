@@ -2,6 +2,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/agm
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/gsl
 LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/agm/ipc/HwBinders/agm_ipc_client/
 LOCAL_MODULE := vendor.qti.hardware.AGMIPC@1.0-impl
 LOCAL_MODULE_OWNER := qti
@@ -17,6 +18,7 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libhardware \
     libbase \
+    libar-gsl \
     vendor.qti.hardware.AGMIPC@1.0 \
     libagm
 

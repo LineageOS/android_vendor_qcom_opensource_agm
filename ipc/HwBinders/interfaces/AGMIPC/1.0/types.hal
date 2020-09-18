@@ -70,6 +70,7 @@ enum AgmDataMode : uint32_t {
     AGM_DATAINVALID,
     AGM_DATABLOCKING,      /**< Blocking mode */
     AGM_DATANON_BLOCKING,  /**< Non blocking mode */
+    AGM_DATA_EXTERN_MEM,   /**< Extern mem mode */
     AGM_DATAMODE_MAX,
 };
 
@@ -230,6 +231,7 @@ struct AgmSessionConfig {
     uint32_t stop_threshold;
     AgmSessionCodec codec;
     AgmDataMode data_mode;
+    uint32_t sess_flags;
 };
 
 /**
@@ -238,6 +240,7 @@ struct AgmSessionConfig {
 struct AgmBufferConfig {
     uint32_t count; /**< number of buffers */
     uint32_t size;
+    uint32_t max_metadata_size;
 };
 
 /**
@@ -350,3 +353,44 @@ struct MmapBufInfo {
     memory posSharedMemory;
     int32_t pos_size;
 };
+
+/** Externally allocated buffer info*/
+struct AgmExternAllocBuffInfo{
+    memory alloc_handle;/**< unique handle identifying extern mem allocation */
+    uint32_t alloc_size;  /**< size of external allocation */
+    uint32_t offset;
+};
+
+/** AGM buffer */
+struct AgmBuff {
+    uint64_t timestamp;     /**< timestamp in micro-secs */
+    uint32_t flags;         /**< bitmasked flags for e.g. GSL_BUFF_FLAG_EOS */
+    uint32_t size;          /**< size of buffer in bytes */
+    uint32_t offset;        /**< offset at which audio data is present */
+    vec<uint8_t> buffer;    /**< data buffer */
+    uint32_t metadata_size; /**< size of metadata blob */
+    vec<uint8_t> metadata;  /**< Blob for metadata */
+    AgmExternAllocBuffInfo alloc_info;
+};
+
+struct AgmEventReadWriteDonePayload {
+    uint32_t tag; /**< tag that was used to read/write this buffer */
+    uint32_t status; /**< data buffer status as defined in ar_osal_error.h */
+    uint32_t md_status; /**< meta-data status as defined in ar_osal_error.h */
+    AgmBuff buff;
+};
+
+struct AgmReadWriteEventCbParams {
+     /**< identifies the module which generated event */
+    uint32_t source_module_id;
+
+     /**< identifies the event */
+    uint32_t event_id;
+
+     /**< size of payload below */
+    uint32_t event_payload_size;
+
+     /**< payload associated with the event if any */
+    vec<AgmEventReadWriteDonePayload> rw_payload;
+};
+

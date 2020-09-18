@@ -46,8 +46,13 @@ using AgmEventRegCfg = ::vendor::qti::hardware::AGMIPC::V1_0::AgmEventRegCfg;
 using AgmCalConfig = ::vendor::qti::hardware::AGMIPC::V1_0::AgmCalConfig;
 using IAGMCallback = ::vendor::qti::hardware::AGMIPC::V1_0::IAGMCallback;
 using AgmEventCbParams = ::vendor::qti::hardware::AGMIPC::V1_0::AgmEventCbParams;
+using AgmReadWriteEventCbParams = ::vendor::qti::hardware::AGMIPC::V1_0::AgmReadWriteEventCbParams;
 using AgmSessionMode = ::vendor::qti::hardware::AGMIPC::V1_0::AgmSessionMode;
 using AgmGaplessSilenceType = ::vendor::qti::hardware::AGMIPC::V1_0::AgmGaplessSilenceType;
+using AgmBuff = ::vendor::qti::hardware::AGMIPC::V1_0::AgmBuff;
+using AgmEventReadWriteDonePayload = ::vendor::qti::hardware::AGMIPC::V1_0::AgmEventReadWriteDonePayload;
+using android::hardware::hidl_handle;
+using android::hardware::hidl_memory;
 
 class server_death_notifier : public android::hardware::hidl_death_recipient
 {
@@ -143,6 +148,9 @@ using ::android::sp;
 struct AGMCallback : public IAGMCallback {
     Return<int32_t> event_callback(uint32_t session_id,
                                 const hidl_vec<AgmEventCbParams>& event_params,
+                                uint64_t clbk_data) override;
+    Return<int32_t> event_callback_rw_done(uint32_t session_id,
+                                const hidl_vec<AgmReadWriteEventCbParams>& event_params,
                                 uint64_t clbk_data) override;
 };
 

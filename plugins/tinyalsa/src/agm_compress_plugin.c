@@ -485,6 +485,8 @@ int agm_compress_set_params(struct compress_plugin *plugin,
     buf_cfg = &priv->buffer_config;
     buf_cfg->count = params->buffer.fragments;
     buf_cfg->size = params->buffer.fragment_size;
+    /*explicitly set the metadata size to 0 */
+    buf_cfg->max_metadata_size = 0;
     priv->total_buf_size = buf_cfg->size * buf_cfg->count;
 
     sess_cfg = &priv->session_config;
