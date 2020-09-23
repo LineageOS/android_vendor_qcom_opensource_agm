@@ -79,7 +79,7 @@ enum AgmDataMode : uint32_t {
 enum AgmSessionMode : uint32_t {
     AGM_SESSION_DEFAULT,    /**< Normal agm tunnel session*/
     AGM_SESSION_NO_HOST,    /**< Hostless mode */
-    AGM_SESSION_NON_TUNNEL, /**< Non tunnel mode */
+    AGM_SESSION_NON_TUNNEL,
 };
 
 /**
