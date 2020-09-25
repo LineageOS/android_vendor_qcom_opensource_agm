@@ -16,10 +16,6 @@ include $(call all-subdir-makefiles)
 
 
 
-#----------------------------------------------------------------------------
-#             Make the Shared library (libqal)
-#----------------------------------------------------------------------------
-
 #LOCAL_C_INCLUDES := $(LOCAL_PATH)/inc
 
 #LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-audio/gsl

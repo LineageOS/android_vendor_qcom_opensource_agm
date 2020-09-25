@@ -255,7 +255,7 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
     config.period_count = 4;
     config.format = format;
     config.start_threshold = 0;
-    config.stop_threshold = 0; //32767 in QAL default
+    config.stop_threshold = 0;
     config.silence_threshold = 0;
 
     mixer = mixer_open(card);
