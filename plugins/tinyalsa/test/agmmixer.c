@@ -54,6 +54,10 @@ enum pcm_channel_map
    PCM_CHANNEL_LS = 4,
    PCM_CHANNEL_RS = 5,
    PCM_CHANNEL_LFE = 6,
+   PCM_CHANNEL_CS = 7,
+   PCM_CHANNEL_CB = PCM_CHANNEL_CS,
+   PCM_CHANNEL_LB = 8,
+   PCM_CHANNEL_RB = 9,
 };
 /* Payload of the PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT parameter in the
  Media Format Converter Module. Following this will be the variable payload for channel_map. */
@@ -468,6 +472,15 @@ void populateChannelMap(uint16_t *pcmChannel, uint8_t numChannel)
     } else if (numChannel == 2) {
         pcmChannel[0] = PCM_CHANNEL_L;
         pcmChannel[1] = PCM_CHANNEL_R;
+    } else if (numChannel == 2) {
+        pcmChannel[0] = PCM_CHANNEL_L;
+        pcmChannel[1] = PCM_CHANNEL_R;
+        pcmChannel[2] = PCM_CHANNEL_C;
+    } else if (numChannel == 2) {
+        pcmChannel[0] = PCM_CHANNEL_L;
+        pcmChannel[1] = PCM_CHANNEL_R;
+        pcmChannel[2] = PCM_CHANNEL_LB;
+        pcmChannel[3] = PCM_CHANNEL_RB;
     }
 }
 
