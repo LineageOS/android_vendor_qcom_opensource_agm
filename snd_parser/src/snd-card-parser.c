@@ -569,7 +569,7 @@ void snd_card_def_put_card(void *card_node)
     pthread_rwlock_unlock(&snd_rwlock);
 }
 
-void *snd_card_def_get_node(void *card_node, unsigned int id, enum snd_node_type type)
+void *snd_card_def_get_node(void *card_node, unsigned int id, int type)
 {
     struct snd_dev_def_card *card_def = (struct snd_dev_def_card *)card_node;
     struct snd_dev_def *dev_def = NULL;
@@ -601,7 +601,7 @@ void *snd_card_def_get_node(void *card_node, unsigned int id, enum snd_node_type
     return NULL;
 }
 
-int snd_card_def_get_num_node(void *card_node, enum snd_node_type type)
+int snd_card_def_get_num_node(void *card_node, int type)
 {
     struct snd_dev_def_card *card_def = (struct snd_dev_def_card *)card_node;
     struct listnode *temp, *dev_node, *devs_list;
@@ -628,7 +628,7 @@ int snd_card_def_get_num_node(void *card_node, enum snd_node_type type)
     return num_devs;
 }
 
-int snd_card_def_get_nodes_for_type(void *card_node, enum snd_node_type type,
+int snd_card_def_get_nodes_for_type(void *card_node, int type,
                                     void **list, int num_nodes)
 {
     struct snd_dev_def_card *card_def = (struct snd_dev_def_card *)card_node;

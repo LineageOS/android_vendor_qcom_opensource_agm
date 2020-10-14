@@ -58,17 +58,17 @@ void snd_card_def_put_card(void *card_node)
 }
 
 void *snd_card_def_get_node(void *card_node, unsigned int id,
-							enum snd_node_type type)
+							int type)
 {
 	return NULL;
 }
 
-int snd_card_def_get_num_node(void *card_node, enum snd_node_type type)
+int snd_card_def_get_num_node(void *card_node, int type)
 {
 	return 0;
 }
 
-int snd_card_def_get_nodes_for_type(void *card_node, enum snd_node_type type,
+int snd_card_def_get_nodes_for_type(void *card_node, int type,
                                     void **list, int num_nodes)
 {
 	return -EINVAL;
@@ -126,7 +126,7 @@ void snd_card_def_put_card(void *card_node);
  *	- NULL in error case or entry not found
  */
 void *snd_card_def_get_node(void *card_node, unsigned int id,
-							enum snd_node_type type);
+							int type);
 
 /*
  * snd_card_def_get_num_node:
@@ -140,7 +140,7 @@ void *snd_card_def_get_node(void *card_node, unsigned int id,
  *	- number of nodes of the requested type
  *	- 0 in error case or entry not found
  */
-int snd_card_def_get_num_node(void *card_node, enum snd_node_type type);
+int snd_card_def_get_num_node(void *card_node, int type);
 
 /*
  * snd_card_def_get_nodes_for_type:
@@ -156,7 +156,7 @@ int snd_card_def_get_num_node(void *card_node, enum snd_node_type type);
  *	- 0 on success
  *	- non zero in error case or entry not found
  */
-int snd_card_def_get_nodes_for_type(void *card_node, enum snd_node_type type,
+int snd_card_def_get_nodes_for_type(void *card_node, int type,
                                     void **list, int num_nodes);
 /*
  * snd_card_def_get_int:
