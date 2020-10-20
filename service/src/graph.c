@@ -54,6 +54,8 @@
 #define BUF_SIZE 1024
 #define ACDB_PATH_MAX_LENGTH 50
 
+#define TAGGED_MOD_SIZE_BYTES 1024
+
 
 /* TODO: remove this later after including in spf header files */
 #define PARAM_ID_SOFT_PAUSE_START 0x800102e
@@ -351,13 +353,7 @@ static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
 {
     int ret = 0;
 
-    ret = gsl_get_tags_with_module_info((struct gsl_key_vector *)gkv, NULL, size);
-    if (ret != 0) {
-        ret = ar_err_get_lnx_err_code(ret);
-        AGM_LOGE("cannot get tags size info\n");
-        goto done;
-    }
-
+    *size = TAGGED_MOD_SIZE_BYTES; //TODO: increase buffer size if not sufficient
     *payload = calloc(1, *size);
     if (!payload) {
         AGM_LOGE("Not enough memory for payload\n");
@@ -370,6 +366,9 @@ static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
     if (ret != 0) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("Failed to  get tags info with error no %d\n",ret);
+        free(*payload);
+        *payload = NULL;
+        *size = 0;
     }
 done:
     ret = ar_err_get_lnx_err_code(ret);
