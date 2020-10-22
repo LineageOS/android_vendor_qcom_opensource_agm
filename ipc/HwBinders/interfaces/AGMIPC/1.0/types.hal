@@ -87,7 +87,7 @@ enum AgmSessionMode : uint32_t {
  */
 enum AgmGaplessSilenceType : uint32_t {
     INITIAL_SILENCE,       /**< Initial silence to be removed*/
-    TRAILING_SILENCE,      /**< Trailing silence to be removed*/
+    TRAILING_SILENCE,
 };
 
 /**
