@@ -1754,6 +1754,9 @@ static void amp_close(struct mixer_plugin **plugin)
     struct mixer_plugin *amp = *plugin;
     struct amp_priv *amp_priv = amp->priv;
 
+    /* unblock mixer event during close */
+    if (amp_priv->event_cb)
+        amp_priv->event_cb(amp);
     amp_register_event_callback(amp, 0);
     amp_subscribe_events(amp, NULL);
     snd_card_def_put_card(amp_priv->card_node);
