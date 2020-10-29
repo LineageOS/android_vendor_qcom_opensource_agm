@@ -1161,19 +1161,13 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
         be_idx = be_adi->idx_arr[pcm_control];
     }
 
-    ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
-                    NULL, &get_size);
-    if (ret || get_size == 0 || tlv_size < get_size) {
-        AGM_LOGE("%s: invalid size, ret %d, tlv_size %zu, get_size %zu\n",
-                __func__, ret, tlv_size, get_size);
-        return -EINVAL;
-    }
+	get_size = tlv_size;
+	ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
+			payload, &get_size);
+	if (ret || get_size == 0 || tlv_size < get_size)
+		AGM_LOGE("%s: failed with err %d, tlv_size %zu, get_size %zu for %s\n",
+				__func__, ret, tlv_size, get_size, ctl->name);
 
-    ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
-                            payload, &get_size);
-    if (ret)
-        AGM_LOGE("%s: session_aif_get_tag_module_info failed err %d for %s\n",
-               __func__, ret, ctl->name);
     return ret;
 }
 
