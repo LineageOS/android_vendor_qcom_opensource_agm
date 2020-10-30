@@ -352,26 +352,55 @@ static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
                                     void **payload, size_t *size)
 {
     int ret = 0;
+    void *new_payload = NULL;
 
-    *size = TAGGED_MOD_SIZE_BYTES; //TODO: increase buffer size if not sufficient
+    // start with TAGGED_MOD_SIZE_BYTES
+    *size = TAGGED_MOD_SIZE_BYTES;
     *payload = calloc(1, *size);
     if (!payload) {
         AGM_LOGE("Not enough memory for payload\n");
         ret = -ENOMEM;
-        goto done;
+        goto error;
     }
 
     ret = gsl_get_tags_with_module_info((struct gsl_key_vector *)gkv, *payload,
                                          size);
-    if (ret != 0) {
-        ret = ar_err_get_lnx_err_code(ret);
-        AGM_LOGE("Failed to  get tags info with error no %d\n",ret);
-        free(*payload);
-        *payload = NULL;
-        *size = 0;
-    }
-done:
     ret = ar_err_get_lnx_err_code(ret);
+    if (ret != 0) {
+        if (ret == -ENODATA) {
+            // default TAGGED_MOD_SIZE_BYTES was not sufficient, alloc new size
+            new_payload = realloc(*payload, *size);
+            if (!new_payload) {
+                AGM_LOGE("Not enough memory for payload\n");
+                ret = -ENOMEM;
+                free(*payload);
+                goto error;
+            }
+
+            *payload = new_payload;
+            ret = gsl_get_tags_with_module_info((struct gsl_key_vector *)gkv,
+                                                *payload, size);
+            if (ret != 0) {
+                 ret = ar_err_get_lnx_err_code(ret);
+                 AGM_LOGE("Failed to  get tags info with error no %d\n",ret);
+                 free(*payload);
+                 goto error;
+            }
+            goto done;
+        } else {
+            AGM_LOGE("Failed to  get tags info with error no %d\n",ret);
+            free(*payload);
+            goto error;
+        }
+    }
+
+    goto done;
+
+error:
+    *payload = NULL;
+    *size = 0;
+
+done:
     return ret;
 }
 
