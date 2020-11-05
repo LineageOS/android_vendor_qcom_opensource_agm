@@ -103,7 +103,7 @@ LOCAL_MODULE_OWNER         := qti
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := \
-        libtinyalsa\
+        libqti-tinyalsa\
         libagmmixer
 
 LOCAL_VENDOR_MODULE := true
