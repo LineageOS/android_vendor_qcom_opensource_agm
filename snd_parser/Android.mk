@@ -1,4 +1,4 @@
-ifeq ($(call is-board-platform-in-list, msmnile kona lahaina),true)
+ifeq ($(call is-board-platform-in-list, msmnile kona lahaina taro),true)
 
 ifneq ($(BUILD_TINY_ANDROID),true)
 
