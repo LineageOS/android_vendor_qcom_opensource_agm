@@ -788,6 +788,17 @@ int agm_session_stop(uint64_t hndl);
 int agm_session_pause(uint64_t hndl);
 
 /**
+  * \brief flush the session. session must be in pause state
+  *        before flushing.
+  *
+  * \param[in] handle - Valid session handle obtained
+  *       from agm_session_open
+  *
+  * \return 0 on success, error code otherwise
+  */
+int agm_session_flush(uint64_t hndl);
+
+/**
   * \brief Resume the session. session must be in paused state
   *        before resuming.
   *

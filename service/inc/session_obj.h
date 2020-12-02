@@ -121,6 +121,7 @@ int session_obj_start(struct session_obj *sess_obj);
 int session_obj_stop(struct session_obj *sess_obj);
 int session_obj_close(struct session_obj *sess_obj);
 int session_obj_pause(struct session_obj *sess_obj);
+int session_obj_flush(struct session_obj *sess_obj);
 int session_obj_resume(struct session_obj *sess_obj);
 int session_obj_read(struct session_obj *sess_obj, void *buff, size_t *count);
 int session_obj_write(struct session_obj *sess_obj, void *buff, size_t *count);

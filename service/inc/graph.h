@@ -193,6 +193,14 @@ int graph_write(struct graph_obj *gph_obj, struct agm_buff *buffer, size_t *size
 int graph_pause(struct graph_obj *gph_obj);
 
 /**
+ *\brief flush an existing graph.
+ *\param [in] graph_obj: associated graph obj
+ *
+ * return AR_EOK on success or error code otherwise.
+ */
+int graph_flush(struct graph_obj *gph_obj);
+
+/**
  *\brief resume an existing graph.
  *\param [in] graph_obj: associated graph obj
  *

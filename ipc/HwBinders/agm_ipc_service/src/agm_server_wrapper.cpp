@@ -751,6 +751,13 @@ Return<int32_t> AGM::ipc_agm_session_pause(uint64_t hndl) {
 
     return agm_session_pause(hndl);
 }
+
+Return<int32_t> AGM::ipc_agm_session_flush(uint64_t hndl) {
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
+
+    return agm_session_flush(hndl);
+}
+
 Return<int32_t> AGM::ipc_agm_session_resume(uint64_t hndl) {
     ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
 

@@ -263,6 +263,15 @@ int agm_session_pause(uint64_t handle){
     return -EINVAL;
 }
 
+int agm_session_flush(uint64_t handle){
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_flush(handle);
+    }
+    return -EINVAL;
+}
+
 int agm_session_resume(uint64_t handle){
     ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) handle);
     if (!agm_server_died) {

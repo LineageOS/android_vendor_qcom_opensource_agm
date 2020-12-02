@@ -201,6 +201,7 @@ struct AGM : public IAGM {
     Return<int32_t> ipc_agm_session_start(uint64_t hndl) override;
     Return<int32_t> ipc_agm_session_stop(uint64_t hndl) override;
     Return<int32_t> ipc_agm_session_pause(uint64_t hndl) override;
+    Return<int32_t> ipc_agm_session_flush(uint64_t hndl) override;
     Return<int32_t> ipc_agm_session_resume(uint64_t hndl) override;
     Return<void> ipc_agm_session_read(uint64_t hndl, uint32_t count,
                                     ipc_agm_session_read_cb _hidl_cb) override;

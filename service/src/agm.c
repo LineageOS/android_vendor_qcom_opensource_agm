@@ -555,6 +555,16 @@ int agm_session_pause(uint64_t hndl)
     return session_obj_pause(handle);
 }
 
+int agm_session_flush(uint64_t hndl)
+{
+    struct session_obj *handle = (struct session_obj *) hndl;
+    if (!handle) {
+        AGM_LOGE("Invalid handle\n");
+        return -EINVAL;
+    }
+    return session_obj_flush(handle);
+}
+
 int agm_session_resume(uint64_t hndl)
 {
     struct session_obj *handle = (struct session_obj *) hndl;

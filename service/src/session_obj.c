@@ -1947,6 +1947,23 @@ done:
     return ret;
 }
 
+int session_obj_flush(struct session_obj *sess_obj)
+{
+    int ret = 0;
+
+    pthread_mutex_lock(&sess_obj->lock);
+
+    ret = graph_flush(sess_obj->graph);
+    if (ret) {
+        AGM_LOGE("Error:%d flushing graph\n", ret);
+    }
+
+done:
+    pthread_mutex_unlock(&sess_obj->lock);
+    return ret;
+}
+
+
 int session_obj_resume(struct session_obj *sess_obj)
 {
     int ret = 0;
