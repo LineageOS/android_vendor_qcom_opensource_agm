@@ -45,8 +45,8 @@
 #include <tinycompress/tinycompress.h>
 #include <snd-card-def.h>
 #include <tinyalsa/asoundlib.h>
-#include "sound/compress_params.h"
-#include "sound/compress_offload.h"
+#include <sound/compress_params.h>
+#include <sound/compress_offload.h>
 #include "utils.h"
 
 #ifdef DYNAMIC_LOG_ENABLED
@@ -54,7 +54,6 @@
 #define LOG_MASK AGM_MOD_FILE_AGM_COMPRESS_PLUGIN
 #include <log_utils.h>
 #endif
-
 
 /* Default values */
 #define COMPR_PLAYBACK_MIN_FRAGMENT_SIZE (8 * 1024)
@@ -96,6 +95,8 @@ struct agm_compress_priv {
     pthread_cond_t poll_cond;
     pthread_mutex_t poll_lock;
 };
+
+void agm_session_update_codec_options(struct agm_session_config*, struct snd_compr_params *);
 
 static int agm_get_session_handle(struct agm_compress_priv *priv,
                                   uint64_t *handle)
@@ -352,7 +353,7 @@ int agm_compress_get_caps(struct compress_plugin *plugin,
 }
 
 int agm_session_update_codec_config(struct agm_compress_priv *priv,
-                                           struct snd_compr_params *params)
+                                    struct snd_compr_params *params)
 {
     struct agm_media_config *media_cfg;
     struct agm_session_config *sess_cfg;
@@ -381,82 +382,37 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
             sess_cfg->codec.aac_dec.aac_fmt_flag = 0x03;
         sess_cfg->codec.aac_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.aac_dec.sample_rate = media_cfg->rate;
-#ifdef SND_COMPRESS_DEC_HDR
-        sess_cfg->codec.aac_dec.audio_obj_type = copt->aac_dec.audio_obj_type;
-        sess_cfg->codec.aac_dec.total_size_of_PCE_bits = copt->aac_dec.pce_bits_size;
-#endif
         break;
     case SND_AUDIOCODEC_FLAC:
         media_cfg->format = AGM_FORMAT_FLAC;
         sess_cfg->codec.flac_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.flac_dec.sample_rate = media_cfg->rate;
-#ifdef SND_COMPRESS_DEC_HDR
-        sess_cfg->codec.flac_dec.sample_size = copt->flac_dec.sample_size;
-        sess_cfg->codec.flac_dec.min_blk_size = copt->flac_dec.min_blk_size;
-        sess_cfg->codec.flac_dec.max_blk_size = copt->flac_dec.max_blk_size;
-        sess_cfg->codec.flac_dec.min_frame_size = copt->flac_dec.min_frame_size;
-        sess_cfg->codec.flac_dec.max_frame_size = copt->flac_dec.max_frame_size;
-#endif
         break;
+#ifdef SND_AUDIOCODEC_ALAC
     case SND_AUDIOCODEC_ALAC:
         media_cfg->format = AGM_FORMAT_ALAC;
         sess_cfg->codec.alac_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.alac_dec.sample_rate = media_cfg->rate;
-#ifdef SND_COMPRESS_DEC_HDR
-        sess_cfg->codec.alac_dec.frame_length = copt->alac_dec.frame_length;
-        sess_cfg->codec.alac_dec.compatible_version = copt->alac_dec.compatible_version;
-        sess_cfg->codec.alac_dec.bit_depth = copt->alac_dec.bit_depth;
-        sess_cfg->codec.alac_dec.pb = copt->alac_dec.pb;
-        sess_cfg->codec.alac_dec.mb = copt->alac_dec.mb;
-        sess_cfg->codec.alac_dec.kb = copt->alac_dec.kb;
-        sess_cfg->codec.alac_dec.max_run = copt->alac_dec.max_run;
-        sess_cfg->codec.alac_dec.max_frame_bytes = copt->alac_dec.max_frame_bytes;
-        sess_cfg->codec.alac_dec.avg_bit_rate = copt->alac_dec.avg_bit_rate;
-        sess_cfg->codec.alac_dec.channel_layout_tag = copt->alac_dec.channel_layout_tag;
-#endif
         break;
+#endif
+#ifdef SND_AUDIOCODEC_APE
     case SND_AUDIOCODEC_APE:
         media_cfg->format = AGM_FORMAT_APE;
         sess_cfg->codec.ape_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.ape_dec.sample_rate = media_cfg->rate;
-#ifdef SND_COMPRESS_DEC_HDR
-        sess_cfg->codec.ape_dec.bit_width = copt->ape_dec.bits_per_sample;
-        sess_cfg->codec.ape_dec.compatible_version = copt->ape_dec.compatible_version;
-        sess_cfg->codec.ape_dec.compression_level = copt->ape_dec.compression_level;
-        sess_cfg->codec.ape_dec.format_flags = copt->ape_dec.format_flags;
-        sess_cfg->codec.ape_dec.blocks_per_frame = copt->ape_dec.blocks_per_frame;
-        sess_cfg->codec.ape_dec.final_frame_blocks = copt->ape_dec.final_frame_blocks;
-        sess_cfg->codec.ape_dec.total_frames = copt->ape_dec.total_frames;
-        sess_cfg->codec.ape_dec.seek_table_present = copt->ape_dec.seek_table_present;
-#endif
         break;
+#endif
     case SND_AUDIOCODEC_WMA:
         media_cfg->format = AGM_FORMAT_WMASTD;
         sess_cfg->codec.wma_dec.fmt_tag = params->codec.format;
         sess_cfg->codec.wma_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.wma_dec.sample_rate = media_cfg->rate;
-#ifdef SND_COMPRESS_DEC_HDR
-        sess_cfg->codec.wma_dec.avg_bytes_per_sec = copt->wma_dec.avg_bit_rate/8;
-        sess_cfg->codec.wma_dec.blk_align = copt->wma_dec.super_block_align;
-        sess_cfg->codec.wma_dec.bits_per_sample = copt->wma_dec.bits_per_sample;
-        sess_cfg->codec.wma_dec.channel_mask = copt->wma_dec.channelmask;
-        sess_cfg->codec.wma_dec.enc_options = copt->wma_dec.encodeopt;
-#endif
         break;
     case SND_AUDIOCODEC_WMA_PRO:
         media_cfg->format = AGM_FORMAT_WMAPRO;
         sess_cfg->codec.wmapro_dec.fmt_tag = params->codec.format;
         sess_cfg->codec.wmapro_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.wmapro_dec.sample_rate = media_cfg->rate;
-#ifdef SND_COMPRESS_DEC_HDR
-        sess_cfg->codec.wmapro_dec.avg_bytes_per_sec = copt->wma_dec.avg_bit_rate/8;
-        sess_cfg->codec.wmapro_dec.blk_align = copt->wma_dec.super_block_align;
-        sess_cfg->codec.wmapro_dec.bits_per_sample = copt->wma_dec.bits_per_sample;
-        sess_cfg->codec.wmapro_dec.channel_mask = copt->wma_dec.channelmask;
-        sess_cfg->codec.wmapro_dec.enc_options = copt->wma_dec.encodeopt;
-        sess_cfg->codec.wmapro_dec.advanced_enc_option = copt->wma_dec.encodeopt1;
-        sess_cfg->codec.wmapro_dec.advanced_enc_option2 = copt->wma_dec.encodeopt2;
-#endif
         break;
     case SND_AUDIOCODEC_VORBIS:
         media_cfg->format = AGM_FORMAT_VORBIS;
@@ -464,6 +420,9 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
     default:
         break;
     }
+
+    agm_session_update_codec_options(sess_cfg, params);
+
     AGM_LOGD("%s: format = %d rate = %d, channels = %d\n", __func__,
            media_cfg->format, media_cfg->rate, media_cfg->channels);
     return 0;
@@ -825,6 +784,7 @@ struct compress_plugin_ops agm_compress_ops = {
 
 static int agm_populate_codec_caps(struct agm_compress_priv *priv)
 {
+    int codec_count = 0;
     priv->compr_cap.direction = SND_COMPRESS_PLAYBACK;
     priv->compr_cap.min_fragment_size =
                     COMPR_PLAYBACK_MIN_FRAGMENT_SIZE;
@@ -834,14 +794,19 @@ static int agm_populate_codec_caps(struct agm_compress_priv *priv)
                     COMPR_PLAYBACK_MIN_NUM_FRAGMENTS;
     priv->compr_cap.max_fragments =
                     COMPR_PLAYBACK_MAX_NUM_FRAGMENTS;
-    priv->compr_cap.codecs[0] = SND_AUDIOCODEC_MP3;
-    priv->compr_cap.codecs[1] = SND_AUDIOCODEC_AAC;
-    priv->compr_cap.codecs[2] = SND_AUDIOCODEC_WMA;
-    priv->compr_cap.codecs[3] = SND_AUDIOCODEC_FLAC;
-    priv->compr_cap.codecs[4] = SND_AUDIOCODEC_VORBIS;
-    priv->compr_cap.codecs[5] = SND_AUDIOCODEC_ALAC;
-    priv->compr_cap.codecs[6] = SND_AUDIOCODEC_APE;
-    priv->compr_cap.num_codecs = 7;
+
+    priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_MP3;
+    priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_AAC;
+    priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_WMA;
+    priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_FLAC;
+    priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_VORBIS;
+#ifdef SND_AUDIOCODEC_ALAC
+    priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_ALAC;
+#endif
+#ifdef SND_AUDIOCODEC_APE
+    priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_APE;
+#endif
+    priv->compr_cap.num_codecs = codec_count;
 
     return 0;
 };
@@ -949,4 +914,70 @@ err_plugin_free:
         return ret;
     else
         return -ret;
+}
+
+void agm_session_update_codec_options(struct agm_session_config *sess_cfg,
+                                      struct snd_compr_params *params)
+{
+
+    union snd_codec_options *copt = &params->codec.options;
+
+    switch (params->codec.id) {
+    case SND_AUDIOCODEC_AAC:
+        sess_cfg->codec.aac_dec.audio_obj_type = copt->generic.reserved[0];
+        sess_cfg->codec.aac_dec.total_size_of_PCE_bits = copt->generic.reserved[1];
+        break;
+    case SND_AUDIOCODEC_FLAC:
+        sess_cfg->codec.flac_dec.sample_size = copt->generic.reserved[0];
+        sess_cfg->codec.flac_dec.min_blk_size = copt->generic.reserved[1];
+        sess_cfg->codec.flac_dec.max_blk_size = copt->generic.reserved[2];
+        sess_cfg->codec.flac_dec.min_frame_size = copt->generic.reserved[3];
+        sess_cfg->codec.flac_dec.max_frame_size = copt->generic.reserved[4];
+        break;
+#ifdef SND_AUDIOCODEC_ALAC
+    case SND_AUDIOCODEC_ALAC:
+        sess_cfg->codec.alac_dec.frame_length = copt->generic.reserved[0];
+        sess_cfg->codec.alac_dec.compatible_version = copt->generic.reserved[1];
+        sess_cfg->codec.alac_dec.bit_depth = copt->generic.reserved[2];
+        sess_cfg->codec.alac_dec.pb = copt->generic.reserved[3];
+        sess_cfg->codec.alac_dec.mb = copt->generic.reserved[4];
+        sess_cfg->codec.alac_dec.kb = copt->generic.reserved[5];
+        sess_cfg->codec.alac_dec.max_run = copt->generic.reserved[6];
+        sess_cfg->codec.alac_dec.max_frame_bytes = copt->generic.reserved[7];
+        sess_cfg->codec.alac_dec.avg_bit_rate = copt->generic.reserved[8];
+        sess_cfg->codec.alac_dec.channel_layout_tag = copt->generic.reserved[9];
+        break;
+#endif
+#ifdef SND_AUDIOCODEC_APE
+    case SND_AUDIOCODEC_APE:
+        sess_cfg->codec.ape_dec.bit_width = copt->generic.reserved[0];
+        sess_cfg->codec.ape_dec.compatible_version = copt->generic.reserved[1];
+        sess_cfg->codec.ape_dec.compression_level = copt->generic.reserved[2];
+        sess_cfg->codec.ape_dec.format_flags = copt->generic.reserved[3];
+        sess_cfg->codec.ape_dec.blocks_per_frame = copt->generic.reserved[4];
+        sess_cfg->codec.ape_dec.final_frame_blocks = copt->generic.reserved[5];
+        sess_cfg->codec.ape_dec.total_frames = copt->generic.reserved[6];
+        sess_cfg->codec.ape_dec.seek_table_present = copt->generic.reserved[7];
+        break;
+#endif
+    case SND_AUDIOCODEC_WMA:
+        sess_cfg->codec.wma_dec.avg_bytes_per_sec = copt->generic.reserved[0];
+        sess_cfg->codec.wma_dec.blk_align = copt->generic.reserved[1];
+        sess_cfg->codec.wma_dec.bits_per_sample = copt->generic.reserved[2];
+        sess_cfg->codec.wma_dec.channel_mask = copt->generic.reserved[3];
+        sess_cfg->codec.wma_dec.enc_options = copt->generic.reserved[4];
+        break;
+#ifdef SND_AUDIOCODEC_WMA_PRO
+    case SND_AUDIOCODEC_WMA_PRO:
+        sess_cfg->codec.wmapro_dec.avg_bytes_per_sec = copt->generic.reserved[0];
+        sess_cfg->codec.wmapro_dec.blk_align = copt->generic.reserved[1];
+        sess_cfg->codec.wmapro_dec.bits_per_sample = copt->generic.reserved[2];
+        sess_cfg->codec.wmapro_dec.channel_mask = copt->generic.reserved[3];
+        sess_cfg->codec.wmapro_dec.enc_options = copt->generic.reserved[4];
+        sess_cfg->codec.wmapro_dec.advanced_enc_option = copt->generic.reserved[5];
+        break;
+#endif
+    default:
+        break;
+    }
 }
