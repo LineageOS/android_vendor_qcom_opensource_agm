@@ -1123,11 +1123,11 @@ int configure_placeholder_enc(struct module_info *mod,
     }
 
     /* 1. Configure placeholder encoder with Real ID */
-    ret = get_media_fmt_id_and_size(sess_obj->out_media_config.format,
+    ret = get_media_fmt_id_and_size(sess_obj->in_media_config.format,
                                     &payload_size, &real_fmt_id);
     if (ret) {
         AGM_LOGD("module is not configured for format: %d\n",
-                 sess_obj->out_media_config.format);
+                 sess_obj->in_media_config.format);
         /* If ret is non-zero then placeholder module would be
          * configured by client so return from here.
          */

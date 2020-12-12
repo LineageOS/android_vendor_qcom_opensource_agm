@@ -57,6 +57,9 @@ struct session_obj;
 /**< true if buffer has a valid timestamp */
 #define AGM_BUFF_FLAG_TS_VALID 0x2
 
+/**< true if buffer is marked as EOF */
+#define AGM_BUFF_FLAG_EOF 0x4
+
 /*Enables SRCM event in metadata on the read path*/
 #define AGM_SESSION_FLAG_INBAND_SRCM 0x1
 
