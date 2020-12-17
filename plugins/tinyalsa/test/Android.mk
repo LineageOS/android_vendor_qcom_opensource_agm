@@ -90,7 +90,7 @@ include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
 
-LOCAL_C_INCLUDES += $(TOP)/external/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/acdbdata/
 LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-result
