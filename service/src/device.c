@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -42,7 +42,11 @@
 #include "device.h"
 #include "metadata.h"
 #include "utils.h"
+#ifdef DEVICE_USES_ALSALIB
+#include <alsa/asoundlib.h>
+#else
 #include <tinyalsa/asoundlib.h>
+#endif
 
 #define PCM_DEVICE_FILE "/proc/asound/pcm"
 #define MAX_RETRY 20 /*Device will try these many times before return an error*/
@@ -64,7 +68,12 @@
 struct device_obj **device_list;
 static uint32_t num_audio_intfs;
 
+#ifdef DEVICE_USES_ALSALIB
+static snd_ctl_t *mixer;
+#else
 static struct mixer *mixer = NULL;
+#endif
+
 #define SYSFS_FD_PATH "/sys/kernel/aud_dev/state"
 static int sysfs_fd = -1;
 
@@ -112,6 +121,107 @@ static void update_sysfs_fd (int8_t pcm_id, int8_t state)
     }
 }
 
+int device_get_snd_card_id()
+{
+    struct device_obj *dev_obj = device_list[0];
+
+    if (dev_obj == NULL) {
+        AGM_LOGE("%s: Invalid device object\n", __func__);
+        return -EINVAL;
+    }
+    return dev_obj->card_id;
+}
+
+#ifdef DEVICE_USES_ALSALIB
+snd_pcm_format_t agm_to_alsa_format(enum agm_media_format format)
+{
+    switch (format) {
+    case AGM_FORMAT_PCM_S32_LE:
+        return SND_PCM_FORMAT_S32_LE;
+    case AGM_FORMAT_PCM_S8:
+        return SND_PCM_FORMAT_S8;
+    case AGM_FORMAT_PCM_S24_3LE:
+        return SND_PCM_FORMAT_S24_3LE;
+    case AGM_FORMAT_PCM_S24_LE:
+        return SND_PCM_FORMAT_S24_LE;
+    default:
+    case AGM_FORMAT_PCM_S16_LE:
+        return SND_PCM_FORMAT_S16_LE;
+    };
+}
+
+int device_open(struct device_obj *dev_obj)
+{
+    int ret = 0;
+    snd_pcm_t *pcm;
+    char pcm_name[80];
+    snd_pcm_stream_t stream;
+    snd_pcm_hw_params_t *hwparams;
+    snd_pcm_format_t format;
+    snd_pcm_uframes_t period_size;
+    unsigned int rate, channels, period_count;
+
+    if (dev_obj == NULL) {
+        AGM_LOGE("%s: Invalid device object\n", __func__);
+        return -EINVAL;
+    }
+
+    snprintf(pcm_name, sizeof(pcm_name), "hw:%u,%u", dev_obj->card_id, dev_obj->pcm_id);
+
+    stream = (dev_obj->hw_ep_info.dir == AUDIO_OUTPUT) ?
+             SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
+
+    pthread_mutex_lock(&dev_obj->lock);
+    if (dev_obj->refcnt.open) {
+        AGM_LOGE("%s: PCM device %u already opened\n",
+                           __func__, dev_obj->pcm_id);
+        dev_obj->refcnt.open++;
+        goto done;
+    }
+
+    channels = dev_obj->media_config.channels;
+    rate = dev_obj->media_config.rate;
+    format = agm_to_alsa_format(dev_obj->media_config.format);
+    period_size = (MAX_PERIOD_BUFFER)/(channels *
+                              (get_pcm_bit_width(dev_obj->media_config.format)/8));
+    period_count = DEFAULT_PERIOD_COUNT;
+
+    ret = snd_pcm_open(&pcm, pcm_name, stream, 0);
+    if (ret < 0) {
+        AGM_LOGE("%s: Unable to open PCM device %s", __func__, pcm_name);
+        goto done;
+    }
+
+    snd_pcm_hw_params_alloca(&hwparams);
+
+    ret = snd_pcm_hw_params_any(pcm, hwparams);
+    if (ret < 0) {
+        AGM_LOGE("Default config not available for %s, exiting", pcm_name);
+        goto done;
+    }
+    snd_pcm_hw_params_set_access(pcm, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
+    snd_pcm_hw_params_set_format(pcm, hwparams, format);
+    snd_pcm_hw_params_set_channels(pcm, hwparams, channels);
+    snd_pcm_hw_params_set_rate(pcm, hwparams, rate, 0);
+    snd_pcm_hw_params_set_period_size(pcm, hwparams, period_size, 0);
+    snd_pcm_hw_params_set_periods(pcm, hwparams, period_count, 0);
+
+    ret = snd_pcm_hw_params(pcm, hwparams);
+    if (ret < 0) {
+        AGM_LOGE("%s unable to set hw params for %s, rate[%u], ch[%u], fmt[%u]",
+                 __func__, pcm_name, rate, channels, format);
+        goto done;
+    }
+
+    update_sysfs_fd(dev_obj->pcm_id, DEVICE_ENABLE);
+    dev_obj->pcm = pcm;
+    dev_obj->state = DEV_OPENED;
+    dev_obj->refcnt.open++;
+done:
+    pthread_mutex_unlock(&dev_obj->lock);
+    return ret;
+}
+#else
 enum pcm_format agm_to_pcm_format(enum agm_media_format format)
 {
     switch (format) {
@@ -129,22 +239,12 @@ enum pcm_format agm_to_pcm_format(enum agm_media_format format)
     };
 }
 
-int device_get_snd_card_id()
-{
-    struct device_obj *dev_obj = device_list[0];
-
-    if (dev_obj == NULL) {
-        AGM_LOGE("Invalid device object\n");
-        return -EINVAL;
-    }
-    return dev_obj->card_id;
-}
-
 int device_open(struct device_obj *dev_obj)
 {
     int ret = 0;
     struct pcm *pcm = NULL;
     struct pcm_config config;
+    uint32_t pcm_flags;
 
     if (dev_obj == NULL) {
         AGM_LOGE("Invalid device object\n");
@@ -169,7 +269,8 @@ int device_open(struct device_obj *dev_obj)
     config.start_threshold = config.period_size / 4;
     config.stop_threshold = INT_MAX;
 
-    pcm = pcm_open(dev_obj->card_id, dev_obj->pcm_id, dev_obj->pcm_flags,
+    pcm_flags = (dev_obj->hw_ep_info.dir == AUDIO_OUTPUT) ? PCM_OUT : PCM_IN;
+    pcm = pcm_open(dev_obj->card_id, dev_obj->pcm_id, pcm_flags,
                 &config);
     if (!pcm || !pcm_is_ready(pcm)) {
         AGM_LOGE("Unable to open PCM device %u (%s) rate %u ch %d fmt %u",
@@ -187,6 +288,7 @@ done:
     pthread_mutex_unlock(&dev_obj->lock);
     return ret;
 }
+#endif
 
 int device_prepare(struct device_obj *dev_obj)
 {
@@ -205,7 +307,11 @@ int device_prepare(struct device_obj *dev_obj)
         pthread_mutex_unlock(&dev_obj->lock);
         return ret;
     }
+#ifdef DEVICE_USES_ALSALIB
+    ret = snd_pcm_prepare(dev_obj->pcm);
+#else
     ret = pcm_prepare(dev_obj->pcm);
+#endif
     if (ret) {
         AGM_LOGE("PCM device %u prepare failed, ret = %d\n",
               dev_obj->pcm_id, ret);
@@ -270,7 +376,11 @@ int device_stop(struct device_obj *dev_obj)
 
     dev_obj->refcnt.start--;
     if (dev_obj->refcnt.start == 0) {
+#ifdef DEVICE_USES_ALSALIB
+        ret = snd_pcm_drop(dev_obj->pcm);
+#else
         ret = pcm_stop(dev_obj->pcm);
+#endif
         if (ret) {
             AGM_LOGE("PCM device %u stop failed, ret = %d\n",
                     dev_obj->pcm_id, ret);
@@ -295,7 +405,11 @@ int device_close(struct device_obj *dev_obj)
     pthread_mutex_lock(&dev_obj->lock);
     if (--dev_obj->refcnt.open == 0) {
         update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
+#ifdef DEVICE_USES_ALSALIB
+        ret = snd_pcm_close(dev_obj->pcm);
+#else
         ret = pcm_close(dev_obj->pcm);
+#endif
         if (ret) {
             AGM_LOGE("PCM device %u close failed, ret = %d\n",
                      dev_obj->pcm_id, ret);
@@ -398,6 +512,82 @@ done:
    return ret;
 }
 
+#ifdef DEVICE_USES_ALSALIB
+int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
+{
+    snd_ctl_elem_id_t *id;
+    snd_ctl_elem_info_t *info;
+    snd_ctl_elem_value_t *control;
+    char *mixer_str = NULL;
+    int i, ctl_len = 0, ret = 0, card_id;
+    uint8_t *payload = NULL;
+    char card[16];
+
+    if (mixer == NULL) {
+        card_id = device_get_snd_card_id();
+        if (card_id < 0) {
+            AGM_LOGE("%s: failed to get card_id", __func__);
+            return -EINVAL;
+        }
+
+        snprintf(card, 16, "hw:%u", card_id);
+        if ((ret = snd_ctl_open(&mixer, card, 0)) < 0) {
+            AGM_LOGE("Control device %s open error: %s", card, snd_strerror(ret));
+            return ret;
+        }
+
+    }
+
+    ctl_len = strlen(dev_obj->name) + 1 + strlen("Channel Map") + 1;
+    mixer_str = calloc(1, ctl_len);
+    if (!mixer_str) {
+        AGM_LOGE("%s: Failed to allocate memory for mixer_str", __func__);
+        return -ENOMEM;
+    }
+
+    payload = calloc(16, sizeof(uint32_t));
+    if (!payload) {
+        AGM_LOGE("%s: Failed to allocate memory for payload", __func__);
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    snprintf(mixer_str, ctl_len, "%s %s", dev_obj->name, "Channel Map");
+
+    snd_ctl_elem_id_alloca(&id);
+    snd_ctl_elem_info_alloca(&info);
+    snd_ctl_elem_value_alloca(&control);
+
+    snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
+    snd_ctl_elem_id_set_name(id, (const char *)mixer_str);
+
+    snd_ctl_elem_info_set_id(info, id);
+    ret = snd_ctl_elem_info(mixer, info);
+    if (ret < 0) {
+        AGM_LOGE("Cannot get element info for %s\n", mixer_str);
+        goto done;
+    }
+    snd_ctl_elem_info_get_id(info, id);
+
+    snd_ctl_elem_value_set_id(control, id);
+    ret = snd_ctl_elem_read(mixer, control);
+    if (ret < 0) {
+        AGM_LOGE("Failed to mixer_ctl_get_array\n");
+        goto err_get_ctl;
+    }
+
+    for (i = 0; i < 16 * sizeof(uint32_t); i++)
+        payload[i] = snd_ctl_elem_value_get_byte(control, i);
+
+    *chmap = payload;
+    goto done;
+
+err_get_ctl:
+done:
+    free(mixer_str);
+    return ret;
+}
+#else
 int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
 {
     struct mixer_ctl *ctl = NULL;
@@ -457,6 +647,7 @@ done:
     free(mixer_str);
     return ret;
 }
+#endif
 
 int parse_snd_card()
 {
@@ -503,11 +694,6 @@ int parse_snd_card()
         sscanf(buffer, "%02u-%02u: %80s", &dev_obj->card_id,
                            &dev_obj->pcm_id, dev_obj->name);
         AGM_LOGD("%d:%d:%s\n", dev_obj->card_id, dev_obj->pcm_id, dev_obj->name);
-
-        if (strstr(buffer, "playback"))
-            dev_obj->pcm_flags = PCM_OUT;
-        else
-            dev_obj->pcm_flags = PCM_IN;
 
         /* populate the hw_ep_ifo for all the available pcm-id's*/
         ret = populate_device_hw_ep_info(dev_obj);
@@ -586,8 +772,13 @@ void device_deinit()
         close(sysfs_fd);
     sysfs_fd = -1;
 
+#ifdef DEVICE_USES_ALSALIB
+    if (mixer)
+        snd_ctl_close(mixer);
+#else
     if (mixer)
         mixer_close(mixer);
+#endif
 
     free(device_list);
     device_list = NULL;
