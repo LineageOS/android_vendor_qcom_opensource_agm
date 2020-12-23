@@ -359,7 +359,7 @@ static int agm_pcm_hw_params(struct pcm_plugin *plugin,
     priv->total_size_frames = buffer_config->count *
             priv->period_size; /* in frames */
 
-    snd_card_def_get_int(plugin->node, "hostless", &sess_mode);
+    snd_card_def_get_int(plugin->node, "session_mode", &sess_mode);
     session_config->dir = (plugin->mode & PCM_IN) ? TX : RX;
     session_config->sess_mode = sess_mode;
     AGM_LOGD("%s: mode: %d\n", __func__, plugin->mode);
