@@ -1021,7 +1021,7 @@ int graph_get_config(struct graph_obj *graph_obj, void *payload,
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
+    AGM_LOGV("entry graph_handle %p", graph_obj->graph_handle);
     ret = gsl_get_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret !=0) {
         ret = ar_err_get_lnx_err_code(ret);
@@ -1610,7 +1610,7 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
+    AGM_LOGV("entry graph_handle %p\n", graph_obj->graph_handle);
     if (!(graph_obj->state & (STARTED))) {
        AGM_LOGE("graph object is not in correct state, current state %d\n",
                     graph_obj->state);
