@@ -63,7 +63,8 @@ struct agmio_priv {
     unsigned int period_size;
     size_t frame_size;
     unsigned int state;
-    snd_pcm_sframes_t hw_pointer;
+    snd_pcm_uframes_t hw_pointer;
+    snd_pcm_uframes_t boundary;
     int event_fd;
 /* add private variables here */
 };
@@ -135,12 +136,12 @@ static snd_pcm_sframes_t agm_io_pointer(snd_pcm_ioplug_t * io)
     struct agmio_priv *pcm = io->private_data;
     snd_pcm_sframes_t new_hw_ptr;
 
-    if (pcm->hw_pointer == 0)
-            pcm->hw_pointer =
-                 io->period_size * pcm->frame_size;
-     else
-             pcm->hw_pointer = 0;
     new_hw_ptr = pcm->hw_pointer;
+    if (io->stream == SND_PCM_STREAM_CAPTURE) {
+        if (pcm->hw_pointer == 0)
+             new_hw_ptr = io->period_size * pcm->frame_size;
+    }
+
 
     AGM_LOGE("%s %d\n", __func__, io->state);
     return new_hw_ptr;
@@ -179,6 +180,8 @@ static snd_pcm_sframes_t agm_io_transfer(snd_pcm_ioplug_t * io,
         pcm->hw_pointer += ret;
     }
 
+    if (pcm->hw_pointer > pcm->boundary)
+         pcm->hw_pointer -= pcm->boundary;
     AGM_LOGE("%s %d\n", __func__, ret);
     return ret;
 }
@@ -226,7 +229,7 @@ static int agm_io_hw_params(snd_pcm_ioplug_t * io,
     buffer_config->size = io->period_size * pcm->frame_size;
     pcm->hw_pointer = 0;
 
-    snd_card_def_get_int(pcm->pcm_node, "hostless", &sess_mode);
+    snd_card_def_get_int(pcm->pcm_node, "session_mode", &sess_mode);
 
     session_config->dir = (io->stream == SND_PCM_STREAM_PLAYBACK) ? RX : TX;
     session_config->sess_mode = sess_mode;
@@ -257,6 +260,7 @@ static int agm_io_sw_params(snd_pcm_ioplug_t *io, snd_pcm_sw_params_t *params)
     session_config->sess_mode = sess_mode;
     snd_pcm_sw_params_get_start_threshold(params, &start_threshold);
     snd_pcm_sw_params_get_stop_threshold(params, &stop_threshold);
+    snd_pcm_sw_params_get_boundary(params, &pcm->boundary);
     session_config->start_threshold = (uint32_t)start_threshold;
     session_config->stop_threshold = (uint32_t)stop_threshold;
     ret = agm_session_set_config(pcm->handle, session_config,
@@ -326,12 +330,8 @@ static int agm_io_poll_revents(snd_pcm_ioplug_t *io, struct pollfd *pfd,
     }
 
     if (pfd[0].revents & POLLIN) {
-        eventfd_t ev;
-        eventfd_read(pcm->event_fd, &ev);
         *revents = POLLIN;
     } else if (pfd[0].revents & POLLOUT) {
-        eventfd_t ev;
-        eventfd_write(pcm->event_fd, &ev);
         *revents = POLLOUT;
     }
     return 0;
@@ -358,7 +358,8 @@ static int agm_hw_constraint(struct agmio_priv* priv)
     int ret;
 
     static const snd_pcm_access_t access_list[] = {
-        SND_PCM_ACCESS_RW_INTERLEAVED
+        SND_PCM_ACCESS_RW_INTERLEAVED,
+        SND_PCM_ACCESS_MMAP_INTERLEAVED
     };
     static const unsigned int formats[] = {
         SND_PCM_FORMAT_U8,
