@@ -834,7 +834,7 @@ static int amp_pcm_aif_connect_put(struct mixer_plugin *plugin,
         AGM_LOGE("%s: connect failed err %d, pcm_idx %d be_idx %d\n",
                __func__, ret, pcm_idx, be_idx);
 
-    return 0;
+    return ret;
 }
 
 static int amp_pcm_mtd_control_get(struct mixer_plugin *plugin __unused,
