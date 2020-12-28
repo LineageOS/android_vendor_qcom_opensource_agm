@@ -85,11 +85,16 @@ server_death_notifier::server_death_notifier()
     proc->startThreadPool();
 }
 
-void server_death_notifier::binderDied(const wp<IBinder>& who)
+void server_death_notifier::binderDied(const wp<IBinder>& who __unused)
 {
     agm_server_died = true;
     AGM_LOGE("Agm server died !! and I am notified\n");
     //add further functionality
+}
+
+int agm_register_service_crash_callback(agm_service_crash_cb cb, uint64_t cookie)
+{
+    return 0;
 }
 
 int agm_aif_set_media_config(uint32_t audio_intf,
@@ -252,7 +257,7 @@ int agm_session_read(uint64_t handle, void *buf, size_t *byte_count)
 
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
-        if(handle == NULL)
+        if (!handle)
            return -EINVAL;
 
         return agm_client->ipc_agm_session_read(handle, buf, byte_count);
@@ -266,7 +271,7 @@ int agm_session_write(uint64_t handle, void *buf, size_t *byte_count)
 
     if (!agm_server_died) {
         android::sp<IAgmService> agm_client = get_agm_server();
-        if(handle == NULL)
+        if (!handle)
            return -EINVAL;
 
         return agm_client->ipc_agm_session_write(handle, buf, byte_count);
@@ -462,6 +467,18 @@ int agm_set_gapless_session_metadata(uint64_t handle,
         android::sp<IAgmService> agm_client = get_agm_server();
         return agm_client->ipc_agm_set_gapless_session_metadata(handle, type,
                                                                 silence);
+    }
+    ALOGE("%s: agm service is not running\n", __func__);
+    return -EAGAIN;
+}
+
+int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
+                             uint32_t flag)
+{
+    if(!agm_server_died) {
+        android::sp<IAgmService> agm_client = get_agm_server();
+        return agm_client->ipc_agm_session_get_buf_info(session_id, buf_info,
+                                                        flag);
     }
     ALOGE("%s: agm service is not running\n", __func__);
     return -EAGAIN;
