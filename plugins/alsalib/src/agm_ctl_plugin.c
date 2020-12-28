@@ -78,27 +78,38 @@ static const struct agm_ctl_attribute_info {
     unsigned int count;
 } attr_info[AGM_BE_CTL_END] = {
     /********************** START OF COMMON FE CONTROLS ***********************/
-    [AGM_FE_CTL_NAME_METADATA] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 1024},
-    [AGM_FE_CTL_NAME_SET_PARAM] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 128 * 1024},
-    [AGM_FE_CTL_NAME_SET_PARAM_TAG] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 1024},
+    [AGM_FE_CTL_NAME_METADATA] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                  SND_CTL_EXT_ACCESS_TLV_CALLBACK, 1024},
+    [AGM_FE_CTL_NAME_SET_PARAM] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                   SND_CTL_EXT_ACCESS_TLV_CALLBACK, 128 * 1024},
+    [AGM_FE_CTL_NAME_SET_PARAM_TAG] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                       SND_CTL_EXT_ACCESS_TLV_CALLBACK, 1024},
     [AGM_FE_CTL_NAME_CONNECT] = {SND_CTL_ELEM_TYPE_ENUMERATED, SND_CTL_EXT_ACCESS_READWRITE, 1},
     [AGM_FE_CTL_NAME_DISCONNECT] = {SND_CTL_ELEM_TYPE_ENUMERATED, SND_CTL_EXT_ACCESS_READWRITE, 1},
     [AGM_FE_CTL_NAME_CONTROL] = {SND_CTL_ELEM_TYPE_ENUMERATED, SND_CTL_EXT_ACCESS_READWRITE, 1},
-    [AGM_FE_CTL_NAME_GET_TAG_INFO] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 1024},
-    [AGM_FE_CTL_NAME_EVENT] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 512},
-    [AGM_FE_CTL_NAME_SET_CALIBRATION] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 512},
-    [AGM_FE_CTL_NAME_GET_PARAM] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 128 * 1024},
-    [AGM_FE_CTL_NAME_BUF_INFO] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 512},
+    [AGM_FE_CTL_NAME_GET_TAG_INFO] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                      SND_CTL_EXT_ACCESS_TLV_CALLBACK, 1024},
+    [AGM_FE_CTL_NAME_EVENT] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                               SND_CTL_EXT_ACCESS_TLV_CALLBACK, 512},
+    [AGM_FE_CTL_NAME_SET_CALIBRATION] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                         SND_CTL_EXT_ACCESS_TLV_CALLBACK, 512},
+    [AGM_FE_CTL_NAME_GET_PARAM] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                   SND_CTL_EXT_ACCESS_TLV_CALLBACK, 128 * 1024},
+    [AGM_FE_CTL_NAME_BUF_INFO] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                  SND_CTL_EXT_ACCESS_TLV_CALLBACK, 512},
     /*********************** END OF COMMON FE CONTROLS ************************/
     /********************** START OF TX FE CONTROLS ***********************/
     [AGM_FE_TX_CTL_NAME_LOOPBACK] = {SND_CTL_ELEM_TYPE_ENUMERATED, SND_CTL_EXT_ACCESS_READWRITE, 1},
     [AGM_FE_TX_CTL_NAME_ECHOREF] = {SND_CTL_ELEM_TYPE_ENUMERATED, SND_CTL_EXT_ACCESS_READWRITE, 1},
-    [AGM_FE_TX_CTL_NAME_BUF_TSTAMP] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 512},
+    [AGM_FE_TX_CTL_NAME_BUF_TSTAMP] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                       SND_CTL_EXT_ACCESS_TLV_CALLBACK, 512},
     /*********************** END OF TX FE CONTROLS ************************/
     /************************** START OF BE CONTROLS **************************/
     [AGM_BE_CTL_NAME_MEDIA_CONFIG] = {SND_CTL_ELEM_TYPE_INTEGER, SND_CTL_EXT_ACCESS_READWRITE, 4},
-    [AGM_BE_CTL_NAME_METADATA] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 1024},
-    [AGM_BE_CTL_NAME_SET_PARAM] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE | SND_CTL_EXT_ACCESS_TLV_CALLBACK, 64 * 1024},
+    [AGM_BE_CTL_NAME_METADATA] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                  SND_CTL_EXT_ACCESS_TLV_CALLBACK, 1024},
+    [AGM_BE_CTL_NAME_SET_PARAM] = {SND_CTL_ELEM_TYPE_BYTES, SND_CTL_EXT_ACCESS_TLV_READWRITE |
+                                   SND_CTL_EXT_ACCESS_TLV_CALLBACK, 64 * 1024},
     /*************************** END OF BE CONTROLS ***************************/
 };
 
@@ -487,7 +498,6 @@ static int agmctl_pcm_ecref_put(struct agm_mixer_controls *control,
     int be_idx = *item;
     int rc, pcm_idx = control->pcm_be_id;
 
-    printf("rohit %s - be_id = %d, pcm_id = %d\n", __func__, be_idx, pcm_idx);
     if (be_idx == 0)
         state = false;
     else
@@ -926,21 +936,22 @@ static int agmctl_get_integer_info(snd_ctl_ext_t * ext,
                                   snd_ctl_ext_key_t key, long *imin,
                                   long *imax, long *istep)
 {
-    int rc = -EINVAL;
+    int rc = 0;
     struct agmctl_priv *agmctl = ext->private_data;
 
     if (key >= agmctl->total_ctl_cnt)
-        return rc;
+        return -EINVAL;
 
     switch (agmctl->controls[key].ctl_id) {
-        case AGM_BE_CTL_NAME_MEDIA_CONFIG:
-            *istep = 1;
-            *imin = 0;
-            *imax = 384000;
-            rc = 0;
-            break;
-        default:
-            break;
+    case AGM_BE_CTL_NAME_MEDIA_CONFIG:
+        *istep = 1;
+        *imin = 0;
+        *imax = 384000;
+        break;
+    default:
+        rc = -EINVAL;
+        AGM_LOGE("Unsupported control %d\n", agmctl->controls[key].ctl_id);
+        break;
     }
     return rc;
 }
@@ -949,28 +960,27 @@ static int agmctl_get_enumerated_info(snd_ctl_ext_t *ext,
                                         snd_ctl_ext_key_t key,
                                         unsigned int *items)
 {
-    int rc = -EINVAL;
+    int rc = 0;
     struct agmctl_priv *agmctl = ext->private_data;
 
     if (key >= agmctl->total_ctl_cnt)
-        return rc;
+        return -EINVAL;
 
     switch (agmctl->controls[key].ctl_id) {
     case AGM_FE_CTL_NAME_CONNECT:
     case AGM_FE_CTL_NAME_DISCONNECT:
         *items = agmctl->aif_count;
-        rc = 0;
         break;
     case AGM_FE_CTL_NAME_CONTROL:
     case AGM_FE_TX_CTL_NAME_ECHOREF:
         *items = agmctl->aif_count + 1;
-        rc = 0;
         break;
     case AGM_FE_TX_CTL_NAME_LOOPBACK:
         *items = agmctl->rx_count + 1;
-        rc = 0;
         break;
     default:
+        AGM_LOGE("Unsupported control %d\n", agmctl->controls[key].ctl_id);
+        rc = -EINVAL;
         break;
     }
 
@@ -982,11 +992,11 @@ static int agmctl_get_enumerated_name(snd_ctl_ext_t *ext,
                                         unsigned int item, char *name,
                                         size_t name_max_len)
 {
-    int rc = -EINVAL;
+    int rc = 0;
     struct agmctl_priv *agmctl = ext->private_data;
 
     if (key >= agmctl->total_ctl_cnt)
-        return rc;
+        return -EINVAL;
 
     switch (agmctl->controls[key].ctl_id) {
     case AGM_FE_CTL_NAME_CONNECT:
@@ -995,7 +1005,6 @@ static int agmctl_get_enumerated_name(snd_ctl_ext_t *ext,
             break;
 
         strlcpy(name, agmctl->aif_list[item].aif_name, name_max_len);
-        rc = 0;
         break;
     case AGM_FE_CTL_NAME_CONTROL:
     case AGM_FE_TX_CTL_NAME_ECHOREF:
@@ -1006,7 +1015,6 @@ static int agmctl_get_enumerated_name(snd_ctl_ext_t *ext,
         else
             strlcpy(name, agmctl->aif_list[item-1].aif_name, name_max_len);
 
-        rc = 0;
         break;
     case AGM_FE_TX_CTL_NAME_LOOPBACK:
         if (item >= agmctl->rx_count)
@@ -1017,9 +1025,10 @@ static int agmctl_get_enumerated_name(snd_ctl_ext_t *ext,
         else
             strlcpy(name, agmctl->rx_names[item - 1], name_max_len);
 
-        rc = 0;
         break;
     default:
+        rc = -EINVAL;
+        AGM_LOGE("Unsupported control %d\n", agmctl->controls[key].ctl_id);
         break;
     }
 
@@ -1030,11 +1039,11 @@ static int agmctl_read_enumerated(snd_ctl_ext_t *ext,
                                     snd_ctl_ext_key_t key,
                                     unsigned int *item __unused)
 {
-    int rc = -EINVAL;
+    int rc = 0;
     struct agmctl_priv *agmctl = ext->private_data;
 
     if (key >= agmctl->total_ctl_cnt)
-        return rc;
+        return -EINVAL;
 
     switch (agmctl->controls[key].ctl_id) {
     case AGM_FE_CTL_NAME_CONNECT:
@@ -1042,9 +1051,10 @@ static int agmctl_read_enumerated(snd_ctl_ext_t *ext,
     case AGM_FE_CTL_NAME_CONTROL:
     case AGM_FE_TX_CTL_NAME_LOOPBACK:
     case AGM_FE_TX_CTL_NAME_ECHOREF:
-        rc = 0;
         break;
     default:
+        rc = -EINVAL;
+        AGM_LOGE("Unsupported control %d\n", agmctl->controls[key].ctl_id);
         break;
     }
 
@@ -1054,11 +1064,11 @@ static int agmctl_read_enumerated(snd_ctl_ext_t *ext,
 static int agmctl_write_enumerated(snd_ctl_ext_t *ext,
                   snd_ctl_ext_key_t key, unsigned int *item)
 {
-    int rc = -EINVAL;
+    int rc = 0;
     struct agmctl_priv *agmctl = ext->private_data;
 
     if (key >= agmctl->total_ctl_cnt)
-        return rc;
+        return -EINVAL;
 
     switch (agmctl->controls[key].ctl_id) {
     case AGM_FE_CTL_NAME_CONNECT:
@@ -1075,6 +1085,8 @@ static int agmctl_write_enumerated(snd_ctl_ext_t *ext,
         rc = agmctl_pcm_control_put(&agmctl->controls[key], item);
         break;
     default:
+        rc = -EINVAL;
+        AGM_LOGE("Unsupported control %d\n", agmctl->controls[key].ctl_id);
         break;
     }
 
@@ -1084,18 +1096,18 @@ static int agmctl_write_enumerated(snd_ctl_ext_t *ext,
 static int agmctl_read_integer(snd_ctl_ext_t * ext, snd_ctl_ext_key_t key,
                               long *value __unused)
 {
-    int rc = -EINVAL;
+    int rc = 0;
     struct agmctl_priv *agmctl = ext->private_data;
 
-    AGM_LOGE("rohit %s", __func__);
     if (key >= agmctl->total_ctl_cnt)
-        return rc;
+        return -EINVAL;
 
     switch (agmctl->controls[key].ctl_id) {
     case AGM_BE_CTL_NAME_MEDIA_CONFIG:
-        rc = 0;
         break;
     default:
+        rc = -EINVAL;
+        AGM_LOGE("Unsupported control %d\n", agmctl->controls[key].ctl_id);
         break;
     }
     return rc;
@@ -1104,17 +1116,19 @@ static int agmctl_read_integer(snd_ctl_ext_t * ext, snd_ctl_ext_key_t key,
 static int agmctl_write_integer(snd_ctl_ext_t * ext, snd_ctl_ext_key_t key,
                                long *value)
 {
-    int rc = -EINVAL;
+    int rc = 0;
     struct agmctl_priv *agmctl = ext->private_data;
 
     if (key >= agmctl->total_ctl_cnt)
-        return rc;
+        return -EINVAL;
 
     switch (agmctl->controls[key].ctl_id) {
     case AGM_BE_CTL_NAME_MEDIA_CONFIG:
         rc = agmctl_be_media_config_put(&agmctl->controls[key], value);
         break;
     default:
+        rc = -EINVAL;
+        AGM_LOGE("Unsupported control %d\n", agmctl->controls[key].ctl_id);
         break;
     }
     return rc;
@@ -1125,7 +1139,7 @@ static int agmctl_read_bytes(snd_ctl_ext_t *ext, snd_ctl_ext_key_t key,
                              unsigned char *tlv, size_t tlv_size)
 {
     struct agmctl_priv *agmctl = ext->private_data;
-    int rc = -EINVAL;
+    int rc = 0;
     unsigned char *data;
     size_t len;
 
@@ -1152,16 +1166,18 @@ static int agmctl_read_bytes(snd_ctl_ext_t *ext, snd_ctl_ext_key_t key,
         rc = agmctl_pcm_event_get(&agmctl->controls[key], data, len);
         break;
     default:
+        rc = -EINVAL;
+        AGM_LOGE("Unsupported control %d\n", agmctl->controls[key].ctl_id);
         break;
     }
-    return 0;
+    return rc;
 }
 
 static int agmctl_write_bytes(snd_ctl_ext_t *ext, snd_ctl_ext_key_t key,
                               unsigned char *tlv, size_t tlv_size)
 {
     struct agmctl_priv *agmctl = ext->private_data;
-    int rc = -EINVAL;
+    int rc = 0;
     unsigned char *data;
     size_t len;
 
@@ -1196,10 +1212,9 @@ static int agmctl_write_bytes(snd_ctl_ext_t *ext, snd_ctl_ext_key_t key,
     case AGM_BE_CTL_NAME_SET_PARAM:
         rc = agmctl_be_setparam_put(&agmctl->controls[key], data, len);
         break;
-    case AGM_FE_CTL_NAME_BUF_INFO:
-        rc = 0;
-        break;
     default:
+        rc = -EINVAL;
+        AGM_LOGE("Unsupported control %d\n", agmctl->controls[key].ctl_id);
         break;
     }
     return rc;
@@ -1328,7 +1343,7 @@ SND_CTL_PLUGIN_DEFINE_FUNC(agm)
     if (rc < 0)
             goto err_put_card;
 
-    AGM_LOGE("%s exit", __func__);
+    AGM_LOGD("%s: exit", __func__);
     *handlep = ctl->ext.handle;
 
     return 0;

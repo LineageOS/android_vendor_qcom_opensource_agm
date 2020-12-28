@@ -42,7 +42,7 @@
 #define ARRAY_SIZE(a)   (sizeof(a)/sizeof(a[0]))
 
 enum {
-    AGM_IO_STATE_OPEN,
+    AGM_IO_STATE_OPEN = 1,
     AGM_IO_STATE_SETUP,
     AGM_IO_STATE_PREPARED,
     AGM_IO_STATE_RUNNING,
@@ -106,7 +106,7 @@ static int agm_io_start(snd_pcm_ioplug_t * io)
             pcm->state = AGM_IO_STATE_RUNNING;
     }
 
-    AGM_LOGE("%s %d\n", __func__, __LINE__);
+    AGM_LOGD("%s: exit\n", __func__);
     return ret;
 }
 
@@ -121,13 +121,13 @@ static int agm_io_stop(snd_pcm_ioplug_t * io)
         return ret;
     ret = agm_session_stop(handle);
 
-    AGM_LOGE("%s %d\n", __func__, __LINE__);
-    return 0;
+    AGM_LOGD("%s: exit\n", __func__);
+    return ret;
 }
 
 static int agm_io_drain(snd_pcm_ioplug_t * io)
 {
-    AGM_LOGE("%s %d\n", __func__, __LINE__);
+    AGM_LOGD("%s: exit\n", __func__);
     return 0;
 }
 
@@ -143,7 +143,7 @@ static snd_pcm_sframes_t agm_io_pointer(snd_pcm_ioplug_t * io)
     }
 
 
-    AGM_LOGE("%s %d\n", __func__, io->state);
+    AGM_LOGD("%s %d\n", __func__, io->state);
     return new_hw_ptr;
 }
 
@@ -182,7 +182,8 @@ static snd_pcm_sframes_t agm_io_transfer(snd_pcm_ioplug_t * io,
 
     if (pcm->hw_pointer > pcm->boundary)
          pcm->hw_pointer -= pcm->boundary;
-    AGM_LOGE("%s %d\n", __func__, ret);
+
+    AGM_LOGD("%s: exit\n", __func__);
     return ret;
 }
 
@@ -198,7 +199,7 @@ static int agm_io_prepare(snd_pcm_ioplug_t * io)
 
     ret = agm_session_prepare(handle);
 
-    AGM_LOGE("%s %d\n", __func__, __LINE__);
+    AGM_LOGD("%s: exit\n", __func__);
     return ret;
 }
 
@@ -235,8 +236,10 @@ static int agm_io_hw_params(snd_pcm_ioplug_t * io,
     session_config->sess_mode = sess_mode;
     ret = agm_session_set_config(pcm->handle, session_config,
                                  pcm->media_config, pcm->buffer_config);
-    pcm->state = AGM_IO_STATE_SETUP;
-    AGM_LOGE("%s %d\n", __func__, __LINE__);
+    if (!ret)
+        pcm->state = AGM_IO_STATE_SETUP;
+
+    AGM_LOGD("%s: exit\n", __func__);
     return ret;
 }
 
@@ -266,7 +269,7 @@ static int agm_io_sw_params(snd_pcm_ioplug_t *io, snd_pcm_sw_params_t *params)
     ret = agm_session_set_config(pcm->handle, session_config,
                                  pcm->media_config, pcm->buffer_config);
 
-    AGM_LOGE("%s %d\n", __func__, __LINE__);
+    AGM_LOGD("%s: exit\n", __func__);
     return ret;
 }
 
@@ -288,13 +291,13 @@ static int agm_io_close(snd_pcm_ioplug_t * io)
     free(pcm->session_config);
     free(io->private_data);
 
-    AGM_LOGE("%s %d\n", __func__, __LINE__);
+    AGM_LOGD("%s: exit\n", __func__);
     return 0;
 }
 
 static int agm_io_poll_desc_count(snd_pcm_ioplug_t *io) {
     (void)io;
-    AGM_LOGE("%s %d\n", __func__, __LINE__);
+    AGM_LOGD("%s: exit\n", __func__);
     return 1;
 }
 
@@ -315,7 +318,7 @@ static int agm_io_poll_desc(snd_pcm_ioplug_t *io, struct pollfd *pfd,
         pfd[0].events = POLLIN;
     }
 
-    AGM_LOGE("%s: space is %u\n", __func__, space);
+    AGM_LOGD("%s: exit\n", __func__);
     return space;
 }
 
@@ -446,7 +449,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(agm)
                 ret = -EINVAL;
                 goto err_free_priv;
             }
-		AGM_LOGE("card id is %d\n", card);
+            AGM_LOGD("card id is %d\n", card);
             priv->card = card;
             continue;
         }
@@ -456,7 +459,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(agm)
                 ret = -EINVAL;
                 goto err_free_priv;
             }
-		AGM_LOGE("device id is %d\n", device);
+            AGM_LOGD("device id is %d\n", device);
             priv->device = device;
             continue;
         }
