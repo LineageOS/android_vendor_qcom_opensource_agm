@@ -157,7 +157,8 @@ int configure_buffer_params(struct graph_obj *gph_obj,
      *In case of non-tunnel mode we configure
      *read and write buffer params together
      */
-    if (sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) {
+    if ((sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) &&
+          (sess_obj->stream_config.dir == (RX | TX))) {
 
         /*configure read params*/
         AGM_LOGD("read params: mode %d sess buf_sz %zu num_bufs %d metadata %d \n",
@@ -1097,8 +1098,9 @@ int graph_write(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *si
      *In case of non-tunnel mode session we have two shared memory endpoints
      *One for read from the graph and other for writing into the graph
      */
-    if (graph_obj->sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL)
-        write_mod_tag = WR_SHMEM_ENDPOINT;
+    if ((graph_obj->sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) &&
+        (graph_obj->sess_obj->stream_config.dir == (RX | TX)))
+         write_mod_tag = WR_SHMEM_ENDPOINT;
 
     gsl_buff.timestamp = buffer->timestamp;
     gsl_buff.flags = buffer->flags;
@@ -1137,8 +1139,9 @@ int graph_read(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *siz
      *in a single graph, one to read from the graph and other for writing into
      *the graph
      */
-    if (graph_obj->sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL)
-        read_mod_tag = RD_SHMEM_ENDPOINT;
+    if ((graph_obj->sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) &&
+        (graph_obj->sess_obj->stream_config.dir == (RX | TX)))
+         read_mod_tag = RD_SHMEM_ENDPOINT;
 
     gsl_buff.timestamp = buffer->timestamp;
     gsl_buff.flags = buffer->flags;
