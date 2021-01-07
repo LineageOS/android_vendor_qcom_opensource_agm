@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -408,12 +408,14 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
         sess_cfg->codec.wma_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.wma_dec.sample_rate = media_cfg->rate;
         break;
+#ifdef SND_AUDIOCODEC_WMA_PRO
     case SND_AUDIOCODEC_WMA_PRO:
         media_cfg->format = AGM_FORMAT_WMAPRO;
         sess_cfg->codec.wmapro_dec.fmt_tag = params->codec.format;
         sess_cfg->codec.wmapro_dec.num_channels = params->codec.ch_in;
         sess_cfg->codec.wmapro_dec.sample_rate = media_cfg->rate;
         break;
+#endif
     case SND_AUDIOCODEC_VORBIS:
         media_cfg->format = AGM_FORMAT_VORBIS;
         break;
