@@ -32,10 +32,10 @@
 #include <errno.h>
 #include <pthread.h>
 #include "gsl_intf.h"
-#include "graph.h"
-#include "graph_module.h"
-#include "metadata.h"
-#include "utils.h"
+#include <agm/graph.h>
+#include <agm/graph_module.h>
+#include <agm/metadata.h>
+#include <agm/utils.h>
 
 #ifdef DYNAMIC_LOG_ENABLED
 #include <log_xml_parser.h>

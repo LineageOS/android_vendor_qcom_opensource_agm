@@ -34,7 +34,7 @@
 #include <unistd.h>
 #include <vendor/qti/hardware/AGMIPC/1.0/IAGM.h>
 
-#include "agm_api.h"
+#include <agm/agm_api.h>
 #include "inc/AGMCallback.h"
 
 using android::hardware::Return;

@@ -19,9 +19,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_MODULE := libagmproxy
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_COPY_HEADERS_TO   := mm-audio/qti-agm-server
-LOCAL_COPY_HEADERS      := \
-                           ipc_interface.h
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
 
 include $(BUILD_SHARED_LIBRARY)
 include $(CLEAR_VARS)

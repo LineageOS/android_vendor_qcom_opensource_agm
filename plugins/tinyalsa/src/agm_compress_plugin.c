@@ -47,7 +47,7 @@
 #include <tinyalsa/asoundlib.h>
 #include <sound/compress_params.h>
 #include <sound/compress_offload.h>
-#include "utils.h"
+#include <agm/utils.h>
 
 #ifdef DYNAMIC_LOG_ENABLED
 #include <log_xml_parser.h>

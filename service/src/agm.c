@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,10 +27,10 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #define LOG_TAG "AGM: API"
-#include "agm_api.h"
-#include "device.h"
-#include "session_obj.h"
-#include "utils.h"
+#include <agm/agm_api.h> 
+#include <agm/device.h>
+#include <agm/session_obj.h>
+#include <agm/utils.h>
 #include "ats.h"
 #include <stdio.h>
 #include <stdbool.h>

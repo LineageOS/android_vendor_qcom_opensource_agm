@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019, 2021 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,8 +33,8 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "agm_api.h"
-#include "utils.h"
+#include <agm/agm_api.h>
+#include <agm/utils.h>
 
 #define ARRAY_SIZE(a) \
         (sizeof(a) / sizeof(a[0]))

@@ -1,5 +1,4 @@
 ifeq ($(call is-board-platform-in-list, sdm845 msmnile kona lahaina taro bengal),true)
-ifneq ($(BUILD_TINY_ANDROID),true)
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
@@ -19,6 +18,7 @@ LOCAL_SHARED_LIBRARIES := \
         libqti-tinyalsa \
         libexpat
 
+LOCAL_HEADER_LIBRARIES := libagm_headers
 LOCAL_VENDOR_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)
@@ -39,6 +39,7 @@ LOCAL_SHARED_LIBRARIES := \
         libqti-tinyalsa\
         libagmmixer
 
+LOCAL_HEADER_LIBRARIES := libagm_headers
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_EXECUTABLE)
 include $(CLEAR_VARS)
@@ -59,6 +60,7 @@ LOCAL_SHARED_LIBRARIES := \
         libqti-tinyalsa\
         libagmmixer
 
+LOCAL_HEADER_LIBRARIES := libagm_headers
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_EXECUTABLE)
 
@@ -85,6 +87,7 @@ LOCAL_SHARED_LIBRARIES := \
         libqti-tinycompress\
         libagmmixer
 
+LOCAL_HEADER_LIBRARIES := libagm_headers
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_EXECUTABLE)
 
@@ -106,7 +109,7 @@ LOCAL_SHARED_LIBRARIES := \
         libqti-tinyalsa\
         libagmmixer
 
+LOCAL_HEADER_LIBRARIES := libagm_headers
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_EXECUTABLE)
-endif
 endif

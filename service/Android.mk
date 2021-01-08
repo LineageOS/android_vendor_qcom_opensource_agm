@@ -1,11 +1,7 @@
 ifeq ($(call is-board-platform-in-list, sdm845 msmnile kona lahaina taro bengal),true)
 
-ifneq ($(BUILD_TINY_ANDROID),true)
-
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
-
-LOCAL_USE_VNDK := true
 
 #----------------------------------------------------------------------------
 #                 Common definitons
@@ -63,14 +59,16 @@ ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DYNAMIC_LOG)), true)
                                 libexpat
 endif
 
-LOCAL_COPY_HEADERS_TO   := mm-audio/agm
-LOCAL_COPY_HEADERS      := inc/agm_api.h
-LOCAL_COPY_HEADERS      += inc/utils.h
-LOCAL_COPY_HEADERS      += inc/agm_list.h
-
+LOCAL_HEADER_LIBRARIES += libagm_headers
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/inc/private
+LOCAL_EXPORT_HEADER_LIBRARY_HEADERS := libagm_headers
 LOCAL_VENDOR_MODULE := true
-
 include $(BUILD_SHARED_LIBRARY)
 
-endif # BUILD_TINY_ANDROID
+include $(CLEAR_VARS)
+LOCAL_MODULE := libagm_headers
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/inc/public
+LOCAL_VENDOR_MODULE := true
+include $(BUILD_HEADER_LIBRARY)
+
 endif # is-board-platform-in-list
