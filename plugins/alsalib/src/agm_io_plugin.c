@@ -297,6 +297,7 @@ static int agm_io_close(snd_pcm_ioplug_t * io)
 
 static int agm_io_poll_desc_count(snd_pcm_ioplug_t *io) {
     (void)io;
+    /* TODO : Needed for ULL usecases */
     AGM_LOGD("%s: exit\n", __func__);
     return 1;
 }
@@ -306,6 +307,7 @@ static int agm_io_poll_desc(snd_pcm_ioplug_t *io, struct pollfd *pfd,
 {
     struct agmio_priv *pcm = io->private_data;
 
+    /* TODO : Needed for ULL usecases, Need update */
     if (space != 1) {
         AGM_LOGE("%s space %u is not correct!\n", __func__, space);
         return -EINVAL;
@@ -327,6 +329,7 @@ static int agm_io_poll_revents(snd_pcm_ioplug_t *io, struct pollfd *pfd,
 {
     struct agmio_priv *pcm = io->private_data;
 
+    /* TODO : Needed for ULL usecases, Need update */
     if (nfds != 1) {
         AGM_LOGE("%s nfds %u is not correct!\n", __func__, nfds);
         return -EINVAL;
