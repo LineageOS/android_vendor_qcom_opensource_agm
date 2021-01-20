@@ -116,6 +116,8 @@ class IAgmService: public ::android::IInterface
         virtual int ipc_agm_set_gapless_session_metadata(uint64_t handle,
                                     enum agm_gapless_silence_type type,
                                     uint32_t silence) = 0;
+        virtual int ipc_agm_session_get_buf_info(uint32_t session_id,
+                           struct agm_buf_info *buf_info, uint32_t flag) = 0;
 };
 
 class BnAgmService : public ::android::BnInterface<IAgmService> {

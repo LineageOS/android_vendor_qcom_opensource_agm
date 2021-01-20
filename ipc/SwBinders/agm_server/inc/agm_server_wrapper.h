@@ -62,7 +62,7 @@ class AgmService : public BnAgmService
         virtual int ipc_agm_session_resume(uint64_t handle);
         virtual int ipc_agm_session_open(uint32_t session_id,
                                          enum agm_session_mode sess_mode,
-                                         void **handle);
+                                         uint64_t *handle);
         virtual int ipc_agm_session_read(uint64_t handle, void *buff,
                                      size_t *count);
         virtual int ipc_agm_session_write(uint64_t handle, void *buff,
@@ -111,6 +111,8 @@ class AgmService : public BnAgmService
         virtual int ipc_agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp);
         virtual int ipc_agm_set_gapless_session_metadata(uint64_t handle,
                          enum agm_gapless_silence_type type, uint32_t silence);
+        virtual int ipc_agm_session_get_buf_info(uint32_t session_id,
+                           struct agm_buf_info *buf_info, uint32_t flag);
         ~AgmService()
         {
             AGM_LOGV("AGMService destructor");
