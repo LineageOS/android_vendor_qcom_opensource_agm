@@ -52,11 +52,11 @@ LOCAL_SHARED_LIBRARIES := \
          libqti-tinyalsa
 
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DYNAMIC_LOG)), true)
-      LOCAL_CFLAGS += -DDYNAMIC_LOG_ENABLED
-      LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-audio/audio-log-utils
-      LOCAL_C_INCLUDES += $(TOP)/external/expat/lib/expat.h
-      LOCAL_SHARED_LIBRARIES += libaudio_log_utils \
-                                libexpat
+LOCAL_CFLAGS += -DDYNAMIC_LOG_ENABLED
+LOCAL_C_INCLUDES += $(TOP)/external/expat/lib/expat.h
+LOCAL_SHARED_LIBRARIES += libaudio_log_utils \
+                          libexpat
+LOCAL_HEADER_LIBRARIES += libaudiologutils_headers
 endif
 
 LOCAL_HEADER_LIBRARIES += libagm_headers
