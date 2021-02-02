@@ -757,7 +757,7 @@ void device_deinit()
     unsigned int list_count = 0;
     struct device_obj *dev_obj = NULL;
 
-    AGM_LOGE("%s:device deinit called\n");
+    AGM_LOGE("device deinit called\n");
     for (list_count = 0; list_count < num_audio_intfs; list_count++) {
         dev_obj = device_list[list_count];
         metadata_free(&dev_obj->metadata);
