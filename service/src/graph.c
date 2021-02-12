@@ -536,6 +536,8 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     }
     list_init(&graph_obj->tagged_mod_list);
     pthread_mutex_init(&graph_obj->lock, (const pthread_mutexattr_t *)NULL);
+    if (sess_obj->stream_config.sess_mode == AGM_SESSION_NO_CONFIG)
+        goto no_config;
 
     /**
      *TODO:In the current config parameters we dont have a
@@ -646,6 +648,7 @@ tag_list:
                                (sizeof(struct gsl_module_id_info_entry) *
                                gsl_tag_entry->num_modules));
     }
+no_config:
     graph_obj->sess_obj = sess_obj;
 
     ret = gsl_open((struct gsl_key_vector *)&meta_data_kv->gkv,
@@ -801,14 +804,14 @@ int graph_prepare(struct graph_obj *graph_obj)
 
     /*Configure buffers only if it is not a hostless session*/
     if ((sess_obj != NULL) &&
-        (stream_config.sess_mode != AGM_SESSION_NO_HOST)) {
+        (stream_config.sess_mode != AGM_SESSION_NO_HOST) &&
+         sess_obj->stream_config.sess_mode != AGM_SESSION_NO_CONFIG) {
         ret = configure_buffer_params(graph_obj, sess_obj);
         if (ret != 0) {
             AGM_LOGE("buffer configuration failed \n");
             goto done;
         }
     }
-
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_PREPARE, NULL, 0);
     if (ret !=0) {
         ret = ar_err_get_lnx_err_code(ret);

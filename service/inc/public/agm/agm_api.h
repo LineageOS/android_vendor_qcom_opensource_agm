@@ -143,6 +143,7 @@ enum agm_session_mode
     AGM_SESSION_DEFAULT,         /**< Normal agm tunnel session*/
     AGM_SESSION_NO_HOST,         /**< Hostless mode */
     AGM_SESSION_NON_TUNNEL,      /**< Non tunnel mode */
+    AGM_SESSION_NO_CONFIG,       /**< No Config mode*/
 };
 
 struct agm_extern_alloc_buff_info{

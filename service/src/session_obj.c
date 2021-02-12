@@ -873,7 +873,7 @@ static int session_prepare(struct session_obj *sess_obj)
     struct listnode *node = NULL;
     uint32_t count = 0;
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         count = aif_obj_get_count_with_state(sess_obj, AIF_OPENED, false);
         if (count == 0) {
             AGM_LOGE("Error:%d No aif in right state to proceed with \
@@ -952,7 +952,7 @@ static int session_start(struct session_obj *sess_obj)
     struct session_obj *pb_obj = NULL;
     struct device_obj *ec_ref_dev_obj = NULL;
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL && sess_mode != AGM_SESSION_NO_CONFIG) {
         count = aif_obj_get_count_with_state(sess_obj, AIF_OPENED, false);
         if (count == 0) {
             AGM_LOGE("Error:%d No aif in right state to proceed with \
@@ -1059,7 +1059,7 @@ unwind:
     if (dir == TX)
         graph_stop(sess_obj->graph, NULL);
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
             if (aif_obj && (aif_obj->state == AIF_STARTED)) {
@@ -1089,7 +1089,7 @@ static int session_stop(struct session_obj *sess_obj)
         goto done;
     }
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         if (dir == RX) {
             ret = graph_stop(sess_obj->graph, NULL);
             if (ret) {
@@ -1159,7 +1159,7 @@ static int session_close(struct session_obj *sess_obj)
     sess_obj->graph = NULL;
     sess_obj->ec_ref_state = false;
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
             if (!aif_obj) {
@@ -1795,8 +1795,9 @@ int session_obj_open(uint32_t session_id,
         ret = -EALREADY;
         goto done;
     }
+    sess_obj->stream_config.sess_mode = sess_mode;
 
-    if (sess_mode == AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode == AGM_SESSION_NON_TUNNEL || sess_mode == AGM_SESSION_NO_CONFIG) {
         /**
          *AGM session can be opened in any one of the agm_session_modes
          *If it is a AGM_SESSUION_NON_TUNNEL mode, then that indicates
