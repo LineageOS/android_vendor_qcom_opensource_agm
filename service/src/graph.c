@@ -370,6 +370,7 @@ void gsl_callback_func(struct gsl_event_cb_params *event_params,
 {
      struct graph_obj *graph_obj = (struct graph_obj *) client_data;
      struct agm_event_cb_params *ev;
+     struct gsl_event_read_write_done_payload *rw_done_payload;
 
      if (graph_obj == NULL) {
          AGM_LOGE("Invalid graph object");
@@ -390,6 +391,16 @@ void gsl_callback_func(struct gsl_event_cb_params *event_params,
      ev->event_id = event_params->event_id;
      ev->event_payload_size = event_params->event_payload_size;
      memcpy(ev->event_payload, event_params->event_payload, event_params->event_payload_size);
+
+     if (graph_obj->sess_obj &&
+          graph_obj->sess_obj->stream_config.data_mode == AGM_DATA_EXTERN_MEM) {
+          if ((ev->event_payload_size > 0) && ((ev->event_id == AGM_EVENT_READ_DONE) ||
+                (ev->event_id == AGM_EVENT_WRITE_DONE))) {
+             rw_done_payload = (struct gsl_event_read_write_done_payload *)ev->event_payload;
+             rw_done_payload->md_status = ar_err_get_lnx_err_code(rw_done_payload->md_status);
+             rw_done_payload->status = ar_err_get_lnx_err_code(rw_done_payload->status);
+          }
+     }
 
      if (graph_obj->cb)
          graph_obj->cb(ev,
