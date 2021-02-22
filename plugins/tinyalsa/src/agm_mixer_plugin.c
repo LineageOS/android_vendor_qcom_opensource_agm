@@ -316,10 +316,11 @@ void amp_event_cb(uint32_t session_id, struct agm_event_cb_params *event_params,
     struct amp_priv *amp_priv;
     struct ctl_event event;
     struct mixer_plugin_event_data *data;
-    char *stream = "PCM";
+    char *stream = NULL;
     char *ctl_name = "event";
     char *mixer_str = NULL;
-    int ctl_len;
+    int ctl_len, i;
+    struct amp_dev_info *adi = NULL;
 
     if (!plugin)
         return;
@@ -331,19 +332,36 @@ void amp_event_cb(uint32_t session_id, struct agm_event_cb_params *event_params,
     if (!amp_priv)
         return;
 
-    amp_add_event_params(amp_priv, session_id, event_params);
-
-    /* To support Compress device related event instead of PCM
-       session_id needs to go through adi list to check if it belongs
-       to pcm device or compress device.
+    /* Get device node name
+     * Check Rx device nodes followed by Tx.
      */
+    adi = &amp_priv->rx_pcm_devs;
+    for (i = 0; i < adi->count; i++) {
+        if(adi->idx_arr[i] == session_id) {
+            stream = adi->names[i];
+            goto found;
+        }
+    }
+
+    adi = &amp_priv->tx_pcm_devs;
+    for (i = 0; i < adi->count; i++) {
+        if(adi->idx_arr[i] == session_id) {
+            stream = adi->names[i];
+            goto found;
+        }
+    }
+
+    if (!stream)
+        return;
+found:
+    amp_add_event_params(amp_priv, session_id, event_params);
     event.type = SNDRV_CTL_EVENT_ELEM;
-    ctl_len = (int)(strlen(stream) + 4 + strlen(ctl_name) + 1);
+    ctl_len = (int)(strlen(stream) + 1 + strlen(ctl_name) + 1);
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str)
         return;
 
-    snprintf(mixer_str, ctl_len, "%s%d %s", stream, session_id, ctl_name);
+    snprintf(mixer_str, ctl_len, "%s %s", stream, ctl_name);
     strlcpy((char*)event.data.elem.id.name, mixer_str, sizeof(event.data.elem.id.name));
 
     data = calloc(1, sizeof(struct mixer_plugin_event_data));
