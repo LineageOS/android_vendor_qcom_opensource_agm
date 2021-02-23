@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -385,6 +385,9 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir d
     if (d == PLAYBACK) {
         gkv[0].key = DEVICERX;
         gkv[0].value = SPEAKER;
+    } else if (!strcmp(intf_name, "CODEC_DMA-LPAIF_VA-TX-0")) {
+        gkv[0].key = DEVICETX;
+        gkv[0].value = HANDSETMIC_VA;
     } else {
         gkv[0].key = DEVICETX;
         gkv[0].value = HANDSETMIC;
