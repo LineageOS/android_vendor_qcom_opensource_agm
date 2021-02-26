@@ -313,7 +313,7 @@ enum direction {
 /**
  * MAX length of the AIF Name
  */
-#define AIF_NAME_MAX_LEN 28
+#define AIF_NAME_MAX_LEN 32
 
 /**
  * AIF Info
