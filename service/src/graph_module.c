@@ -718,8 +718,15 @@ int configure_output_media_format(struct module_info *mod,
     int num_channels = MONO;
     struct agm_media_config media_config = {0};
 
-    if (sess_obj->stream_config.dir == TX)
-        media_config = sess_obj->in_media_config;
+    /*We use in_media_config for Record usecases or
+     *if it is NON_TUNNEL_MODE decode usecase otherwise
+     *out_media_config is used to configure PCM_Convertor
+     */
+    if ((sess_obj->stream_config.dir == TX) ||
+        ((sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) &&
+        (is_format_pcm(sess_obj->in_media_config.format)))) {
+         media_config = sess_obj->in_media_config;
+    }
     else
         media_config = sess_obj->out_media_config;
 
@@ -769,11 +776,7 @@ int configure_output_media_format(struct module_info *mod,
 
     pcm_output_fmt_payload->endianness = PCM_LITTLE_ENDIAN;
 
-    if ((sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) &&
-        (is_format_pcm(sess_obj->in_media_config.format)))
-        pcm_output_fmt_payload->bit_width = get_media_bit_width(sess_obj, &sess_obj->in_media_config);
-    else
-        pcm_output_fmt_payload->bit_width = get_media_bit_width(sess_obj, &media_config);
+    pcm_output_fmt_payload->bit_width = get_media_bit_width(sess_obj, &media_config);
 
     /**
      *alignment field is referred to only in case where bit width is
@@ -784,10 +787,16 @@ int configure_output_media_format(struct module_info *mod,
     pcm_output_fmt_payload->alignment = PCM_LSB_ALIGNED;
     pcm_output_fmt_payload->num_channels = num_channels;
 
-    if (sess_obj->stream_config.dir == TX &&
-            is_format_pcm(media_config.format)) {
+    if (((sess_obj->stream_config.dir == TX) ||
+         ((sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) && mod->module == MODULE_PCM_CONVERTER)) &&
+         is_format_pcm(media_config.format)) {
         /*for PCM capture usecase, we want native data to be captured hence
-          configure pcm convertor accordingly*/
+         *configure pcm convertor accordingly
+         *Also in case of Non Tunnel Mode decode, we configure PCM_CONVERTOR with
+         *media config same as what is configured by client on the read path.
+         *We have added the module check above to ensure that the decoder
+         *PCM_OUTPUT_FORMAT_CFG is configured in the else part.
+         */
         pcm_output_fmt_payload->bits_per_sample =
                              GET_BITS_PER_SAMPLE(media_config.format,
                                                  pcm_output_fmt_payload->bit_width);
