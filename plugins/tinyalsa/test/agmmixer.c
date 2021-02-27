@@ -591,7 +591,7 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     if (val == VOICE_UI) {
         if (intf_name) {
             gkv[index].key = DEVICEPP_TX;
-            gkv[index].value = DEVICEPP_TX_VOICE_UI_FLUENCE_FFECNS;
+            gkv[index].value = DEVICEPP_TX_FLUENCE_FFECNS;
             index++;
             gkv[index].key = DEVICETX;
             gkv[index].value = HANDSETMIC;
@@ -603,8 +603,8 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
             gkv[index].key = INSTANCE;
             gkv[index].value = INSTANCE_1;
             index++;
-            gkv[index].key = VOICE_UI_STREAM_CONFIG;
-            gkv[index].value = VUI_STREAM_CFG_SVA;
+            gkv[index].key = STREAM_CONFIG;
+            gkv[index].value = STREAM_CFG_VUI_SVA;
             index++;
         }
     } else {
