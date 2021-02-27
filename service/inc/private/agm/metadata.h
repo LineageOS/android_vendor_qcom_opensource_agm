@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019, 2021 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +31,7 @@
 #define _METADATA_H_
 
 #include <stdarg.h>
-#include "agm_priv.h"
+#include <agm/agm_priv.h>
 
 struct agm_meta_data_gsl* metadata_merge(int num, ...);
 int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size, uint8_t *payload);
