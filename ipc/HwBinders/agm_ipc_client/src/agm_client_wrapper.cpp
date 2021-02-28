@@ -563,6 +563,7 @@ int agm_session_register_for_events(uint32_t session_id,
         evt_reg_cfg_hidl.data()->event_id = evt_reg_cfg->event_id;
         evt_reg_cfg_hidl.data()->event_config_payload_size = evt_reg_cfg->event_config_payload_size;
         evt_reg_cfg_hidl.data()->is_register = evt_reg_cfg->is_register;
+        evt_reg_cfg_hidl.data()->event_config_payload.resize(evt_reg_cfg->event_config_payload_size);
         for (int i = 0; i < evt_reg_cfg->event_config_payload_size; i++)
             evt_reg_cfg_hidl.data()->event_config_payload[i] = evt_reg_cfg->event_config_payload[i];
 
