@@ -1568,7 +1568,7 @@ int graph_register_for_events(struct graph_obj *gph_obj,
                                  evt_reg_cfg->event_config_payload_size;
     reg_ev_payload->is_register = evt_reg_cfg->is_register;
 
-    memcpy(reg_ev_payload + sizeof(apm_module_register_events_t),
+    memcpy((uint8_t *)reg_ev_payload + sizeof(struct gsl_cmd_register_custom_event),
           evt_reg_cfg->event_config_payload,
           evt_reg_cfg->event_config_payload_size);
 
