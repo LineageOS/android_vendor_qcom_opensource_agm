@@ -8,6 +8,8 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/ar_osal
 
 LOCAL_HEADER_LIBRARIES := libagm_headers
+LOCAL_HEADER_LIBRARIES += libarosal_headers
+
 LOCAL_SRC_FILES := src/agm_pcm_plugin.c
 
 LOCAL_MODULE := libagm_pcm_plugin
@@ -41,6 +43,8 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/ar_osal
 
 LOCAL_HEADER_LIBRARIES := libagm_headers
+LOCAL_HEADER_LIBRARIES += libarosal_headers
+
 LOCAL_SRC_FILES := src/agm_mixer_plugin.c
 
 LOCAL_MODULE := libagm_mixer_plugin
@@ -76,6 +80,8 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/ar/ar_osal
 
 LOCAL_ADDITIONAL_DEPENDENCIES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 LOCAL_HEADER_LIBRARIES := libagm_headers
+LOCAL_HEADER_LIBRARIES += libarosal_headers
+
 LOCAL_SRC_FILES := src/agm_compress_plugin.c
 
 LOCAL_MODULE := libagm_compress_plugin
