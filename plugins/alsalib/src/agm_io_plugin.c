@@ -295,6 +295,25 @@ static int agm_io_close(snd_pcm_ioplug_t * io)
     return 0;
 }
 
+static int agm_io_pause(snd_pcm_ioplug_t * io, int enable)
+{
+    struct agmio_priv *pcm = io->private_data;
+    uint64_t handle;
+    int ret = 0;
+
+     ret = agm_get_session_handle(pcm, &handle);
+     if (ret)
+         return ret;
+
+     if (enable)
+         ret = agm_session_pause(handle);
+     else
+         ret = agm_session_resume(handle);
+
+     AGM_LOGD("%s: exit\n", __func__);
+     return ret;
+}
+
 static int agm_io_poll_desc_count(snd_pcm_ioplug_t *io) {
     (void)io;
     AGM_LOGD("%s: exit\n", __func__);
@@ -350,6 +369,7 @@ static const snd_pcm_ioplug_callback_t agm_io_callback = {
     .hw_params = agm_io_hw_params,
     .sw_params = agm_io_sw_params,
     .close = agm_io_close,
+    .pause = agm_io_pause,
     .poll_descriptors_count = agm_io_poll_desc_count,
     .poll_descriptors = agm_io_poll_desc,
     .poll_revents = agm_io_poll_revents,
