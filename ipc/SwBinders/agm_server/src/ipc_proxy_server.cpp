@@ -114,6 +114,7 @@ enum {
     BUF_TSTAMP,
     AIF_SET_PARAMS,
     SET_GAPLESS_SESSION_METADATA,
+    GET_BUF_INFO,
 };
 
 class BpAgmService : public ::android::BpInterface<IAgmService>
@@ -715,6 +716,26 @@ class BpAgmService : public ::android::BpInterface<IAgmService>
         remote()->transact(SET_GAPLESS_SESSION_METADATA, data, &reply);
         return reply.readInt32();
     }
+
+    virtual int ipc_agm_session_get_buf_info(uint32_t session_id,
+                          struct agm_buf_info *buf_info, uint32_t flag)
+    {
+        android::Parcel data, reply;
+
+        data.writeInterfaceToken(IAgmService::getInterfaceDescriptor());
+        data.writeUint32(session_id);
+        data.writeUint32(flag);
+        remote()->transact(GET_BUF_INFO, data, &reply);
+        if (flag & DATA_BUF) {
+            buf_info->data_buf_fd = dup(reply.readFileDescriptor());
+            buf_info->data_buf_size = reply.readInt32();
+        }
+        if (flag & POS_BUF) {
+            buf_info->pos_buf_fd = dup(reply.readFileDescriptor());
+            buf_info->pos_buf_size = reply.readInt32();
+        }
+        return reply.readInt32();
+    }
 };
 
 void ipc_cb (uint32_t session_id, struct agm_event_cb_params *event_params,
@@ -775,7 +796,7 @@ android::status_t BnAgmService::onTransact(uint32_t code,
         enum agm_session_mode sess_mode;
         uint64_t handle = 0;
         session_id = data.readUint32();
-        sess_mode = data.readUint32();
+        sess_mode = (enum agm_session_mode)data.readUint32();
         rc = ipc_agm_session_open(session_id, sess_mode, &handle);
         if (handle != 0)
             agm_add_session_obj_handle(handle);reply->writeInt64((long)handle);
@@ -1318,7 +1339,7 @@ android::status_t BnAgmService::onTransact(uint32_t code,
         data.readBlob(ckv_blob_size, &ckv_blob);
         memcpy(acc->kv, ckv_blob.data(), ckv_blob_size);
         ckv_blob.release();
-        rc = agm_session_aif_set_cal(session_id, audio_intf, acc);
+        rc = ipc_agm_session_aif_set_cal(session_id, audio_intf, acc);
     fail_ses_aud_set_cal_data:
         if (acc)
             free(acc);
@@ -1384,6 +1405,25 @@ android::status_t BnAgmService::onTransact(uint32_t code,
         uint32_t type = data.readUint32();
         uint32_t silence = data.readUint32();
         rc = ipc_agm_set_gapless_session_metadata(handle, init_silence, trail_silence);
+        reply->writeInt32(rc);
+        break; }
+
+    case GET_BUF_INFO : {
+        int rc;
+        uint32_t session_id, flag;
+        struct agm_buf_info buf_info;
+
+        session_id = data.readUint32();
+        flag = data.readUint32();
+        rc = ipc_agm_session_get_buf_info(session_id, &buf_info, flag);
+        if (flag & DATA_BUF) {
+            reply->writeFileDescriptor(buf_info.data_buf_fd);
+            reply->writeInt32(buf_info.data_buf_size);
+        }
+        if (flag & POS_BUF) {
+            reply->writeFileDescriptor(buf_info.pos_buf_fd);
+            reply->writeInt32(buf_info.pos_buf_size);
+        }
         reply->writeInt32(rc);
         break; }
 

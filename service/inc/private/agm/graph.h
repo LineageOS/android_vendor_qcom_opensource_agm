@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,10 +30,10 @@
 #ifndef GPH_OBJ_H
 #define GPH_OBJ_H
 
-#include "agm_list.h"
-#include "device.h"
-#include "session_obj.h"
-#include "agm_priv.h"
+#include <agm/agm_list.h>
+#include <agm/device.h>
+#include <agm/session_obj.h>
+#include <agm/agm_priv.h>
 
 #define ATTRIBUTES_DATA_MODE_MASK 0x3
 #define DATA_MODE_FLAG_SHMEM 0x0 /**< shared memory mode */

@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -34,8 +34,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "utils.h"
-#include "device.h"
+#include <agm/utils.h>
+#include <agm/device.h>
 
 #ifdef DYNAMIC_LOG_ENABLED
 #include <log_xml_parser.h>
@@ -82,6 +82,12 @@ static int populate_hw_ep_intf_idx(hw_ep_info_t *hw_ep_info, char *intf_idx)
             cdc_dma_i2s_tdm_config->intf_idx = CODEC_RX3;
         else if (!strcmp(intf_idx, "4"))
             cdc_dma_i2s_tdm_config->intf_idx = CODEC_RX4;
+        else if (!strcmp(intf_idx, "5"))
+            cdc_dma_i2s_tdm_config->intf_idx = CODEC_RX5;
+        else if (!strcmp(intf_idx, "6"))
+            cdc_dma_i2s_tdm_config->intf_idx = CODEC_RX6;
+        else if (!strcmp(intf_idx, "7"))
+            cdc_dma_i2s_tdm_config->intf_idx = CODEC_RX7;
         else {
              AGM_LOGE("No matching intf_idx found\n");
              return -EINVAL;

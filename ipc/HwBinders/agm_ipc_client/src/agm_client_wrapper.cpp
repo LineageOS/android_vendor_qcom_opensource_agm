@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -34,7 +34,7 @@
 #include <unistd.h>
 #include <vendor/qti/hardware/AGMIPC/1.0/IAGM.h>
 
-#include "agm_api.h"
+#include <agm/agm_api.h>
 #include "inc/AGMCallback.h"
 
 using android::hardware::Return;
@@ -129,7 +129,7 @@ int agm_session_set_config(uint64_t handle,
                             struct agm_session_config *session_config,
                             struct agm_media_config *media_config,
                             struct agm_buffer_config *buffer_config) {
-    ALOGE("%s called with handle = %llx \n", __func__, (unsigned long long)handle);
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long)handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         hidl_vec<AgmSessionConfig> session_config_hidl;
@@ -283,7 +283,7 @@ int agm_session_resume(uint64_t handle){
 
 int agm_session_open(uint32_t session_id, enum agm_session_mode sess_mode ,
                      uint64_t *handle) {
-    ALOGE("%s called with handle = %x , *handle = %x\n", __func__, handle, *handle);
+    ALOGD("%s called with handle = %x , *handle = %x\n", __func__, handle, *handle);
     int ret = -EINVAL;
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
@@ -294,7 +294,7 @@ int agm_session_open(uint32_t session_id, enum agm_session_mode sess_mode ,
                                  *handle = *handle_hidl.data();
                               });
     }
-    ALOGE("%s Received handle = %p , *handle = %llx\n", __func__, handle, (unsigned long long) *handle);
+    ALOGD("%s Received handle = %p , *handle = %llx\n", __func__, handle, (unsigned long long) *handle);
     return ret;
 }
 
@@ -778,7 +778,7 @@ int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, uint3
     int32_t ret = -EINVAL;
 
     if (!agm_server_died) {
-        ALOGE("%s:%d hndl %p",__func__, __LINE__, handle );
+        ALOGV("%s:%d hndl %p",__func__, __LINE__, handle );
         android::sp<IAGM> agm_client = get_agm_server();
         hidl_vec<AgmBuff> buf_hidl;
         native_handle_t *allocHidlHandle = nullptr;
@@ -802,7 +802,7 @@ int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, uint3
          agmBuff->alloc_info.alloc_handle = hidl_memory("ar_alloc_handle", hidl_handle(allocHidlHandle),
                     buf->alloc_info.alloc_size);
 
-        ALOGE("%s:%d: fd [0] %d fd [1] %d", __func__,__LINE__, allocHidlHandle->data[0], allocHidlHandle->data[1]);
+         ALOGV("%s:%d: fd [0] %d fd [1] %d", __func__,__LINE__, allocHidlHandle->data[0], allocHidlHandle->data[1]);
          agmBuff->alloc_info.alloc_size = buf->alloc_info.alloc_size;
          agmBuff->alloc_info.offset = buf->alloc_info.offset;
          agm_client->ipc_agm_session_write_with_metadata(
@@ -821,7 +821,7 @@ int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, uint3
 int agm_session_read_with_metadata(uint64_t handle, struct agm_buff  *buf, uint32_t *captured_size)
 {
     int ret = -EINVAL;
-    ALOGE("%s:%d size %d",__func__,__LINE__, buf->size);
+    ALOGV("%s:%d size %d",__func__,__LINE__, buf->size);
     if (handle == NULL)
        goto done;
     if (!agm_server_died) {
@@ -841,8 +841,8 @@ int agm_session_read_with_metadata(uint64_t handle, struct agm_buff  *buf, uint3
         agmBuff->alloc_info.alloc_size = buf->alloc_info.alloc_size;
         agmBuff->alloc_info.offset = buf->alloc_info.offset;
 
-        ALOGE("%s:%d size %d %d", __func__, __LINE__, buf_hidl.data()->size, buf->size);
-        ALOGE("%s:%d: fd [0] %d fd [1] %d", __func__,__LINE__, allocHidlHandle->data[0], allocHidlHandle->data[1]);
+        ALOGV("%s:%d size %d %d", __func__, __LINE__, buf_hidl.data()->size, buf->size);
+        ALOGV("%s:%d: fd [0] %d fd [1] %d", __func__,__LINE__, allocHidlHandle->data[0], allocHidlHandle->data[1]);
         agm_client->ipc_agm_session_read_with_metadata(handle, buf_hidl, *captured_size,
                [&](int32_t ret_, hidl_vec<AgmBuff> ret_buf_hidl, uint32_t captured_size_ret)
                   {

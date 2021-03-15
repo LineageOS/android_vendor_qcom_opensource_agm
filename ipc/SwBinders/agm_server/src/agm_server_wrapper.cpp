@@ -279,3 +279,9 @@ int AgmService::ipc_agm_set_gapless_session_metadata(uint64_t handle,
     ALOGV("%s called\n", __func__);
     return agm_set_gapless_session_metadata(handle, type, silence);
 };
+
+int AgmService::ipc_agm_session_get_buf_info(uint32_t session_id,
+                       struct agm_buf_info *buf_info, uint32_t flag) {
+    ALOGV("%s called\n", __func__);
+    return agm_session_get_buf_info(session_id, buf_info, flag);
+};

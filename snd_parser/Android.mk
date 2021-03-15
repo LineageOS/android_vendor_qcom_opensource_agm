@@ -1,39 +1,26 @@
-ifeq ($(call is-board-platform-in-list, msmnile kona lahaina taro),true)
-
-ifneq ($(BUILD_TINY_ANDROID),true)
+ifeq ($(call is-board-platform-in-list, msmnile kona lahaina taro bengal),true)
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_USE_VNDK := true
+LOCAL_MODULE         := libsndcardparser
+LOCAL_MODULE_OWNER   := qti
+LOCAL_MODULE_TAGS    := optional
+LOCAL_VENDOR_MODULE  := true
 
-#----------------------------------------------------------------------------
-#             Make the Shared library (libsndcardparser)
-#----------------------------------------------------------------------------
+LOCAL_CFLAGS         := -Wno-unused-parameter -Wall
+LOCAL_CFLAGS         += -DCARD_DEF_FILE=\"/vendor/etc/card-defs.xml\"
 
-LOCAL_C_INCLUDES := $(LOCAL_PATH)/inc
-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-audio/
+LOCAL_C_INCLUDES            := $(LOCAL_PATH)/inc
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/inc
+LOCAL_SRC_FILES             := src/snd-card-parser.c
 
-LOCAL_CFLAGS := -Wno-unused-parameter
-LOCAL_CFLAGS += -DCARD_DEF_FILE=\"/vendor/etc/card-defs.xml\"
-LOCAL_CFLAGS += -Wall
-
-LOCAL_SRC_FILES  := src/snd-card-parser.c
-
-LOCAL_MODULE               := libsndcardparser
-LOCAL_MODULE_OWNER         := qti
-LOCAL_MODULE_TAGS          := optional
+LOCAL_HEADER_LIBRARIES := libagm_headers
 
 LOCAL_SHARED_LIBRARIES := \
-	libexpat \
-        libcutils
-
-LOCAL_COPY_HEADERS_TO   := mm-audio/snd-card-parser
-LOCAL_COPY_HEADERS      := inc/snd-card-def.h
-
-LOCAL_VENDOR_MODULE := true
+    libexpat \
+    libcutils
 
 include $(BUILD_SHARED_LIBRARY)
 
-endif # BUILD_TINY_ANDROID
 endif # is-board-platform-in-list

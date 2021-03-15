@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,8 +29,8 @@
 #ifndef GPH_MODULE_H
 #define GPH_MODULE_H
 
-#include "agm_list.h"
-#include "device.h"
+#include <agm/agm_list.h>
+#include <agm/device.h>
 
 /*Platfrom Key Value file, defines tag keys and their values*/
 #include "kvh2xml.h"

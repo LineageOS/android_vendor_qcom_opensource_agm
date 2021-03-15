@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,10 +32,10 @@
 #include <errno.h>
 #include <pthread.h>
 #include "gsl_intf.h"
-#include "graph.h"
-#include "graph_module.h"
-#include "metadata.h"
-#include "utils.h"
+#include <agm/graph.h>
+#include <agm/graph_module.h>
+#include <agm/metadata.h>
+#include <agm/utils.h>
 
 #ifdef DYNAMIC_LOG_ENABLED
 #include <log_xml_parser.h>
@@ -718,8 +718,15 @@ int configure_output_media_format(struct module_info *mod,
     int num_channels = MONO;
     struct agm_media_config media_config = {0};
 
-    if (sess_obj->stream_config.dir == TX)
-        media_config = sess_obj->in_media_config;
+    /*We use in_media_config for Record usecases or
+     *if it is NON_TUNNEL_MODE decode usecase otherwise
+     *out_media_config is used to configure PCM_Convertor
+     */
+    if ((sess_obj->stream_config.dir == TX) ||
+        ((sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) &&
+        (is_format_pcm(sess_obj->in_media_config.format)))) {
+         media_config = sess_obj->in_media_config;
+    }
     else
         media_config = sess_obj->out_media_config;
 
@@ -768,7 +775,9 @@ int configure_output_media_format(struct module_info *mod,
                                     sizeof(uint8_t) * num_channels);
 
     pcm_output_fmt_payload->endianness = PCM_LITTLE_ENDIAN;
+
     pcm_output_fmt_payload->bit_width = get_media_bit_width(sess_obj, &media_config);
+
     /**
      *alignment field is referred to only in case where bit width is
      *24 and bits per sample is 32, tiny alsa only supports 24 bit
@@ -778,10 +787,16 @@ int configure_output_media_format(struct module_info *mod,
     pcm_output_fmt_payload->alignment = PCM_LSB_ALIGNED;
     pcm_output_fmt_payload->num_channels = num_channels;
 
-    if (sess_obj->stream_config.dir == TX &&
-            is_format_pcm(media_config.format)) {
+    if (((sess_obj->stream_config.dir == TX) ||
+         ((sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) && mod->module == MODULE_PCM_CONVERTER)) &&
+         is_format_pcm(media_config.format)) {
         /*for PCM capture usecase, we want native data to be captured hence
-          configure pcm convertor accordingly*/
+         *configure pcm convertor accordingly
+         *Also in case of Non Tunnel Mode decode, we configure PCM_CONVERTOR with
+         *media config same as what is configured by client on the read path.
+         *We have added the module check above to ensure that the decoder
+         *PCM_OUTPUT_FORMAT_CFG is configured in the else part.
+         */
         pcm_output_fmt_payload->bits_per_sample =
                              GET_BITS_PER_SAMPLE(media_config.format,
                                                  pcm_output_fmt_payload->bit_width);
@@ -1357,10 +1372,11 @@ int configure_rd_shared_mem_ep(struct module_info *mod,
      *In case of non-tunnel encode sessions, we set the num_frames_per_buff cfg
      *as a part of calibration itself.
      */
-    if ((sess_obj->stream_config.sess_flags & AGM_SESSION_FLAG_INBAND_SRCM));
+    if (!(sess_obj->stream_config.sess_flags & AGM_SESSION_FLAG_INBAND_SRCM))
         goto done;
 
-    AGM_LOGD("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
+    AGM_LOGD("entry mod tag %x miid %x mid %x sess_flags %x",mod->tag, mod->miid, mod->mid,
+              sess_obj->stream_config.sess_flags);
 
     payload_size = sizeof(struct apm_module_param_data_t) +
                     sizeof(struct param_id_rd_sh_mem_cfg_t);
@@ -1385,6 +1401,10 @@ int configure_rd_shared_mem_ep(struct module_info *mod,
     header->error_code = 0x0;
     header->param_size = sizeof(struct param_id_rd_sh_mem_cfg_t);
 
+    /*
+     *In NT mode session in_media config represents config for data being captured
+     *Hence for NT Mode decode it would mean PCM data.
+     */
     if (is_format_pcm(sess_obj->in_media_config.format))
        rd_sh_mem_cfg->num_frames_per_buffer = 0x0; /*As many frames as possible*/
     else

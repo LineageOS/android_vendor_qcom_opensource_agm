@@ -46,7 +46,7 @@
 
 static class AgmService *agmServiceInstance = new AgmService();
 
-static void sigint_handler(int sig)
+static void sigint_handler(int sig __unused)
 {
     AGM_LOGD("AgmService received signal\n");
     agmServiceInstance->~AgmService();

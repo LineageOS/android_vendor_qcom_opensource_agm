@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -31,7 +31,10 @@
 #define __AGM_DEVICE_H__
 
 #include <pthread.h>
-#include "agm_priv.h"
+#include <agm/agm_priv.h>
+#ifdef DEVICE_USES_ALSALIB
+#include <alsa/asoundlib.h>
+#endif
 
 #define MAX_DEV_NAME_LEN     80
 
@@ -121,8 +124,11 @@ struct device_obj {
     uint32_t card_id;
     hw_ep_info_t hw_ep_info;
     uint32_t pcm_id;
+#ifdef DEVICE_USES_ALSALIB
+    snd_pcm_t *pcm;
+#else
     struct pcm *pcm;
-    uint32_t pcm_flags;
+#endif
     struct agm_media_config media_config;
     struct agm_meta_data_gsl metadata;
     struct refcount refcnt;
