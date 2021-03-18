@@ -1,4 +1,4 @@
-ifeq ($(call is-board-platform-in-list, msmnile kona lahaina taro bengal),true)
+ifeq ($(call is-board-platform-in-list, msmnile kona lahaina taro bengal monaco),true)
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
