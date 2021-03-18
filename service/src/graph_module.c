@@ -829,8 +829,7 @@ int configure_output_media_format(struct module_info *mod,
         }
     }
 
-    if (sess_obj->stream_config.dir == RX &&
-           (sess_obj->stream_config.sess_mode != AGM_SESSION_NON_TUNNEL))
+    if (sess_obj->stream_config.dir == RX)
         pcm_output_fmt_payload->interleaved = PCM_DEINTERLEAVED_UNPACKED;
     else
         pcm_output_fmt_payload->interleaved = PCM_INTERLEAVED;
