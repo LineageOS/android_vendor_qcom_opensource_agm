@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -205,7 +205,7 @@ static void fill_payload(char *filename, int size, void *payload)
     fclose(fp);
 }
 
-static void* merge_payload(int num, int *sum,  ...)
+static void* merge_payload(uint32_t miid, int num, int *sum,  ...)
 {
     va_list valist;
     int i = 0, total_size = 0, offset = 0;
@@ -213,6 +213,7 @@ static void* merge_payload(int num, int *sum,  ...)
     char **temp = calloc(num, sizeof(char *));
     void *payload = NULL;
     uint8_t *buf;
+    uint32_t *module_instance_id = NULL;
 
     va_start(valist, num);
     for (i = 0; i < num; i++) {
@@ -229,6 +230,9 @@ static void* merge_payload(int num, int *sum,  ...)
     buf = payload;
     for (i = 0; i < num; i++) {
         fill_payload(temp[i], size[i], buf);
+        // Update SVA miid
+        module_instance_id = (uint32_t *)buf;
+        *module_instance_id = miid;
         buf += size[i];
     }
     *sum = total_size;
@@ -299,8 +303,8 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
         goto err_close_mixer;
     }
 
-    param_buf = merge_payload(5, &param_size, "/vendor/etc/sound_model", "/vendor/etc/wakeup_config", "/vendor/etc/event_config",
-                                 "/vendor/etc/buffer_config", "/vendor/etc/stream_setup_duration");
+    param_buf = merge_payload(miid, 3, &param_size, "/vendor/etc/sound_model",
+        "/vendor/etc/wakeup_config", "/vendor/etc/buffer_config");
 
     if (agm_mixer_set_param(mixer, device, STREAM_PCM, param_buf, param_size)) {
         printf("setparam failed\n");
@@ -335,21 +339,9 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
     }
 
 #if 0
-    /* Register event config */
-    if (agm_mixer_set_param_with_file(mixer, device, STREAM_PCM, "/etc/event_config")) {
-        printf("event config registration failed\n");
-        goto err_close_pcm;
-    }
-
     /* Register buffer config */
     if (agm_mixer_set_param_with_file(mixer, device, STREAM_PCM, "/etc/buffer_config")) {
         printf("buffer config registration failed\n");
-        goto err_close_pcm;
-    }
-
-    /* Configure stream setup duration */
-    if (agm_mixer_set_param_with_file(mixer, device, STREAM_PCM, "/etc/stream_setup_duration")) {
-        printf("stream setup duration configuration failed\n");
         goto err_close_pcm;
     }
 #endif
