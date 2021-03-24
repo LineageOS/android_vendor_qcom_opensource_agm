@@ -23,7 +23,13 @@ LOCAL_CFLAGS        += -DACDB_DELTA_FILE_PATH="/data/vendor/audio/acdbdata/delta
 
 LOCAL_C_INCLUDES    := $(LOCAL_PATH)/inc/public
 LOCAL_C_INCLUDES    += $(LOCAL_PATH)/inc/private
+
+#if android version is R, use qtitinyalsa headers otherwise use upstream ones
+#This assumes we would be using AR code only for Android R and subsequent versions.
+ifneq ($(filter 11 R, $(PLATFORM_VERSION)),)
 LOCAL_C_INCLUDES    += $(TOP)/vendor/qcom/opensource/tinyalsa/include
+endif
+
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/inc/public
 
 LOCAL_SRC_FILES  := \
@@ -46,8 +52,16 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     liblx-osal \
     libaudioroute \
-    libats \
-    libqti-tinyalsa
+    libats
+
+#if android version is R, use qtitinyalsa lib otherwise use upstream ones
+#This assumes we would be using AR code only for Android R and subsequent versions.
+ifneq ($(filter R 11,$(PLATFORM_VERSION)),)
+LOCAL_SHARED_LIBRARIES += libqti-tinyalsa
+else
+LOCAL_SHARED_LIBRARIES += libtinyalsa
+endif
+
 
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DYNAMIC_LOG)), true)
 LOCAL_CFLAGS           += -DDYNAMIC_LOG_ENABLED
