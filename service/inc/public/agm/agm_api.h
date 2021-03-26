@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019, 2021 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -384,6 +384,14 @@ struct agm_cal_config {
     struct agm_key_value kv[]; /**< tag key vector*/
 };
 
+struct agm_acdb_param {
+    bool isTKV;
+    uint32_t tag;
+    uint32_t num_kvs;          /**< number of ckv or tkv*/
+    uint32_t blob_size;        /**< kv size + payload size*/
+    uint8_t blob[];            /**< kv + payload */
+};
+
 /**
  * Event types
  */
@@ -412,7 +420,7 @@ struct agm_event_reg_cfg {
 
     /**
      * Size of the event config data based upon the module_instance_id/event_id
-     * combination.	@values > 0 bytes, in multiples of 4 bytes atleast
+     * combination.    @values > 0 bytes, in multiples of 4 bytes atleast
      */
     uint32_t event_config_payload_size;
 
@@ -664,7 +672,7 @@ int agm_session_set_params(uint32_t session_id,
  *       api will return failure.
  */
 int agm_session_get_params(uint32_t session_id,
-	void* payload, size_t size);
+    void* payload, size_t size);
 
 /**
  * \brief Set parameters for modules in b/w stream and audio interface
@@ -682,6 +690,22 @@ int agm_set_params_with_tag(uint32_t session_id, uint32_t aif_id,
                               struct agm_tag_config *tag_config);
 
 /**
+ * \brief Set parameters for modules in b/w stream and audio interface
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[in] aif_id - valid audio interface id
+ * \param[in] payload - payload with tag and calibration date
+ * \param[in] size - size of payload
+ *
+ *  \return 0 on success, error code on failure.
+ *       If the session is already opened and the new
+ *       meta data is set, api will return failure.
+ */
+
+int agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id,
+                                void *payload, size_t size);
+
+/**
   * \brief Open the session with specified session id.
   *
   * \param[in] session_id - Valid audio session id
@@ -691,6 +715,7 @@ int agm_set_params_with_tag(uint32_t session_id, uint32_t aif_id,
   *
   * \return 0 on success, error code otherwise
   */
+
 int agm_session_register_cb(uint32_t session_id, agm_event_cb cb,
                     enum event_type evt_type, void *client_data);
 
@@ -817,7 +842,7 @@ int agm_session_resume(uint64_t hndl);
   * \brief Read data buffers.from session
   *
   * \param[in] handle: session handle returned from
-  *  	 agm_session_open
+  *       agm_session_open
   * \param[in,out] buff: buffer where data will be copied to
   *  \param[in,out] count: number of bytes requested to fill into
   *      the buffer. AGM will update the count with actual
@@ -831,7 +856,7 @@ int agm_session_read(uint64_t handle, void *buff, size_t *count);
  * \brief Write data buffers.to session
  *
  * \param[in] handle: session handle returned from
- *  	 agm_session_open
+ *       agm_session_open
  * \param[in] buff: buffer where data will be copied from
  * \param[in] count: actual number of bytes in the buffer. AGM
  *       will update the count with number of bytes
@@ -845,7 +870,7 @@ int agm_session_write(uint64_t hndl, void *buff, size_t *count);
   * \brief Get count of Buffer processed by h/w
   *
   * \param[in] handle: session handle returned from
-  *  	 agm_session_open
+  *       agm_session_open
   * \param[in] dir: indicates whether to return the write or
   *       read buffer count
   *
@@ -919,7 +944,7 @@ int agm_get_session_time(uint64_t handle, uint64_t *timestamp);
   *
   * \param[in] session_id - Valid audio session id
   * \param[out] timestamp - updated with valid timestamp if the
-  * 	  operation is successful.
+  *       operation is successful.
   *
   * \return 0 on success, error code otherwise
   */

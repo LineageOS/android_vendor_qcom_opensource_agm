@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019, 2021 The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -88,6 +88,9 @@ class AgmService : public BnAgmService
         virtual int ipc_agm_set_params_with_tag(uint32_t session_id,
                                      uint32_t aif_id,
                                      struct agm_tag_config *tag_config);
+        virtual int ipc_agm_set_params_with_tag_to_acdb(uint32_t session_id,
+                                     uint32_t aif_id, void *payload,
+                                     size_t size);
         virtual int ipc_agm_session_register_for_events(uint32_t session_id,
                                      struct agm_event_reg_cfg *evt_reg_cfg);
         virtual int ipc_agm_session_register_cb(uint32_t session_id,

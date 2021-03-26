@@ -394,6 +394,31 @@ done:
     return ret;
 }
 
+int agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id,
+                                       void *payload, size_t size)
+{
+    struct session_obj *obj = NULL;
+    int ret = 0;
+
+    ret = session_obj_get(session_id, &obj);
+    if (ret) {
+        AGM_LOGE("Error:%d retrieving session obj with session id=%d\n",
+                                                 ret, session_id);
+        goto done;
+    }
+
+    ret = session_obj_rw_acdb_params_with_tag(obj, aif_id,
+                (struct agm_acdb_param *)payload, true);
+    if (ret) {
+        AGM_LOGE("Error:%d setting parameters for session obj with \
+                           session id=%d\n", ret, session_id);
+        goto done;
+    }
+
+done:
+    return ret;
+}
+
 int agm_session_register_cb(uint32_t session_id, agm_event_cb cb,
                             enum event_type evt_type, void *client_data)
 {

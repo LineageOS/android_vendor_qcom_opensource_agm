@@ -142,6 +142,9 @@ int session_obj_get_sess_params(struct session_obj *sess_obj,
 int session_obj_set_sess_aif_params_with_tag(struct session_obj *sess_obj,
                              uint32_t aif_id,
                              struct agm_tag_config *tag_config);
+int session_obj_rw_acdb_params_with_tag(struct session_obj *sess_obj,
+                             uint32_t aif_id, struct agm_acdb_param *acdb_param,
+                             bool is_param_set);
 int session_obj_set_sess_aif_cal(struct session_obj *sess_obj,
                              uint32_t aif_id,
                              struct agm_cal_config *cal_config);

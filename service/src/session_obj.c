@@ -1404,6 +1404,79 @@ done:
     return ret;
 }
 
+int session_obj_rw_acdb_params_with_tag(
+    struct session_obj *sess_obj, uint32_t aif_id,
+    struct agm_acdb_param *acdb_param, bool is_set)
+{
+    int ret = 0;
+    struct aif *aif_obj = NULL;
+    struct agm_meta_data_gsl *merged_metadata = NULL;
+    struct agm_key_vector_gsl tckv;
+    uint8_t *ptr = NULL;
+    uint8_t enable_flag = 1;
+    uint32_t actual_size = 0;
+
+    pthread_mutex_lock(&sess_obj->lock);
+    ret = graph_enable_acdb_persistence(enable_flag);
+    if (ret) {
+        AGM_LOGE("Error: graph_enable_acdb_persistence failed. ret = %d\n", ret);
+        goto error;
+    }
+
+    if (aif_id < UINT_MAX) {
+        ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
+        if (ret) {
+            AGM_LOGE("Error obtaining aif object with sess_id:%d,  aif id:%d\n",
+                sess_obj->sess_id, aif_id);
+            goto error;
+        }
+
+        merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
+                          &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
+        if (!merged_metadata) {
+            AGM_LOGE("Error merging metadata session_id:%d aif_id:%d\n",
+                sess_obj->sess_id, aif_obj->aif_id);
+            ret = -ENOMEM;
+            goto error;
+        }
+    }
+
+    tckv.num_kvs= acdb_param->num_kvs;
+    tckv.kv = (struct agm_key_value *)calloc(1,
+                    tckv.num_kvs * sizeof(struct agm_key_value));
+    if (!tckv.kv) {
+        ret = -ENOMEM;
+        goto free_metadata;
+    }
+
+    memcpy((uint8_t *)tckv.kv, acdb_param->blob,
+                tckv.num_kvs*sizeof(struct agm_key_value));
+    ptr = acdb_param->blob + tckv.num_kvs * sizeof(struct agm_key_value);
+    actual_size = acdb_param->blob_size -
+                        acdb_param->num_kvs * sizeof(struct agm_key_value);
+    if (acdb_param->isTKV) {
+        AGM_LOGD("%s: TKV param to ACDB.\n", __func__);
+        ret = graph_set_tag_data_to_acdb(&merged_metadata->gkv,
+                                acdb_param->tag, &tckv,
+                                ptr, actual_size);
+    } else {
+        AGM_LOGD("%s: CKV param to ACDB.\n", __func__);
+        ret = graph_set_cal_data_to_acdb(&merged_metadata->gkv,
+                                    &tckv, ptr, actual_size);
+    }
+    free(tckv.kv);
+
+free_metadata:
+    if (merged_metadata) {
+        metadata_free(merged_metadata);
+        free(merged_metadata);
+    }
+error:
+    pthread_mutex_unlock(&sess_obj->lock);
+
+    return ret;
+}
+
 int session_obj_set_sess_aif_cal(struct session_obj *sess_obj,
     uint32_t aif_id,
     struct agm_cal_config *cal_config)
