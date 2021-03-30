@@ -628,7 +628,6 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         AGM_LOGE("Invalid mixer control: %s\n", mixer_str);
-        free(mixer_str);
         ret = -ENOENT;
         goto err_get_ctl;
     }
