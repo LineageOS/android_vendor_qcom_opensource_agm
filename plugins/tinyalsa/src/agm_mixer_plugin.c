@@ -771,9 +771,14 @@ static int amp_be_metadata_put(struct mixer_plugin *plugin __unused,
     uint32_t tlv_size;
     int ret;
 
+    AGM_LOGD("%s: enter\n", __func__);
     payload = &tlv->tlv[0];
     tlv_size = tlv->length;
-    AGM_LOGD("%s: enter\n", __func__);
+    if (tlv_size == 0) {
+        AGM_LOGE("%s: invalid array size %d\n", __func__, tlv_size);
+        return -EINVAL;
+    }
+
     ret = agm_aif_set_metadata(audio_intf_id, tlv_size, payload);
 
     if (ret == -EALREADY)
@@ -936,6 +941,12 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
 
     payload = &tlv->tlv[0];
     tlv_size = tlv->length;
+    if (tlv_size == 0) {
+        AGM_LOGE("%s: invalid array size %d\n", __func__, tlv_size);
+        ret = -EINVAL;
+        return ret;
+    }
+
     if (pcm_control == 0) {
         ret = agm_session_set_metadata(pcm_idx, tlv_size, payload);
         if (ret == -EALREADY)

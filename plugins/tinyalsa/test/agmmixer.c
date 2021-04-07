@@ -229,6 +229,10 @@ int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
 
     ctl_len = strlen(intf_name) + 1 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
+    if (!mixer_str) {
+        printf("mixer_str calloc failed\n");
+        return -ENOMEM;
+    }
     snprintf(mixer_str, ctl_len, "%s %s", intf_name, control);
 
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
@@ -261,6 +265,10 @@ int connect_play_pcm_to_cap_pcm(struct mixer *mixer, unsigned int p_device, unsi
 
     ctl_len = strlen(pcm) + 4 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
+    if (!mixer_str) {
+        printf("mixer_str calloc failed\n");
+        return -ENOMEM;
+    }
     snprintf(mixer_str, ctl_len, "%s%d %s", pcm, c_device, control);
 
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
@@ -275,6 +283,11 @@ int connect_play_pcm_to_cap_pcm(struct mixer *mixer, unsigned int p_device, unsi
     } else {
         val_len = strlen(pcm) + 4;
         val = calloc(1, val_len);
+        if (!val) {
+            printf("val calloc failed\n");
+            free(mixer_str);
+            return -ENOMEM;
+        }
         snprintf(val, val_len, "%s%d", pcm, p_device);
     }
 
@@ -305,6 +318,10 @@ int connect_agm_audio_intf_to_stream(struct mixer *mixer, unsigned int device, c
 
     ctl_len = strlen(stream) + 4 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
+    if (!mixer_str) {
+        printf("mixer_str calloc failed\n");
+        return -ENOMEM;
+    }
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
@@ -335,6 +352,10 @@ int agm_mixer_set_ecref_path(struct mixer *mixer, unsigned int device, enum stre
 
     ctl_len = strlen(stream) + 4 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
+    if (!mixer_str) {
+        printf("mixer_str calloc failed\n");
+        return -ENOMEM;
+    }
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
@@ -454,6 +475,10 @@ int set_agm_stream_metadata_type(struct mixer *mixer, int device, char *val, enu
 
     ctl_len = strlen(stream) + 4 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
+    if (!mixer_str) {
+        printf("mixer_str calloc failed\n");
+        return -ENOMEM;
+    }
     snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
 
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
@@ -934,6 +959,11 @@ int agm_mixer_get_event_param(struct mixer *mixer, int device, enum stream_type 
         payloadSize = payloadSize + (8 - payloadSize % 8);
 
     payload = (uint8_t*)malloc((size_t)payloadSize);
+    if (!payload) {
+        printf("malloc failed\n");
+        free(mixer_str);
+        return -ENOMEM;
+    }
     header = (struct apm_module_param_data_t*)payload;
     header->module_instance_id = miid;
     header->param_id = PARAM_ID_DETECTION_ENGINE_GENERIC_EVENT_CFG;

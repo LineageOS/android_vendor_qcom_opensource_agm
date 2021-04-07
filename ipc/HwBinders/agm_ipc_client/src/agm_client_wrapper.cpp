@@ -779,11 +779,16 @@ int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, uint3
     int32_t ret = -EINVAL;
 
     if (!agm_server_died) {
-        ALOGV("%s:%d hndl %p",__func__, __LINE__, handle );
+        ALOGV("%s:%d hndl %p",__func__, __LINE__, handle);
         android::sp<IAGM> agm_client = get_agm_server();
         hidl_vec<AgmBuff> buf_hidl;
         native_handle_t *allocHidlHandle = nullptr;
         allocHidlHandle = native_handle_create(1, 1);
+        if (!allocHidlHandle) {
+            ALOGE("%s native_handle_create fails", __func__);
+            ret = -ENOMEM;
+            goto done;
+        }
         allocHidlHandle->data[0] = buf->alloc_info.alloc_handle;
         allocHidlHandle->data[1] = buf->alloc_info.alloc_handle;
         buf_hidl.resize(sizeof(struct agm_buff));
@@ -816,19 +821,27 @@ int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, uint3
                                                  *consumed_size = (size_t) cnt;
                                            });
     }
+done:
     return ret;
 }
 
 int agm_session_read_with_metadata(uint64_t handle, struct agm_buff  *buf, uint32_t *captured_size)
 {
     int ret = -EINVAL;
-    ALOGV("%s:%d size %d",__func__,__LINE__, buf->size);
+    ALOGV("%s:%d size %d", __func__, __LINE__, buf->size);
+
     if (handle == NULL)
-       goto done;
+        goto done;
+
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         native_handle_t *allocHidlHandle = nullptr;
         allocHidlHandle = native_handle_create(1, 1);
+        if (!allocHidlHandle) {
+            ALOGE("%s native_handle_create fails", __func__);
+            ret = -ENOMEM;
+            goto done;
+        }
         allocHidlHandle->data[0] = buf->alloc_info.alloc_handle;
         allocHidlHandle->data[1] = buf->alloc_info.alloc_handle;
 

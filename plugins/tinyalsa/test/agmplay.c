@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
 **
 ** Copyright 2011, The Android Open Source Project
 **
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
     struct chunk_header chunk_header;
     struct chunk_fmt chunk_fmt;
     unsigned int card = 100, device = 100;
-    char *intf_name;
+    char *intf_name = NULL;
     struct device_config config;
     char *filename;
     int more_chunks = 1, ret = 0;
@@ -136,13 +136,11 @@ int main(int argc, char **argv)
             argv++;
             if (*argv)
                 device = atoi(*argv);
-        }
-        if (strcmp(*argv, "-D") == 0) {
+        } else if (strcmp(*argv, "-D") == 0) {
             argv++;
             if (*argv)
                 card = atoi(*argv);
-        }
-        if (strcmp(*argv, "-i") == 0) {
+        } else if (strcmp(*argv, "-i") == 0) {
             argv++;
             if (*argv)
                 intf_name = *argv;
