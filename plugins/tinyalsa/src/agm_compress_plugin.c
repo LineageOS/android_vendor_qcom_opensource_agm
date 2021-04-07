@@ -403,19 +403,19 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
         break;
 #endif
     case SND_AUDIOCODEC_WMA:
-        if ((params->codec.profile == SND_AUDIOPROFILE_WMA9_PRO) ||
-            (params->codec.profile == SND_AUDIOPROFILE_WMA9_LOSSLESS)) {
-            media_cfg->format = AGM_FORMAT_WMAPRO;
-            sess_cfg->codec.wmapro_dec.fmt_tag = params->codec.format;
-            sess_cfg->codec.wmapro_dec.num_channels = params->codec.ch_in;
-            sess_cfg->codec.wmapro_dec.sample_rate = media_cfg->rate;
-        } else {
-            media_cfg->format = AGM_FORMAT_WMASTD;
-            sess_cfg->codec.wma_dec.fmt_tag = params->codec.format;
-            sess_cfg->codec.wma_dec.num_channels = params->codec.ch_in;
-            sess_cfg->codec.wma_dec.sample_rate = media_cfg->rate;
-        }
+        media_cfg->format = AGM_FORMAT_WMASTD;
+        sess_cfg->codec.wma_dec.fmt_tag = params->codec.format;
+        sess_cfg->codec.wma_dec.num_channels = params->codec.ch_in;
+        sess_cfg->codec.wma_dec.sample_rate = media_cfg->rate;
         break;
+#ifdef SND_AUDIOCODEC_WMA_PRO
+    case SND_AUDIOCODEC_WMA_PRO:
+        media_cfg->format = AGM_FORMAT_WMAPRO;
+        sess_cfg->codec.wmapro_dec.fmt_tag = params->codec.format;
+        sess_cfg->codec.wmapro_dec.num_channels = params->codec.ch_in;
+        sess_cfg->codec.wmapro_dec.sample_rate = media_cfg->rate;
+        break;
+#endif
     case SND_AUDIOCODEC_VORBIS:
         media_cfg->format = AGM_FORMAT_VORBIS;
         break;
@@ -963,22 +963,22 @@ void agm_session_update_codec_options(struct agm_session_config *sess_cfg,
         break;
 #endif
     case SND_AUDIOCODEC_WMA:
-        if ((params->codec.profile == SND_AUDIOPROFILE_WMA9_PRO) ||
-            (params->codec.profile == SND_AUDIOPROFILE_WMA9_LOSSLESS)) {
-            sess_cfg->codec.wmapro_dec.avg_bytes_per_sec = copt->generic.reserved[0];
-            sess_cfg->codec.wmapro_dec.blk_align = copt->generic.reserved[1];
-            sess_cfg->codec.wmapro_dec.bits_per_sample = copt->generic.reserved[2];
-            sess_cfg->codec.wmapro_dec.channel_mask = copt->generic.reserved[3];
-            sess_cfg->codec.wmapro_dec.enc_options = copt->generic.reserved[4];
-            sess_cfg->codec.wmapro_dec.advanced_enc_option = copt->generic.reserved[5];
-        } else {
-            sess_cfg->codec.wma_dec.avg_bytes_per_sec = copt->generic.reserved[0];
-            sess_cfg->codec.wma_dec.blk_align = copt->generic.reserved[1];
-            sess_cfg->codec.wma_dec.bits_per_sample = copt->generic.reserved[2];
-            sess_cfg->codec.wma_dec.channel_mask = copt->generic.reserved[3];
-            sess_cfg->codec.wma_dec.enc_options = copt->generic.reserved[4];
-        }
+        sess_cfg->codec.wma_dec.avg_bytes_per_sec = copt->generic.reserved[0];
+        sess_cfg->codec.wma_dec.blk_align = copt->generic.reserved[1];
+        sess_cfg->codec.wma_dec.bits_per_sample = copt->generic.reserved[2];
+        sess_cfg->codec.wma_dec.channel_mask = copt->generic.reserved[3];
+        sess_cfg->codec.wma_dec.enc_options = copt->generic.reserved[4];
         break;
+#ifdef SND_AUDIOCODEC_WMA_PRO
+    case SND_AUDIOCODEC_WMA_PRO:
+        sess_cfg->codec.wmapro_dec.avg_bytes_per_sec = copt->generic.reserved[0];
+        sess_cfg->codec.wmapro_dec.blk_align = copt->generic.reserved[1];
+        sess_cfg->codec.wmapro_dec.bits_per_sample = copt->generic.reserved[2];
+        sess_cfg->codec.wmapro_dec.channel_mask = copt->generic.reserved[3];
+        sess_cfg->codec.wmapro_dec.enc_options = copt->generic.reserved[4];
+        sess_cfg->codec.wmapro_dec.advanced_enc_option = copt->generic.reserved[5];
+        break;
+#endif
     default:
         break;
     }
