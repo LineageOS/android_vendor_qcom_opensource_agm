@@ -78,6 +78,7 @@ struct agm_compress_priv {
     bool start_drain;
     bool eos;
     bool early_eos;
+    bool eos_received;
 
     enum agm_gapless_silence_type type;   /* Silence Type (Initial/Trailing) */
     uint32_t silence;  /* Samples to remove */
@@ -164,6 +165,9 @@ void agm_compress_event_cb(uint32_t session_id __unused,
         if (priv->eos) {
             pthread_cond_signal(&priv->eos_cond);
             priv->eos = false;
+        } else {
+            AGM_LOGD("%s: EOS received before drain called\n", __func__);
+            priv->eos_received = true;
         }
         pthread_mutex_unlock(&priv->eos_lock);
     } else if (event_params->event_id == AGM_EVENT_EARLY_EOS) {
@@ -197,6 +201,9 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff,
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
         return ret;
+
+    if (priv->eos_received)
+        priv->eos_received = false;
 
     if (count > priv->total_buf_size) {
         AGM_LOGE("%s: Size %zu is greater than total buf size %llu\n",
@@ -613,16 +620,19 @@ static int agm_compress_drain(struct compress_plugin *plugin)
      */
     /* TODO: how to handle wake up in SSR scenario */
     pthread_mutex_lock(&priv->eos_lock);
-    priv->eos = true;
-    ret = agm_session_eos(handle);
-    if (ret) {
-        AGM_LOGE("%s: EOS fail\n", __func__);
-        errno = ret;
-        pthread_mutex_unlock(&priv->eos_lock);
-        return ret;
+    if (!priv->eos_received) {
+        priv->eos = true;
+        ret = agm_session_eos(handle);
+        if (ret) {
+            AGM_LOGE("%s: EOS fail\n", __func__);
+            errno = ret;
+            pthread_mutex_unlock(&priv->eos_lock);
+            return ret;
+        }
+        pthread_cond_wait(&priv->eos_cond, &priv->eos_lock);
+        AGM_LOGD("%s: out of eos wait\n", __func__);
     }
-    pthread_cond_wait(&priv->eos_cond, &priv->eos_lock);
-    AGM_LOGD("%s: out of eos wait\n", __func__);
+    priv->eos_received = false;
     pthread_mutex_unlock(&priv->eos_lock);
 
     return 0;
