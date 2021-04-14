@@ -1,4 +1,3 @@
-ifeq ($(call is-board-platform-in-list, sdm845),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
@@ -42,4 +41,3 @@ LOCAL_HEADER_LIBRARIES += libaudiologutils_headers
 endif
 
 include $(BUILD_EXECUTABLE)
-endif
