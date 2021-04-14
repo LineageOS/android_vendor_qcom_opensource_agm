@@ -1,5 +1,3 @@
-ifeq ($(call is-board-platform-in-list, sdm845 msmnile kona lahaina taro bengal monaco),true)
-
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
@@ -153,4 +151,3 @@ LOCAL_SHARED_LIBRARIES += \
     libagmmixer
 
 include $(BUILD_EXECUTABLE)
-endif

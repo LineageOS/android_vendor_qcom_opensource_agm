@@ -1,5 +1,3 @@
-ifeq ($(call is-board-platform-in-list, sdm845 msmnile kona lahaina taro bengal monaco),true)
-
 LOCAL_PATH := $(call my-dir)
 # Build libagm_headers
 include $(CLEAR_VARS)
@@ -73,4 +71,3 @@ endif
 
 include $(BUILD_SHARED_LIBRARY)
 
-endif # is-board-platform-in-list

@@ -1,5 +1,3 @@
-ifeq ($(call is-board-platform-in-list, msmnile kona lahaina taro bengal monaco),true)
-
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
@@ -22,5 +20,3 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils
 
 include $(BUILD_SHARED_LIBRARY)
-
-endif # is-board-platform-in-list
