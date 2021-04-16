@@ -296,7 +296,7 @@ int graph_init()
     snprintf(filename, MAX_PATH, "/proc/asound/card%d/id", card);
     if (access(filename, F_OK) != -1) {
         file = fopen(filename, "r");
-        if (file < 0) {
+        if (!file) {
             AGM_LOGE("open %s: failed\n", filename);
             ret = -EIO;
             goto err;
@@ -428,7 +428,7 @@ static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
     // start with TAGGED_MOD_SIZE_BYTES
     *size = TAGGED_MOD_SIZE_BYTES;
     *payload = calloc(1, *size);
-    if (!payload) {
+    if (NULL == *payload) {
         AGM_LOGE("Not enough memory for payload\n");
         ret = -ENOMEM;
         goto error;
@@ -552,7 +552,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     /*Get all the tags info of the graph and store it tag_module_info structure*/
     ret = get_tags_with_module_info(&meta_data_kv->gkv,
                                     (void**) &tag_module_info, &tag_module_info_size);
-    if (ret != 0)
+    if (ret != 0 || !tag_module_info)
         goto free_graph_obj;
 
     gsl_tag_entry = (struct gsl_tag_module_info_entry *)(tag_module_info->tag_module_entry);

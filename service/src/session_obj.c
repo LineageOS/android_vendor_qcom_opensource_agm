@@ -1634,7 +1634,7 @@ int session_obj_get_tag_with_module_info(struct session_obj *sess_obj,
         merged_metadata = metadata_merge(1, &sess_obj->sess_meta);
         if (!merged_metadata) {
             AGM_LOGE("Error merging metadata session_id:%d aif_id:%d\n",
-                sess_obj->sess_id, aif_obj->aif_id);
+                     sess_obj->sess_id, aif_id);
             ret = -ENOMEM;
             goto done;
         }
@@ -1643,8 +1643,8 @@ int session_obj_get_tag_with_module_info(struct session_obj *sess_obj,
     ret = graph_get_tags_with_module_info(&merged_metadata->gkv, payload, size);
     if (ret) {
         AGM_LOGE("Error getting tag with module info from graph for \
-                  session_id:%d aif_id:%d\n",
-                  sess_obj->sess_id, aif_obj->aif_id);
+                 session_id:%d aif_id:%d\n",
+                 sess_obj->sess_id, aif_id);
         goto done;
     }
 

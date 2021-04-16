@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -47,6 +47,10 @@ Return<int32_t> AGMCallback::event_callback(uint32_t session_id,
     event_params_l = (struct agm_event_cb_params*) calloc(1,
                      (sizeof(struct agm_event_cb_params) +
                      event_params.data()->event_payload_size));
+    if (!event_params_l) {
+        ALOGE("Not enough memory for event_params_l\n");
+        return -ENOMEM;
+    }
 
     event_params_l->event_payload_size = event_params.data()->event_payload_size;
     event_params_l->event_id = event_params.data()->event_id;
@@ -79,7 +83,10 @@ Return<int32_t> AGMCallback::event_callback_rw_done(uint32_t session_id,
     event_params_l = (struct agm_event_cb_params*) calloc(1,
                      (sizeof(struct agm_event_cb_params) +
                       sizeof(struct agm_event_read_write_done_payload)));
-
+    if (!event_params_l) {
+        ALOGE("Not enough memory for event_params_l\n");
+        return -ENOMEM;
+    }
 
     event_params_l->event_payload_size = sizeof(rw_payload);
     event_params_l->event_id = event_params.data()->event_id;
@@ -101,6 +108,11 @@ Return<int32_t> AGMCallback::event_callback_rw_done(uint32_t session_id,
     if (rw_payload_hidl->buff.metadata_size > 0) {
         buffer->metadata_size = rw_payload_hidl->buff.metadata_size;
         buffer->metadata = (uint8_t *)calloc(1, rw_payload_hidl->buff.metadata_size);
+        if (!buffer->metadata) {
+            ALOGE("Not enough memory for buffer->metadata\n");
+            free(event_params_l);
+            return -ENOMEM;
+        }
         memcpy(buffer->metadata, rw_payload_hidl->buff.metadata.data(),
                buffer->metadata_size);
     }
