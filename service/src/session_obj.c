@@ -868,7 +868,6 @@ static int session_prepare(struct session_obj *sess_obj)
 {
     int ret = 0;
     struct aif *aif_obj = NULL;
-    enum direction dir = sess_obj->stream_config.dir;
     enum agm_session_mode sess_mode = sess_obj->stream_config.sess_mode;
     struct listnode *node = NULL;
     uint32_t count = 0;
@@ -894,33 +893,7 @@ static int session_prepare(struct session_obj *sess_obj)
                 goto done;
         }
 
-        if ((dir == TX) && (sess_obj->state != SESSION_STARTED)) {
-            ret = graph_prepare(sess_obj->graph);
-            if (ret) {
-                AGM_LOGE("Error:%d preparing graph\n", ret);
-                goto done;
-            }
-        }
-
-        list_for_each(node, &sess_obj->aif_pool) {
-            aif_obj = node_to_item(node, struct aif, node);
-            if (!aif_obj) {
-                AGM_LOGE("Error:%d could not find aif node\n", ret);
-                goto done;
-            }
-            //TODO 1: in device switch cases, only the aif not prepared
-            //should be prepared.
-            if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_STOPPED) {
-                ret = device_prepare(aif_obj->dev_obj);
-                if (ret) {
-                    AGM_LOGE("Error:%d preparing device\n", ret);
-                    goto done;
-                }
-                aif_obj->state = AIF_PREPARED;
-            }
-        }
-
-        if ((dir == RX) && (sess_obj->state != SESSION_STARTED)) {
+        if ((sess_obj->state != SESSION_STARTED)) {
             ret = graph_prepare(sess_obj->graph);
             if (ret) {
                 AGM_LOGE("Error:%d preparing graph\n", ret);
@@ -1008,12 +981,12 @@ static int session_start(struct session_obj *sess_obj)
                     goto done;
                 }
             }
+        }
 
-            ret = graph_start(sess_obj->graph);
-            if (ret) {
-                AGM_LOGE("Error:%d starting graph\n", ret);
-                goto done;
-            }
+        ret = graph_start(sess_obj->graph);
+        if (ret) {
+            AGM_LOGE("Error:%d starting graph\n", ret);
+            goto done;
         }
 
         list_for_each(node, &sess_obj->aif_pool) {
@@ -1021,6 +994,15 @@ static int session_start(struct session_obj *sess_obj)
             if (!aif_obj) {
                 AGM_LOGE("Error:%d could not find aif node\n", ret);
                 goto unwind;
+            }
+
+            if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_STOPPED) {
+                ret = device_prepare(aif_obj->dev_obj);
+                if (ret) {
+                    AGM_LOGE("Error:%d preparing device\n", ret);
+                    goto unwind;
+                }
+                aif_obj->state = AIF_PREPARED;
             }
 
             if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_PREPARED ||
@@ -1035,13 +1017,6 @@ static int session_start(struct session_obj *sess_obj)
             }
         }
 
-        if (dir == RX) {
-            ret = graph_start(sess_obj->graph);
-            if (ret) {
-                AGM_LOGE("Error:%d starting graph\n", ret);
-                goto unwind;
-            }
-        }
 
     } else {
         ret = graph_start(sess_obj->graph);
@@ -1056,8 +1031,7 @@ static int session_start(struct session_obj *sess_obj)
 
 unwind:
 
-    if (dir == TX)
-        graph_stop(sess_obj->graph, NULL);
+    graph_stop(sess_obj->graph, NULL);
 
     if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         list_for_each(node, &sess_obj->aif_pool) {
