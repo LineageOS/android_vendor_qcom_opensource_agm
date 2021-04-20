@@ -50,8 +50,7 @@
 
 #define DEVICE_RX 0
 #define DEVICE_TX 1
-#define MAX_PATH 256
-#define BUF_SIZE 1024
+#define FILE_PATH_EXTN_MAX_SIZE 80
 #define ACDB_PATH_MAX_LENGTH 50
 
 #define TAGGED_MOD_SIZE_BYTES 1024
@@ -280,54 +279,23 @@ int graph_init()
     struct gsl_acdb_file delta_file;
     struct gsl_init_data init_data;
     const char *delta_file_path;
-    unsigned int card = 0;
-    FILE *file = NULL;
-    int len = 0;
-    char *snd_card_name = NULL;
-    char filename[MAX_PATH];
+    char file_path_extn[FILE_PATH_EXTN_MAX_SIZE] = {0};
+    bool snd_card_found = false;
 
 #ifndef ACDB_PATH
 #  error "Define -DACDB_PATH="PATH" in the makefile to compile"
 #endif
-    card = device_get_snd_card_id();
-    if (card < 0) {
-        ret = -EINVAL;
-        goto err;
-    }
-
     /*Populate acdbfiles from the shared file path*/
     acdb_files.num_files = 0;
-    snprintf(filename, MAX_PATH, "/proc/asound/card%d/id", card);
-    if (access(filename, F_OK) != -1) {
-        file = fopen(filename, "r");
-        if (!file) {
-            AGM_LOGE("open %s: failed\n", filename);
-            ret = -EIO;
-            goto err;
-        } else {
-            snd_card_name = calloc(1, BUF_SIZE);
-            if (!snd_card_name) {
-                ret = -ENOMEM;
-                goto err;
-            }
-            if (fgets(snd_card_name, BUF_SIZE - 1, file)) {
-                len = strlen(snd_card_name);
-                snd_card_name[len - 1] = '\0';
-                if (strstr(snd_card_name, "qrd")) {
-                    snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, "QRD");
-                } else {
-                    snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, "IDP");
-                    if (strstr(snd_card_name, "slate")) {
-                        strlcat(acdb_path, "/slate", ACDB_PATH_MAX_LENGTH);
-                    }
-                }
-                free(snd_card_name);
-                snd_card_name = NULL;
-                fclose(file);
-                file = NULL;
-            }
-        }
+
+    snd_card_found = get_file_path_extn(file_path_extn);
+    if (snd_card_found) {
+        snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, file_path_extn);
+    } else {
+        ret = -ENOENT;
+        goto err;
     }
+    AGM_LOGI("acdb file path: %s\n", acdb_path);
 
     ret = get_acdb_files_from_directory(acdb_path, &acdb_files);
     if (ret)
@@ -358,10 +326,6 @@ int graph_init()
     }
 
 err:
-    if (file) {
-        fclose(file);
-        file = NULL;
-    }
     return ret;
 }
 

@@ -64,6 +64,11 @@
 #define DEVICE_ENABLE 1
 #define DEVICE_DISABLE 0
 
+#define BUF_SIZE 1024
+#define FILE_PATH_EXTN_MAX_SIZE 80
+#define MAX_RETRY_CNT 20
+#define SND_CARD_DEVICE_FILE "/proc/asound/cards"
+
 /* Global list to store supported devices */
 static struct listnode device_list;
 static struct listnode device_group_data_list;
@@ -1065,4 +1070,149 @@ void device_deinit()
     if (mixer)
         mixer_close(mixer);
 #endif
+}
+
+static void split_snd_card_name(const char * in_snd_card_name, char* file_path_extn)
+{
+    /* Sound card name follows below mentioned convention:
+       <target name>-<form factor>-<variant>-snd-card.
+    */
+    char *snd_card_name = NULL;
+    char *tmp = NULL;
+    char *card_sub_str = NULL;
+
+    snd_card_name = strdup(in_snd_card_name);
+    if (snd_card_name == NULL) {
+        goto done;
+    }
+
+    card_sub_str = strtok_r(snd_card_name, "-", &tmp);
+    if (card_sub_str == NULL) {
+        AGM_LOGE("called on invalid snd card name(%s)", in_snd_card_name);
+        goto done;
+    }
+    strlcat(file_path_extn, card_sub_str, FILE_PATH_EXTN_MAX_SIZE);
+
+    while ((card_sub_str = strtok_r(NULL, "-", &tmp))) {
+        if (strncmp(card_sub_str, "snd", strlen("snd"))) {
+            strlcat(file_path_extn, "_", FILE_PATH_EXTN_MAX_SIZE);
+            strlcat(file_path_extn, card_sub_str, FILE_PATH_EXTN_MAX_SIZE);
+        }
+        else
+            break;
+    }
+
+done:
+    if (snd_card_name)
+        free(snd_card_name);
+}
+
+static bool check_and_update_snd_card(char *in_snd_card_str)
+{
+    char *str = NULL, *tmp = NULL;
+    int card = 0, card_id = -1;
+    bool is_updated = false;
+    char *snd_card_str = strdup(in_snd_card_str);
+
+    if (snd_card_str == NULL) {
+        return is_updated;
+    }
+
+    card = device_get_snd_card_id();
+    if (card < 0) {
+        goto done;
+    }
+
+    str = strtok_r(snd_card_str, "[:] ", &tmp);
+    if (str == NULL) {
+        goto done;
+    }
+    card_id = atoi(str);
+
+    str = strtok_r(NULL, "[:] ", &tmp);
+    if (str == NULL) {
+        goto done;
+    }
+
+    if (card_id == card) {
+        is_updated = true;
+    }
+
+done:
+    if (snd_card_str)
+        free(snd_card_str);
+    return is_updated;
+}
+
+static bool update_snd_card_info(char snd_card_name[])
+{
+    bool is_updated = false;
+    char line1[BUF_SIZE] = {0}, line2[BUF_SIZE] = {0};
+    FILE *file = NULL;
+    int len = 0, retries = MAX_RETRY;
+    char *card_name = NULL, *tmp = NULL;
+
+    if (access(SND_CARD_DEVICE_FILE, F_OK) != -1) {
+        file = fopen(SND_CARD_DEVICE_FILE, "r");
+        if (file == NULL) {
+            AGM_LOGE("open %s: failed\n", SND_CARD_DEVICE_FILE);
+            goto done;
+        }
+    } else {
+        AGM_LOGE("Unable to access %s\n", SND_CARD_DEVICE_FILE);
+        goto done;
+    }
+
+    /* Look for only default codec sound card */
+    /* Ignore USB sound card if detected */
+    /* Example of data read from /proc/asound/cards: */
+    /* card-id [dummyidpsndcard]: dummy-idp-variant-snd- - dummy-idp-variant-snd-card */
+    /*                       dummy-idp-variant-snd-card */
+    do {
+        if (!fgets(line1, BUF_SIZE - 1, file)) {
+            break;
+        }
+        len = strlen(line1);
+        line1[len - 1] = '\0';
+
+        if (!fgets(line2, BUF_SIZE - 1, file)) {
+            break;
+        }
+        len = strlen(line2);
+        line2[len - 1] = '\0';
+
+        if (check_and_update_snd_card(line1)) {
+            card_name = strtok_r(line2, "[:] ", &tmp);
+            if (card_name != NULL) {
+                strlcpy(snd_card_name, card_name, FILE_PATH_EXTN_MAX_SIZE);
+                is_updated = true;
+            }
+        }
+    } while(!is_updated && --retries);
+
+done:
+    if (file)
+        fclose(file);
+    return is_updated;
+}
+
+bool get_file_path_extn(char* file_path_extn)
+{
+    int snd_card_found = false, retry = 0;
+    char snd_card_name[FILE_PATH_EXTN_MAX_SIZE];
+
+    do {
+        snd_card_found = update_snd_card_info(snd_card_name);
+
+        if (snd_card_found) {
+            split_snd_card_name(snd_card_name, file_path_extn);
+            AGM_LOGV("Found Codec sound card");
+            break;
+        } else {
+            AGM_LOGI("Sound card not found, retry %d", retry++);
+            sleep(1);
+        }
+    } while (!snd_card_found && retry <= MAX_RETRY_CNT);
+
+    return snd_card_found;
 }
