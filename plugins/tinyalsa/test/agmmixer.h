@@ -57,6 +57,7 @@ int connect_play_pcm_to_cap_pcm(struct mixer *mixer, unsigned int p_device, unsi
 int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir, int rate, int bitwidth);
 int set_agm_stream_metadata_type(struct mixer *mixer, int device, char *val, enum stream_type stype);
 int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum dir d, enum stream_type stype, char *intf_name);
+int set_agm_capture_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum dir d, enum stream_type stype, unsigned int dev_channels);
 int connect_agm_audio_intf_to_stream(struct mixer *mixer, unsigned int device,
                                   char *intf_name, enum stream_type, bool connect);
 int agm_mixer_register_event(struct mixer *mixer, int device, enum stream_type stype, uint32_t miid, uint8_t is_register);

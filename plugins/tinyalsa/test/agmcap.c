@@ -256,7 +256,7 @@ unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
     }
 
     /* set stream metadata mixer control */
-    if (set_agm_stream_metadata(mixer, device, PCM_RECORD, CAPTURE, STREAM_PCM, NULL)) {
+    if (set_agm_capture_stream_metadata(mixer, device, PCM_RECORD, CAPTURE, STREAM_PCM, dev_config->ch)) {
         printf("Failed to set pcm metadata\n");
         goto err_close_mixer;
     }

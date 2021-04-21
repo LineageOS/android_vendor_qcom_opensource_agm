@@ -500,11 +500,11 @@ void populateChannelMap(uint16_t *pcmChannel, uint8_t numChannel)
     } else if (numChannel == 2) {
         pcmChannel[0] = PCM_CHANNEL_L;
         pcmChannel[1] = PCM_CHANNEL_R;
-    } else if (numChannel == 2) {
+    } else if (numChannel == 3) {
         pcmChannel[0] = PCM_CHANNEL_L;
         pcmChannel[1] = PCM_CHANNEL_R;
         pcmChannel[2] = PCM_CHANNEL_C;
-    } else if (numChannel == 2) {
+    } else if (numChannel == 4) {
         pcmChannel[0] = PCM_CHANNEL_L;
         pcmChannel[1] = PCM_CHANNEL_R;
         pcmChannel[2] = PCM_CHANNEL_LB;
@@ -562,6 +562,93 @@ int configure_mfc(struct mixer *mixer, int device, char *intf_name, int tag,
 
 }
 
+int set_agm_capture_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum dir d,
+     enum stream_type stype, unsigned int dev_channels)
+{
+    char *stream = "PCM";
+    char *control = "metadata";
+    char *mixer_str;
+    struct mixer_ctl *ctl;
+    uint8_t *metadata = NULL;
+    struct agm_key_value *gkv = NULL, *ckv = NULL;
+    struct prop_data *prop = NULL;
+    uint32_t num_gkv = 2, num_ckv = 1, num_props = 0;
+    uint32_t gkv_size, ckv_size, prop_size, index = 0;
+    int ctl_len = 0, ret = 0, offset = 0;
+    char *type = "ZERO";
+
+    gkv_size = num_gkv * sizeof(struct agm_key_value);
+    ckv_size = num_ckv * sizeof(struct agm_key_value);
+    prop_size = sizeof(struct prop_data) + (num_props * sizeof(uint32_t));
+
+    metadata = calloc(1, sizeof(num_gkv) + sizeof(num_ckv) + gkv_size + ckv_size + prop_size);
+    if (!metadata)
+        return -ENOMEM;
+
+    gkv = calloc(num_gkv, sizeof(struct agm_key_value));
+    ckv = calloc(num_ckv, sizeof(struct agm_key_value));
+    prop = calloc(1, prop_size);
+    if (!gkv || !ckv || !prop) {
+        if (ckv)
+            free(ckv);
+        if (gkv)
+            free(gkv);
+        free(metadata);
+        return -ENOMEM;
+    }
+
+    gkv[index].key = STREAMTX;
+    gkv[index].value = val;
+    index++;
+
+    gkv[index].key = INSTANCE;
+    gkv[index].value = INSTANCE_1;
+    index++;
+
+    index = 0;
+    ckv[index].key = VOLUME;
+    ckv[index].value = LEVEL_2;
+
+    prop->prop_id = 0;  //Update prop_id here
+    prop->num_values = num_props;
+
+    memcpy(metadata, &num_gkv, sizeof(num_gkv));
+    offset += sizeof(num_gkv);
+    memcpy(metadata + offset, gkv, gkv_size);
+    offset += gkv_size;
+    memcpy(metadata + offset, &num_ckv, sizeof(num_ckv));
+
+    offset += sizeof(num_ckv);
+    memcpy(metadata + offset, ckv, ckv_size);
+    offset += ckv_size;
+    memcpy(metadata + offset, prop, prop_size);
+
+    ctl_len = strlen(stream) + 4 + strlen(control) + 1;
+    mixer_str = calloc(1, ctl_len);
+    if (!mixer_str) {
+        ret = -ENOMEM;
+        goto done;
+    }
+    snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
+
+    ctl = mixer_get_ctl_by_name(mixer, mixer_str);
+    if (!ctl) {
+        printf("Invalid mixer control: %s\n", mixer_str);
+        ret = ENOENT;
+        goto done;
+    }
+
+    ret = mixer_ctl_set_array(ctl, metadata, sizeof(num_gkv) + sizeof(num_ckv) + gkv_size + ckv_size + prop_size);
+
+done:
+    free(gkv);
+    free(ckv);
+    free(prop);
+    free(metadata);
+    free(mixer_str);
+    return ret;
+}
+
 int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum dir d, enum stream_type stype, char *intf_name)
 {
     char *stream = "PCM";
@@ -586,7 +673,7 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     if (stype == STREAM_COMPRESS)
         stream = "COMPRESS";
 
-    if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK)
+    if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK || val == PCM_RECORD)
         num_gkv += 1;
 
     if (val == VOICE_UI) {
@@ -644,7 +731,8 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
         gkv[index].value = val;
 
         index++;
-        if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK) {
+        if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK ||
+            val == PCM_RECORD) {
             gkv[index].key = INSTANCE;
             gkv[index].value = INSTANCE_1;
             index++;
