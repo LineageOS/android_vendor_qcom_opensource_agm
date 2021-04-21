@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
  * This code is used under the BSD license.
  *
  * BSD LICENSE
@@ -243,7 +243,7 @@ int main(int argc, char **argv)
 {
 	char *file;
 	unsigned long buffer_size = 0;
-	char *intf_name;
+	char *intf_name = NULL;
 	struct device_config config;
 	int ret = 0;
 	unsigned int card = 0, device = 0, frag = 0, audio_format = 0, pause = 0;
@@ -260,23 +260,19 @@ int main(int argc, char **argv)
 			argv++;
 			if (*argv)
 				device = atoi(*argv);
-		}
-		if (strcmp(*argv, "-t") == 0) {
+		} else if (strcmp(*argv, "-t") == 0) {
 			argv++;
 			if (*argv)
 				audio_format = atoi(*argv);
-		}
-		if (strcmp(*argv, "-c") == 0) {
+		} else if (strcmp(*argv, "-c") == 0) {
 			argv++;
 			if (*argv)
 				card = atoi(*argv);
-		}
-		if (strcmp(*argv, "-p") == 0) {
+		} else if (strcmp(*argv, "-p") == 0) {
 			argv++;
 			if (*argv)
 				pause = atoi(*argv);
-		}
-		if (strcmp(*argv, "-i") == 0) {
+		} else if (strcmp(*argv, "-i") == 0) {
 			argv++;
 			if (*argv)
 				intf_name = *argv;

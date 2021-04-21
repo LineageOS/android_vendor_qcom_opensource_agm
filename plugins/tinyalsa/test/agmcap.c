@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
 **
 ** Copyright 2011, The Android Open Source Project
 **
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
     unsigned int period_size = 1024;
     unsigned int period_count = 4;
     unsigned int cap_time = 0;
-    char *intf_name;
+    char *intf_name = NULL;
     struct device_config config;
     enum pcm_format format;
     int ret = 0;
@@ -140,8 +140,7 @@ int main(int argc, char **argv)
             argv++;
             if (*argv)
                 cap_time = atoi(*argv);
-        }
-        if (strcmp(*argv, "-i") == 0) {
+        } else if (strcmp(*argv, "-i") == 0) {
             argv++;
             if (*argv)
                 intf_name = *argv;
