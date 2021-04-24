@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019, 2021 The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -100,6 +100,9 @@ class IAgmService: public ::android::IInterface
         virtual int ipc_agm_set_params_with_tag(uint32_t session_id,
                                     uint32_t aif_id,
                                     struct agm_tag_config *tag_config) = 0;
+        virtual int ipc_agm_set_params_with_tag_to_acdb(uint32_t session_id,
+                                    uint32_t aif_id,
+                                    void* payload, size_t size) = 0;
         virtual int ipc_agm_session_set_ec_ref(uint32_t capture_session_id,
                                     uint32_t aif_id, bool state) = 0;
         virtual int ipc_agm_session_aif_set_cal(

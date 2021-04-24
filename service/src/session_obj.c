@@ -148,6 +148,10 @@ static struct agm_meta_data_gsl* session_get_merged_metadata(struct session_obj 
     if (sess_mode != AGM_SESSION_NON_TUNNEL) {
         list_for_each(node, &sess_obj->aif_pool) {
             aif_node = node_to_item(node, struct aif, node);
+            if (aif_node->state == AIF_CLOSED) {
+                AGM_LOGD("ignore closed AIF node");
+                continue;
+            }
             merged = metadata_merge(4, temp, &sess_obj->sess_meta,
                            &aif_node->sess_aif_meta, &aif_node->dev_obj->metadata);
             if (temp) {
@@ -869,7 +873,7 @@ static int session_prepare(struct session_obj *sess_obj)
     struct listnode *node = NULL;
     uint32_t count = 0;
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         count = aif_obj_get_count_with_state(sess_obj, AIF_OPENED, false);
         if (count == 0) {
             AGM_LOGE("Error:%d No aif in right state to proceed with \
@@ -948,7 +952,7 @@ static int session_start(struct session_obj *sess_obj)
     struct session_obj *pb_obj = NULL;
     struct device_obj *ec_ref_dev_obj = NULL;
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL && sess_mode != AGM_SESSION_NO_CONFIG) {
         count = aif_obj_get_count_with_state(sess_obj, AIF_OPENED, false);
         if (count == 0) {
             AGM_LOGE("Error:%d No aif in right state to proceed with \
@@ -1055,7 +1059,7 @@ unwind:
     if (dir == TX)
         graph_stop(sess_obj->graph, NULL);
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
             if (aif_obj && (aif_obj->state == AIF_STARTED)) {
@@ -1085,7 +1089,7 @@ static int session_stop(struct session_obj *sess_obj)
         goto done;
     }
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         if (dir == RX) {
             ret = graph_stop(sess_obj->graph, NULL);
             if (ret) {
@@ -1155,7 +1159,7 @@ static int session_close(struct session_obj *sess_obj)
     sess_obj->graph = NULL;
     sess_obj->ec_ref_state = false;
 
-    if (sess_mode != AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
             if (!aif_obj) {
@@ -1395,6 +1399,79 @@ done:
         free(merged_metadata);
     }
 
+    pthread_mutex_unlock(&sess_obj->lock);
+
+    return ret;
+}
+
+int session_obj_rw_acdb_params_with_tag(
+    struct session_obj *sess_obj, uint32_t aif_id,
+    struct agm_acdb_param *acdb_param, bool is_set)
+{
+    int ret = 0;
+    struct aif *aif_obj = NULL;
+    struct agm_meta_data_gsl *merged_metadata = NULL;
+    struct agm_key_vector_gsl tckv;
+    uint8_t *ptr = NULL;
+    uint8_t enable_flag = 1;
+    uint32_t actual_size = 0;
+
+    pthread_mutex_lock(&sess_obj->lock);
+    ret = graph_enable_acdb_persistence(enable_flag);
+    if (ret) {
+        AGM_LOGE("Error: graph_enable_acdb_persistence failed. ret = %d\n", ret);
+        goto error;
+    }
+
+    if (aif_id < UINT_MAX) {
+        ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
+        if (ret) {
+            AGM_LOGE("Error obtaining aif object with sess_id:%d,  aif id:%d\n",
+                sess_obj->sess_id, aif_id);
+            goto error;
+        }
+
+        merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
+                          &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
+        if (!merged_metadata) {
+            AGM_LOGE("Error merging metadata session_id:%d aif_id:%d\n",
+                sess_obj->sess_id, aif_obj->aif_id);
+            ret = -ENOMEM;
+            goto error;
+        }
+    }
+
+    tckv.num_kvs= acdb_param->num_kvs;
+    tckv.kv = (struct agm_key_value *)calloc(1,
+                    tckv.num_kvs * sizeof(struct agm_key_value));
+    if (!tckv.kv) {
+        ret = -ENOMEM;
+        goto free_metadata;
+    }
+
+    memcpy((uint8_t *)tckv.kv, acdb_param->blob,
+                tckv.num_kvs*sizeof(struct agm_key_value));
+    ptr = acdb_param->blob + tckv.num_kvs * sizeof(struct agm_key_value);
+    actual_size = acdb_param->blob_size -
+                        acdb_param->num_kvs * sizeof(struct agm_key_value);
+    if (acdb_param->isTKV) {
+        AGM_LOGD("%s: TKV param to ACDB.\n", __func__);
+        ret = graph_set_tag_data_to_acdb(&merged_metadata->gkv,
+                                acdb_param->tag, &tckv,
+                                ptr, actual_size);
+    } else {
+        AGM_LOGD("%s: CKV param to ACDB.\n", __func__);
+        ret = graph_set_cal_data_to_acdb(&merged_metadata->gkv,
+                                    &tckv, ptr, actual_size);
+    }
+    free(tckv.kv);
+
+free_metadata:
+    if (merged_metadata) {
+        metadata_free(merged_metadata);
+        free(merged_metadata);
+    }
+error:
     pthread_mutex_unlock(&sess_obj->lock);
 
     return ret;
@@ -1791,8 +1868,9 @@ int session_obj_open(uint32_t session_id,
         ret = -EALREADY;
         goto done;
     }
+    sess_obj->stream_config.sess_mode = sess_mode;
 
-    if (sess_mode == AGM_SESSION_NON_TUNNEL) {
+    if (sess_mode == AGM_SESSION_NON_TUNNEL || sess_mode == AGM_SESSION_NO_CONFIG) {
         /**
          *AGM session can be opened in any one of the agm_session_modes
          *If it is a AGM_SESSUION_NON_TUNNEL mode, then that indicates

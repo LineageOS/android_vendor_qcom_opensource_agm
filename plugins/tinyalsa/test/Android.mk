@@ -9,16 +9,24 @@ LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
-LOCAL_C_INCLUDES    += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_SRC_FILES     := agmmixer.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
     libacdb_headers
 
-LOCAL_SHARED_LIBRARIES := \
-    libqti-tinyalsa \
-    libexpat
+#if android version is R, refer to qtitinyxx otherwise use upstream ones
+#This assumes we would be using AR code only for Android R and subsequent versions.
+ifneq ($(filter 11 R, $(PLATFORM_VERSION)),)
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
+LOCAL_SHARED_LIBRARIES += libqti-tinyalsa
+else
+LOCAL_SHARED_LIBRARIES += libtinyalsa
+endif
+
+
+LOCAL_SHARED_LIBRARIES += \
+     libexpat
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -32,15 +40,22 @@ LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
-LOCAL_C_INCLUDES    += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_SRC_FILES     := agmplay.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
     libacdb_headers
 
-LOCAL_SHARED_LIBRARIES := \
-    libqti-tinyalsa\
+#if android version is R, refer to qtitinyxx otherwise use upstream ones
+#This assumes we would be using AR code only for Android R and subsequent versions.
+ifneq ($(filter 11 R, $(PLATFORM_VERSION)),)
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
+LOCAL_SHARED_LIBRARIES += libqti-tinyalsa
+else
+LOCAL_SHARED_LIBRARIES += libtinyalsa
+endif
+
+LOCAL_SHARED_LIBRARIES += \
     libagmmixer
 
 include $(BUILD_EXECUTABLE)
@@ -53,15 +68,22 @@ LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
-LOCAL_C_INCLUDES    += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_SRC_FILES     := agmcap.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
     libacdb_headers
 
-LOCAL_SHARED_LIBRARIES := \
-    libqti-tinyalsa\
+#if android version is R, refer to qtitinyxx otherwise use upstream ones
+#This assumes we would be using AR code only for Android R and subsequent versions.
+ifneq ($(filter 11 R, $(PLATFORM_VERSION)),)
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
+LOCAL_SHARED_LIBRARIES += libqti-tinyalsa
+else
+LOCAL_SHARED_LIBRARIES += libtinyalsa
+endif
+
+LOCAL_SHARED_LIBRARIES += \
     libagmmixer
 
 include $(BUILD_EXECUTABLE)
@@ -76,8 +98,6 @@ LOCAL_VENDOR_MODULE := true
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 
-LOCAL_C_INCLUDES    += $(TOP)/vendor/qcom/opensource/tinyalsa/include
-LOCAL_C_INCLUDES    += $(TOP)/vendor/qcom/opensource/tinycompress/include
 LOCAL_C_INCLUDES    += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_ADDITIONAL_DEPENDENCIES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
@@ -87,9 +107,20 @@ LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
     libacdb_headers
 
-LOCAL_SHARED_LIBRARIES := \
-    libqti-tinyalsa\
-    libqti-tinycompress\
+#if android version is R, refer to qtitinyxx otherwise use upstream ones
+#This assumes we would be using AR code only for Android R and subsequent versions.
+ifneq ($(filter 11 R, $(PLATFORM_VERSION)),)
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinycompress/include
+LOCAL_SHARED_LIBRARIES += libqti-tinyalsa\
+                          libqti-tinycompress
+else
+LOCAL_C_INCLUDES += $(TOP)/external/tinycompress/include
+LOCAL_SHARED_LIBRARIES += libtinyalsa\
+                          libtinycompress
+endif
+
+LOCAL_SHARED_LIBRARIES += \
     libagmmixer
 
 include $(BUILD_EXECUTABLE)
@@ -103,15 +134,22 @@ LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
-LOCAL_C_INCLUDES    += $(TOP)/vendor/qcom/opensource/tinyalsa/include
 LOCAL_SRC_FILES     := agm_voiceui.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
     libacdb_headers
 
-LOCAL_SHARED_LIBRARIES := \
-    libqti-tinyalsa\
+#if android version is R, refer to qtitinyxx otherwise use upstream ones
+#This assumes we would be using AR code only for Android R and subsequent versions.
+ifneq ($(filter 11 R, $(PLATFORM_VERSION)),)
+LOCAL_C_INCLUDES += $(TOP)/vendor/qcom/opensource/tinyalsa/include
+LOCAL_SHARED_LIBRARIES += libqti-tinyalsa
+else
+LOCAL_SHARED_LIBRARIES += libtinyalsa
+endif
+
+LOCAL_SHARED_LIBRARIES += \
     libagmmixer
 
 include $(BUILD_EXECUTABLE)

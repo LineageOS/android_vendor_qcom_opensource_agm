@@ -536,6 +536,8 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     }
     list_init(&graph_obj->tagged_mod_list);
     pthread_mutex_init(&graph_obj->lock, (const pthread_mutexattr_t *)NULL);
+    if (sess_obj->stream_config.sess_mode == AGM_SESSION_NO_CONFIG)
+        goto no_config;
 
     /**
      *TODO:In the current config parameters we dont have a
@@ -646,6 +648,7 @@ tag_list:
                                (sizeof(struct gsl_module_id_info_entry) *
                                gsl_tag_entry->num_modules));
     }
+no_config:
     graph_obj->sess_obj = sess_obj;
 
     ret = gsl_open((struct gsl_key_vector *)&meta_data_kv->gkv,
@@ -801,14 +804,14 @@ int graph_prepare(struct graph_obj *graph_obj)
 
     /*Configure buffers only if it is not a hostless session*/
     if ((sess_obj != NULL) &&
-        (stream_config.sess_mode != AGM_SESSION_NO_HOST)) {
+        (stream_config.sess_mode != AGM_SESSION_NO_HOST) &&
+         sess_obj->stream_config.sess_mode != AGM_SESSION_NO_CONFIG) {
         ret = configure_buffer_params(graph_obj, sess_obj);
         if (ret != 0) {
             AGM_LOGE("buffer configuration failed \n");
             goto done;
         }
     }
-
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_PREPARE, NULL, 0);
     if (ret !=0) {
         ret = ar_err_get_lnx_err_code(ret);
@@ -1568,7 +1571,7 @@ int graph_register_for_events(struct graph_obj *gph_obj,
                                  evt_reg_cfg->event_config_payload_size;
     reg_ev_payload->is_register = evt_reg_cfg->is_register;
 
-    memcpy(reg_ev_payload + sizeof(apm_module_register_events_t),
+    memcpy((uint8_t *)reg_ev_payload + sizeof(struct gsl_cmd_register_custom_event),
           evt_reg_cfg->event_config_payload,
           evt_reg_cfg->event_config_payload_size);
 
@@ -1707,58 +1710,58 @@ done:
 
 /* TODO expose this header file from osal */
 struct ar_shmem_handle {
-	/*ion fd created on ion memory allocation*/
-	int32_t ion_mem_fd;
+    /*ion fd created on ion memory allocation*/
+    int32_t ion_mem_fd;
 };
 
 static int graph_fill_buf_info(struct graph_obj *gph_obj,
-	struct agm_buf_info *buf_info, enum gsl_cmd_id cmd_id, enum buf_flag flag)
+    struct agm_buf_info *buf_info, enum gsl_cmd_id cmd_id, enum buf_flag flag)
 {
-	struct gsl_cmd_get_shmem_buf_info *shmem_buf_info = NULL;
-	struct ar_shmem_handle *shmem_handle;
-	int ret = -1;
+    struct gsl_cmd_get_shmem_buf_info *shmem_buf_info = NULL;
+    struct ar_shmem_handle *shmem_handle;
+    int ret = -1;
 
-	shmem_buf_info = calloc(1, sizeof(struct gsl_cmd_get_shmem_buf_info));
-	if (!shmem_buf_info) {
-		AGM_LOGE("shmem_buf_info allocation failed\n");
-		return -ENOMEM;
-	}
+    shmem_buf_info = calloc(1, sizeof(struct gsl_cmd_get_shmem_buf_info));
+    if (!shmem_buf_info) {
+        AGM_LOGE("shmem_buf_info allocation failed\n");
+        return -ENOMEM;
+    }
 
-	shmem_buf_info->num_buffs = 1;
-	shmem_buf_info->buffs = calloc(shmem_buf_info->num_buffs, sizeof(struct gsl_shmem_buf));
-	if (!shmem_buf_info->buffs) {
-		AGM_LOGE("buf allocation failed\n");
-		ret = -ENOMEM;
-		goto free_shbuf_info;
-	}
+    shmem_buf_info->num_buffs = 1;
+    shmem_buf_info->buffs = calloc(shmem_buf_info->num_buffs, sizeof(struct gsl_shmem_buf));
+    if (!shmem_buf_info->buffs) {
+        AGM_LOGE("buf allocation failed\n");
+        ret = -ENOMEM;
+        goto free_shbuf_info;
+    }
 
-	ret = gsl_ioctl(gph_obj->graph_handle, cmd_id, shmem_buf_info,
-		sizeof(struct gsl_cmd_get_shmem_buf_info) + sizeof(struct gsl_shmem_buf));
-	if (ret != 0) {
-		AGM_LOGE("Buffer info get failed error %d", ret);
-		goto free_buffs;
-	}
+    ret = gsl_ioctl(gph_obj->graph_handle, cmd_id, shmem_buf_info,
+        sizeof(struct gsl_cmd_get_shmem_buf_info) + sizeof(struct gsl_shmem_buf));
+    if (ret != 0) {
+        AGM_LOGE("Buffer info get failed error %d", ret);
+        goto free_buffs;
+    }
 
-	AGM_LOGD("metadata %llx\n", (unsigned long long) shmem_buf_info->buffs[0].metadata);
-	AGM_LOGD("shmem_buf_info size %d - addr %p\n", shmem_buf_info->size, shmem_buf_info->buffs[0].addr);
+    AGM_LOGD("metadata %llx\n", (unsigned long long) shmem_buf_info->buffs[0].metadata);
+    AGM_LOGD("shmem_buf_info size %d - addr %p\n", shmem_buf_info->size, shmem_buf_info->buffs[0].addr);
 
-	shmem_handle = (struct ar_shmem_handle *)shmem_buf_info->buffs[0].metadata;
-	if (shmem_handle) {
-		if (flag == DATA_BUF) {
-			buf_info->data_buf_fd = shmem_handle->ion_mem_fd;
-			buf_info->data_buf_size = shmem_buf_info->size;
-		}
-		else {
-			buf_info->pos_buf_fd = shmem_handle->ion_mem_fd;
-			buf_info->pos_buf_size = shmem_buf_info->size;
-		}
-	}
+    shmem_handle = (struct ar_shmem_handle *)shmem_buf_info->buffs[0].metadata;
+    if (shmem_handle) {
+        if (flag == DATA_BUF) {
+            buf_info->data_buf_fd = shmem_handle->ion_mem_fd;
+            buf_info->data_buf_size = shmem_buf_info->size;
+        }
+        else {
+            buf_info->pos_buf_fd = shmem_handle->ion_mem_fd;
+            buf_info->pos_buf_size = shmem_buf_info->size;
+        }
+    }
 
 free_buffs:
-	free(shmem_buf_info->buffs);
+    free(shmem_buf_info->buffs);
 free_shbuf_info:
-	free(shmem_buf_info);
-	return ret;
+    free(shmem_buf_info);
+    return ret;
 }
 
 int graph_get_buf_info(struct graph_obj *graph_obj, struct agm_buf_info *buf_info, uint32_t flag)
@@ -1870,4 +1873,39 @@ error:
 done:
     pthread_mutex_unlock(&graph_obj->lock);
     return ret;
+}
+
+int graph_set_tag_data_to_acdb(
+    struct agm_key_vector_gsl *graph_key_vect, uint32_t tag_id,
+    struct agm_key_vector_gsl *tag_key_vect, uint8_t *payload,
+    uint32_t payload_size)
+{
+    return gsl_set_tag_data_to_acdb((struct gsl_key_vector *)graph_key_vect,
+                 tag_id, (struct gsl_key_vector *)tag_key_vect,
+                 payload, payload_size);
+}
+
+int graph_set_cal_data_to_acdb(
+    struct agm_key_vector_gsl *graph_key_vect,
+    struct agm_key_vector_gsl *cal_key_vect, uint8_t *payload,
+    uint32_t payload_size)
+{
+    return gsl_set_cal_data_to_acdb((struct gsl_key_vector *)graph_key_vect,
+                (struct gsl_key_vector *)cal_key_vect,
+                payload, payload_size);
+}
+
+int graph_get_tagged_data(
+    const struct agm_key_vector_gsl *graph_key_vect, uint32_t tag,
+    struct agm_key_vector_gsl *tag_key_vect, uint8_t *payload,
+    size_t *payload_size)
+{
+    return gsl_get_tagged_data((struct gsl_key_vector *)graph_key_vect,
+                tag, (struct gsl_key_vector *)tag_key_vect,
+                payload, payload_size);
+}
+
+int graph_enable_acdb_persistence(uint8_t enable_flag)
+{
+    return gsl_enable_acdb_persistence(enable_flag);
 }

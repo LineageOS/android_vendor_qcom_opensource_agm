@@ -608,6 +608,26 @@ Return<int32_t> AGM::ipc_agm_set_params_with_tag(uint32_t session_id,
     return ret;
 }
 
+Return<int32_t> AGM::ipc_agm_set_params_with_tag_to_acdb(uint32_t session_id,
+                                     uint32_t aif_id,
+                                     const hidl_vec<uint8_t>& payload,
+                                     uint32_t size) {
+    ALOGV("%s : session_id = %d, aif_id = %d\n", __func__, session_id, aif_id);
+    size_t size_local = (size_t) size;
+    void * payload_local = NULL;
+    int32_t ret = 0;
+    payload_local = (void*) calloc(1,size);
+    if (payload_local == NULL) {
+        ALOGE("%s: Cannot allocate memory for payload_local\n", __func__);
+        return -ENOMEM;
+    }
+    memcpy(payload_local, payload.data(), size);
+
+    ret = agm_set_params_with_tag_to_acdb(session_id, aif_id, payload_local, size_local);
+    free(payload_local);
+    return ret;
+}
+
 Return<int32_t> AGM::ipc_agm_session_register_for_events(uint32_t session_id,
                                   const hidl_vec<AgmEventRegCfg>& evt_reg_cfg) {
     ALOGV("%s : session_id = %d\n", __func__, session_id);

@@ -353,4 +353,59 @@ int graph_get_buf_info(struct graph_obj *gph_obj,
 int graph_set_gapless_metadata(struct graph_obj *graph_obj,
                           enum agm_gapless_silence_type type,
                                uint32_t silence);
+
+/**
+ *\brief Set tagged parameter to acdb
+ *\param [in] graph_key_vect: graph key vector list
+ *\param [in] tag_id: tag for the module
+ *\param [in] tag_key_vect: tag key vector list
+ *\param [in] payload: parameter data
+ *\param [in] payload_size: size of the payload
+ *
+ * return CASA_EOK on success or error code otherwise.
+ */
+int graph_set_tag_data_to_acdb(
+    struct agm_key_vector_gsl *graph_key_vect, uint32_t tag_id,
+    struct agm_key_vector_gsl *tag_key_vect, uint8_t *payload,
+    uint32_t payload_size);
+
+/**
+ *\brief Set tagged parameter to acdb
+ *\param [in] graph_key_vect: graph key vector list
+ *\param [in] calibration_key_vect: calibration key vector list
+ *\param [in] payload: parameter data
+ *\param [in] payload_size: size of the payload
+ *
+ * return CASA_EOK on success or error code otherwise.
+ */
+
+int graph_set_cal_data_to_acdb(
+    struct agm_key_vector_gsl *graph_key_vect,
+    struct agm_key_vector_gsl *cal_key_vect, uint8_t *payload,
+    uint32_t payload_size);
+
+/**
+ *\brief Get tagged parameter to acdb
+ *\param [in] graph_key_vect: graph key vector list
+ *\param [in] tag_id: tag for the module
+ *\param [in] tag_key_vect: tag key vector list
+ *\param [in/out] payload: query buffer for in and return buffer for out
+ *\param [in/out] payload_size: size of the payload for query buffer at in and
+ *                              return buffer at out
+ *
+ * return CASA_EOK on success or error code otherwise.
+ */
+
+int graph_get_tagged_data(const struct agm_key_vector_gsl *graph_key_vect,
+    uint32_t tag, struct agm_key_vector_gsl *tag_key_vect, uint8_t *payload,
+    size_t *payload_size);
+
+/**
+ *\ brief Enable persistence on acdb
+ *\ param [in] enable_flag: enable or disable
+ *
+ * return CASA_EOK on success or error code otherwise.
+ */
+
+int32_t graph_enable_acdb_persistence(uint8_t enable_flag);
 #endif /*GPH_OBJ_H*/

@@ -93,7 +93,7 @@ static void event_wait_thread_loop(void *context)
 {
     struct mixer *mixer = (struct mixer *)context;
     int ret = 0;
-    struct snd_ctl_event mixer_event = {0};
+    struct ctl_event mixer_event = {0};
 
     printf("subscribing for event\n");
     mixer_subscribe_events(mixer, 1);

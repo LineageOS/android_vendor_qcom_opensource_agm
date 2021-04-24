@@ -43,8 +43,8 @@
 
 #include <sound/asound.h>
 
-#include <tinyalsa/mixer_plugin.h>
 #include <tinyalsa/asoundlib.h>
+#include <tinyalsa/mixer_plugin.h>
 
 #include <agm/agm_api.h>
 #include <snd-card-def.h>
@@ -88,6 +88,7 @@ enum {
     PCM_CTL_NAME_METADATA,
     PCM_CTL_NAME_SET_PARAM,
     PCM_CTL_NAME_SET_PARAM_TAG = 5,
+    PCM_CTL_NAME_SET_PARAM_TAG_ACDB,
     PCM_CTL_NAME_GET_TAG_INFO,
     PCM_CTL_NAME_EVENT,
     PCM_CTL_NAME_SET_CALIBRATION,
@@ -104,6 +105,7 @@ static char *amp_pcm_ctl_name_extn[] = {
     "metadata",
     "setParam",
     "setParamTag",
+    "setParamTagACDB",
     "getTaggedInfo",
     "event",
     "setCalibration",
@@ -188,7 +190,7 @@ struct event_params_node {
 };
 
 struct mixer_plugin_event_data {
-    struct snd_ctl_event ev;
+    struct ctl_event ev;
     struct listnode node;
 };
 
@@ -312,7 +314,7 @@ void amp_event_cb(uint32_t session_id, struct agm_event_cb_params *event_params,
 {
     struct mixer_plugin *plugin = client_data;
     struct amp_priv *amp_priv;
-    struct snd_ctl_event event;
+    struct ctl_event event;
     struct mixer_plugin_event_data *data;
     char *stream = "PCM";
     char *ctl_name = "event";
@@ -1034,11 +1036,15 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
     int pcm_control, be_idx = -1, ret = 0;
     size_t tlv_size;
     bool is_param_tag = false;
+    bool is_param_tag_acdb = false;
 
     AGM_LOGD("%s: enter\n", __func__);
 
     if (strstr(ctl->name, "setParamTag"))
         is_param_tag = true;
+
+    if (strstr(ctl->name, "setParamTagACDB"))
+        is_param_tag_acdb = true;
 
     payload = &tlv->tlv[0];
     tlv_size = tlv->length;
@@ -1052,8 +1058,11 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
         be_idx = be_adi->idx_arr[pcm_control];
     }
 
-    if (is_param_tag) {
-          ret = agm_set_params_with_tag(pcm_idx, be_idx, payload);
+    if (is_param_tag_acdb) {
+        ret = agm_set_params_with_tag_to_acdb(pcm_idx, be_idx,
+                                        payload, tlv_size);
+    } else if (is_param_tag) {
+        ret = agm_set_params_with_tag(pcm_idx, be_idx, payload);
     } else {
         if (pcm_control == 0) {
             ret = agm_session_set_params(pcm_idx, payload, tlv_size);
@@ -1293,6 +1302,8 @@ static struct snd_value_tlv_bytes pcm_taginfo_bytes =
     SND_VALUE_TLV_BYTES(1024, amp_pcm_tag_info_get, amp_pcm_tag_info_put);
 static struct snd_value_tlv_bytes pcm_setparamtag_bytes =
     SND_VALUE_TLV_BYTES(1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
+static struct snd_value_tlv_bytes pcm_setparamtagacdb_bytes =
+    SND_VALUE_TLV_BYTES(1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_setparam_bytes =
     SND_VALUE_TLV_BYTES(256 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_getparam_bytes =
@@ -1376,7 +1387,7 @@ static void amp_create_pcm_metadata_ctl(struct amp_priv *amp_priv,
 
 static void amp_create_pcm_set_param_ctl(struct amp_priv *amp_priv,
                 char *name, int ctl_idx, int pval, void *pdata,
-                bool istagged_setparam)
+                bool istagged_setparam, bool is_acdb)
 {
     struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
     char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
@@ -1387,10 +1398,17 @@ static void amp_create_pcm_set_param_ctl(struct amp_priv *amp_priv,
         INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_setparam_bytes,
                     pval, pdata);
     } else {
-        snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
-             name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_SET_PARAM_TAG]);
-        INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_setparamtag_bytes,
-                    pval, pdata);
+        if (!is_acdb) {
+            snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+                 name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_SET_PARAM_TAG]);
+            INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_setparamtag_bytes,
+                        pval, pdata);
+        } else {
+            snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+                 name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_SET_PARAM_TAG_ACDB]);
+            INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_setparamtagacdb_bytes,
+                        pval, pdata);
+        }
     }
 
 }
@@ -1597,9 +1615,11 @@ static int amp_form_common_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx,
         amp_create_pcm_metadata_ctl(amp_priv, name, (*ctl_idx)++,
                         idx, pcm_adi);
         amp_create_pcm_set_param_ctl(amp_priv, name, (*ctl_idx)++,
-                        idx, pcm_adi, false);
+                        idx, pcm_adi, false, false);
         amp_create_pcm_set_param_ctl(amp_priv, name, (*ctl_idx)++,
-                        idx, pcm_adi, true);
+                        idx, pcm_adi, true, false);
+        amp_create_pcm_set_param_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, pcm_adi, true, true);
         amp_create_pcm_get_tag_info_ctl(amp_priv, name, (*ctl_idx)++,
                         idx, pcm_adi);
         amp_create_pcm_event_ctl(amp_priv, name, (*ctl_idx)++,
@@ -1689,12 +1709,12 @@ static int amp_form_pcm_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt
 }
 
 static ssize_t amp_read_event(struct mixer_plugin *plugin,
-                              struct snd_ctl_event *ev, size_t size)
+                              struct ctl_event *ev, size_t size)
 {
     struct amp_priv *amp_priv = plugin->priv;
     ssize_t result = 0;
 
-    while (size >= sizeof(struct snd_ctl_event)) {
+    while (size >= sizeof(struct ctl_event)) {
         struct mixer_plugin_event_data *data;
 
         if (list_empty(&amp_priv->events_list))
@@ -1702,13 +1722,13 @@ static ssize_t amp_read_event(struct mixer_plugin *plugin,
 
         data = node_to_item(amp_priv->events_list.next,
                             struct mixer_plugin_event_data, node);
-        memcpy(ev, &data->ev, sizeof(struct snd_ctl_event));
+        memcpy(ev, &data->ev, sizeof(struct ctl_event));
 
         list_remove(&data->node);
         free(data);
-        ev += sizeof(struct snd_ctl_event);
-        size -= sizeof(struct snd_ctl_event);
-        result += sizeof(struct snd_ctl_event);
+        ev += sizeof(struct ctl_event);
+        size -= sizeof(struct ctl_event);
+        result += sizeof(struct ctl_event);
     }
 
     return result;

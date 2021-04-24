@@ -547,6 +547,23 @@ int agm_set_params_with_tag(uint32_t session_id, uint32_t aif_id,
     return -EINVAL;
 }
 
+int agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id,
+                                             void *payload, size_t size)
+{
+    ALOGV("%s : sess_id = %d, size = %zu\n", __func__, session_id, size);
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+
+        uint32_t size_hidl = (uint32_t) size;
+        hidl_vec<uint8_t> payload_hidl;
+        payload_hidl.resize(size_hidl);
+        memcpy(payload_hidl.data(), payload, size_hidl);
+        return agm_client->ipc_agm_set_params_with_tag_to_acdb(session_id,
+                                    aif_id, payload_hidl, size_hidl);
+    }
+    return -EINVAL;
+}
+
 int agm_session_register_for_events(uint32_t session_id,
                                           struct agm_event_reg_cfg *evt_reg_cfg)
 {
@@ -563,6 +580,7 @@ int agm_session_register_for_events(uint32_t session_id,
         evt_reg_cfg_hidl.data()->event_id = evt_reg_cfg->event_id;
         evt_reg_cfg_hidl.data()->event_config_payload_size = evt_reg_cfg->event_config_payload_size;
         evt_reg_cfg_hidl.data()->is_register = evt_reg_cfg->is_register;
+        evt_reg_cfg_hidl.data()->event_config_payload.resize(evt_reg_cfg->event_config_payload_size);
         for (int i = 0; i < evt_reg_cfg->event_config_payload_size; i++)
             evt_reg_cfg_hidl.data()->event_config_payload[i] = evt_reg_cfg->event_config_payload[i];
 
