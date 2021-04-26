@@ -47,8 +47,8 @@
 #define GET_BITS_PER_SAMPLE(format, bit_width) \
                            (format == AGM_FORMAT_PCM_S24_LE? 32 : bit_width)
 
-#define GET_Q_FACTOR(format, bit_width)\
-                     (format == AGM_FORMAT_PCM_S24_LE ? 27 : (bit_width - 1))
+/*qfactor should be set to 23 only for 24_3LE and 24_LE formats*/
+#define GET_Q_FACTOR(format, bit_width) (bit_width - 1)
 
 static void get_default_channel_map(uint8_t *channel_map, int channels)
 {
@@ -134,6 +134,12 @@ int get_pcm_bit_width(enum agm_media_format fmt_id)
 
     switch (fmt_id) {
     case AGM_FORMAT_PCM_S24_3LE:
+    /*
+     *This api returns the number of audio data bit width specific to the format
+     *e.g. In S24_LE, even if the number of bytes is 4, the audio data is only in 3 bytes
+     *Hence we return 24 as the bit_width, whereas the bitspersample for this format would
+     *return 32
+     */
     case AGM_FORMAT_PCM_S24_LE:
          bit_width = 24;
          break;
@@ -817,7 +823,9 @@ int configure_output_media_format(struct module_info *mod,
              /*
               *modules after pcm convertor only work on 16 or 32bit samples hence
               *even for 24 bit input data configure pcm convertor output with
-              *32 bits per sample.
+              *32 bits per sample also to accomodate post processing, SPF
+              *tean recommends to set the q_factor as 27 even for 24_LE/24_3LE formats
+              *This is to be done only for pcm_convertor on the playback path
               */
              pcm_output_fmt_payload->bits_per_sample = 32;
              pcm_output_fmt_payload->q_factor = 27;

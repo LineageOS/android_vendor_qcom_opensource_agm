@@ -91,6 +91,31 @@ static int sysfs_fd = -1;
 
 #define MAX_USR_INPUT 9
 
+int get_pcm_bits_per_sample(enum agm_media_format fmt_id)
+{
+     int bits_per_sample = 16;
+
+     switch(fmt_id) {
+         case AGM_FORMAT_PCM_S8:      /**< 8-bit signed */
+              bits_per_sample = 8;
+              break;
+         case AGM_FORMAT_PCM_S24_LE:  /**< 24-bits in 4-bytes, 8_24 form*/
+              bits_per_sample = 32;
+              break;
+         case AGM_FORMAT_PCM_S24_3LE: /**< 24-bits in 3-bytes */
+              bits_per_sample = 24;
+              break;
+         case AGM_FORMAT_PCM_S32_LE:  /**< 32-bit signed */
+              bits_per_sample = 32;
+              break;
+         case AGM_FORMAT_PCM_S16_LE:  /**< 16-bit signed */
+         default:
+              bits_per_sample = 16;
+              break;
+     }
+     return bits_per_sample;
+}
+
 static void update_sysfs_fd (int8_t pcm_id, int8_t state)
 {
     char buf[MAX_USR_INPUT]={0};
@@ -183,7 +208,7 @@ int device_open(struct device_obj *dev_obj)
     rate = dev_obj->media_config.rate;
     format = agm_to_alsa_format(dev_obj->media_config.format);
     period_size = (MAX_PERIOD_BUFFER)/(channels *
-                              (get_pcm_bit_width(dev_obj->media_config.format)/8));
+                              (get_pcm_bits_per_sample(dev_obj->media_config.format)/8));
     period_count = DEFAULT_PERIOD_COUNT;
 
     ret = snd_pcm_open(&pcm, pcm_name, stream, 0);
@@ -264,7 +289,7 @@ int device_open(struct device_obj *dev_obj)
     config.rate = dev_obj->media_config.rate;
     config.format = agm_to_pcm_format(dev_obj->media_config.format);
     config.period_size = (MAX_PERIOD_BUFFER)/((config.channels) *
-                              (get_pcm_bit_width(dev_obj->media_config.format)/8));
+                              (get_pcm_bits_per_sample(dev_obj->media_config.format)/8));
     config.period_count = DEFAULT_PERIOD_COUNT;
     config.start_threshold = config.period_size / 4;
     config.stop_threshold = INT_MAX;
