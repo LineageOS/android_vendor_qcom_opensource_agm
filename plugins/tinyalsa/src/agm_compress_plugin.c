@@ -995,6 +995,7 @@ void agm_session_update_codec_options(struct agm_session_config *sess_cfg,
             sess_cfg->codec.wmapro_dec.channel_mask = copt->generic.reserved[3];
             sess_cfg->codec.wmapro_dec.enc_options = copt->generic.reserved[4];
             sess_cfg->codec.wmapro_dec.advanced_enc_option = copt->generic.reserved[5];
+            sess_cfg->codec.wmapro_dec.advanced_enc_option2 = copt->generic.reserved[6];
         } else {
             sess_cfg->codec.wma_dec.avg_bytes_per_sec = copt->generic.reserved[0];
             sess_cfg->codec.wma_dec.blk_align = copt->generic.reserved[1];
