@@ -115,7 +115,7 @@ int check_and_find_input_fd(uint64_t sess_handle, int input_fd, int *dup_fd)
                 for (int i = 0; i < hndle->shared_mem_fd_list.size(); i++) {
                      if (hndle->shared_mem_fd_list[i].first == input_fd) {
                         *dup_fd = hndle->shared_mem_fd_list[i].second;
-                        ALOGD("input fd %d found, return already dupped fd %d", input_fd, *dup_fd);
+                        ALOGV("input fd %d found, return already dupped fd %d", input_fd, *dup_fd);
                         pthread_mutex_unlock(&client_list_lock);
                         return 0;
                      }
@@ -152,7 +152,7 @@ void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
                     hndle->shared_mem_fd_list.erase(it);
                 }
                 hndle->shared_mem_fd_list.push_back(std::make_pair(input_fd, dup_fd));
-                ALOGD("sess_handle %x, session_id:%d input_fd %d, dup fd %d", hndle->handle,
+                ALOGV("sess_handle %x, session_id:%d input_fd %d, dup fd %d", hndle->handle,
                        hndle->session_id, input_fd, dup_fd);
             }
          }
@@ -192,7 +192,7 @@ void add_handle_to_list(uint32_t session_id, uint64_t handle)
                 }
                 hndl->handle = handle;
                 hndl->session_id = session_id;
-                ALOGD("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
+                ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
                 list_add_tail(&client_handle_temp->agm_client_hndl_list, &hndl->list);
                 flag = 1;
                 break;
@@ -210,7 +210,7 @@ void add_handle_to_list(uint32_t session_id, uint64_t handle)
             }
             hndl->handle = handle;
             hndl->session_id = session_id;
-            ALOGD("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
+            ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
             list_add_tail(&client_handle->agm_client_hndl_list, &hndl->list);
         }
     }
@@ -281,7 +281,7 @@ void ipc_callback (uint32_t session_id,
                           /*   it = (hndle->shared_mem_fd_list.begin() + i);
                              if (it != hndle->shared_mem_fd_list.end())
                                  hndle->shared_mem_fd_list.erase(it);*/
-                             ALOGD("input fd %d  payload fd %d\n", input_fd,
+                             ALOGV("input fd %d  payload fd %d\n", input_fd,
                                    rw_done_payload->buff.alloc_info.alloc_handle);
                              break;
                          }
