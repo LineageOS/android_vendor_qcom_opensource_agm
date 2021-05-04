@@ -1169,7 +1169,9 @@ int graph_read(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *siz
 
     ret = gsl_read(graph_obj->graph_handle,
                     read_mod_tag, &gsl_buff, (uint32_t *)&size_read);
-    if ((ret != 0) || (size_read == 0)) {
+    if ((ret != 0) ||
+        ((size_read == 0) &&
+         (graph_obj->sess_obj->stream_config.sess_mode != AGM_SESSION_NON_TUNNEL))) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("size_requested %zu size_read %d error %d\n",
                   *size, size_read, ret);

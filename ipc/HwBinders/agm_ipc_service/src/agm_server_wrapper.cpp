@@ -330,6 +330,9 @@ void ipc_callback (uint32_t session_id,
         clbk_bdr->event_callback_rw_done(session_id, rw_evt_param_hidl,
                                   sr_clbk_dat->get_clnt_data());
 
+        // allocated during read_with_metadata()
+        if (rw_done_payload->buff.metadata)
+            free(rw_done_payload->buff.metadata);
         //close(rw_done_payload->buff.alloc_info.alloc_handle);
     } else {
         evt_param_l.resize(sizeof(struct agm_event_cb_params) +
@@ -1222,8 +1225,6 @@ Return<void> AGM::ipc_agm_session_read_with_metadata(uint64_t hndl, const hidl_v
 exit:
     if (buf.addr)
         free(buf.addr);
-    if (buf.metadata)
-        free(buf.metadata);
 
     return Void();
 }
