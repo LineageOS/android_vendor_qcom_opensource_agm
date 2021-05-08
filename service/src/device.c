@@ -428,6 +428,12 @@ int device_close(struct device_obj *dev_obj)
     }
 
     pthread_mutex_lock(&dev_obj->lock);
+    if (!dev_obj->refcnt.open) {
+        AGM_LOGE("PCM device %u already closed\n",
+              dev_obj->pcm_id);
+        goto done;
+    }
+
     if (--dev_obj->refcnt.open == 0) {
         update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
 #ifdef DEVICE_USES_ALSALIB
@@ -444,6 +450,7 @@ int device_close(struct device_obj *dev_obj)
         dev_obj->refcnt.start = 0;
     }
 
+done:
     pthread_mutex_unlock(&dev_obj->lock);
     return ret;
 }
