@@ -313,6 +313,9 @@ int graph_init()
                     snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, "QRD");
                 } else {
                     snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, "IDP");
+                    if (strstr(snd_card_name, "slate")) {
+                        strlcat(acdb_path, "/slate", ACDB_PATH_MAX_LENGTH);
+                    }
                 }
                 free(snd_card_name);
                 snd_card_name = NULL;
