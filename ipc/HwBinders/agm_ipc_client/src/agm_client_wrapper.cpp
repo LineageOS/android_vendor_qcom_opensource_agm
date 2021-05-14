@@ -288,11 +288,14 @@ int agm_session_open(uint32_t session_id, enum agm_session_mode sess_mode ,
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         AgmSessionMode sess_mode_hidl = (AgmSessionMode) sess_mode;
-        agm_client->ipc_agm_session_open(session_id, sess_mode_hidl,
+        auto status = agm_client->ipc_agm_session_open(session_id, sess_mode_hidl,
                               [&](int32_t _ret, hidl_vec<uint64_t> handle_hidl)
                               {  ret = _ret;
                                  *handle = *handle_hidl.data();
                               });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
     }
     ALOGD("%s Received handle = %p , *handle = %llx\n", __func__, handle, (unsigned long long) *handle);
     return ret;
@@ -321,7 +324,7 @@ int agm_session_read(uint64_t handle, void *buf, size_t *byte_count){
 
         int ret = -EINVAL;
 
-        agm_client->ipc_agm_session_read(handle, *byte_count,
+        auto status = agm_client->ipc_agm_session_read(handle, *byte_count,
                    [&](int32_t _ret, hidl_vec<uint8_t> buff_hidl, uint32_t cnt)
                    { ret = _ret;
                      if (ret != -ENOMEM) {
@@ -329,6 +332,9 @@ int agm_session_read(uint64_t handle, void *buf, size_t *byte_count){
                          *byte_count = (size_t) cnt;
                      }
                    });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
         return ret;
     }
     return -EINVAL;
@@ -347,12 +353,15 @@ int agm_session_write(uint64_t handle, void *buf, size_t *byte_count) {
         buf_hidl.resize(*byte_count);
         memcpy(buf_hidl.data(), buf, *byte_count);
 
-        agm_client->ipc_agm_session_write(handle, buf_hidl, *byte_count,
+        auto status = agm_client->ipc_agm_session_write(handle, buf_hidl, *byte_count,
                                            [&](int32_t _ret, uint32_t cnt)
                                            { ret = _ret;
                                              if (ret != -ENOMEM)
                                                  *byte_count = (size_t) cnt;
                                            });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
         return ret;
     }
     return -EINVAL;
@@ -391,7 +400,7 @@ int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info) {
         uint32_t num = (uint32_t) *num_aif_info;
         int ret = -EINVAL;
         android::sp<IAGM> agm_client = get_agm_server();
-        agm_client->ipc_agm_get_aif_info_list(num,[&](int32_t _ret,
+        auto status = agm_client->ipc_agm_get_aif_info_list(num,[&](int32_t _ret,
                                             hidl_vec<AifInfo> aif_list_ret_hidl,
                                             uint32_t num_aif_info_hidl )
         { ret = _ret;
@@ -410,6 +419,9 @@ int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info) {
           *num_aif_info = (size_t) num_aif_info_hidl;
           }
         });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
         return ret;
     }
     return -EINVAL;
@@ -423,7 +435,7 @@ int agm_session_aif_get_tag_module_info(uint32_t session_id, uint32_t aif_id,
         android::sp<IAGM> agm_client = get_agm_server();
         uint32_t size_hidl = (uint32_t) *size;
         int ret = 0;
-        agm_client->ipc_agm_session_aif_get_tag_module_info(
+        auto status = agm_client->ipc_agm_session_aif_get_tag_module_info(
                             session_id,
                             aif_id,
                             size_hidl,
@@ -439,6 +451,9 @@ int agm_session_aif_get_tag_module_info(uint32_t session_id, uint32_t aif_id,
                                   *size = (size_t) size_ret;
                               }
                             });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
         return ret;
     }
     return -EINVAL;
@@ -454,7 +469,7 @@ int agm_session_get_params(uint32_t session_id, void *payload, size_t size)
 
         buf_hidl.resize(size);
         memcpy(buf_hidl.data(), payload, size);
-        agm_client->ipc_agm_session_get_params(session_id, size, buf_hidl,
+        auto status = agm_client->ipc_agm_session_get_params(session_id, size, buf_hidl,
                            [&](int32_t _ret, hidl_vec<uint8_t> payload_ret)
                            { ret = _ret;
                              if (!ret) {
@@ -462,6 +477,9 @@ int agm_session_get_params(uint32_t session_id, void *payload, size_t size)
                                      memcpy(payload, payload_ret.data(), size);
                              }
                            });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
         return ret;
     }
     return -EINVAL;
@@ -669,11 +687,14 @@ int agm_get_session_time(uint64_t handle, uint64_t *timestamp)
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         int ret = -EINVAL;
-        agm_client->ipc_agm_get_session_time(handle,
+        auto status = agm_client->ipc_agm_get_session_time(handle,
                                              [&](int _ret, uint64_t ts)
                                              { ret = _ret;
                                                *timestamp = ts;
                                              });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
     }
     return -EINVAL;
 }
@@ -684,11 +705,14 @@ int agm_get_buffer_timestamp(uint32_t session_id, uint64_t *timestamp)
     int ret = -EINVAL;
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
-        agm_client->ipc_agm_get_buffer_timestamp(session_id,
+        auto status = agm_client->ipc_agm_get_buffer_timestamp(session_id,
                                              [&](int _ret, uint64_t ts)
                                              { ret = _ret;
                                                *timestamp = ts;
                                              });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
     }
     return ret;
 }
@@ -702,7 +726,7 @@ int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
         const native_handle *datahandle = nullptr;
         const native_handle *poshandle = nullptr;
 
-        agm_client->ipc_agm_session_get_buf_info(session_id, flag,
+        auto status = agm_client->ipc_agm_session_get_buf_info(session_id, flag,
                 [&](int32_t _ret, const MmapBufInfo& buf_info_ret_hidl)
                 { ret = _ret;
                 if (!ret) {
@@ -718,6 +742,9 @@ int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
                 }
                 }
                 });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
     }
     return ret;
 }
@@ -828,7 +855,7 @@ int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, uint3
          ALOGV("%s:%d: fd [0] %d fd [1] %d", __func__,__LINE__, allocHidlHandle->data[0], allocHidlHandle->data[1]);
          agmBuff->alloc_info.alloc_size = buf->alloc_info.alloc_size;
          agmBuff->alloc_info.offset = buf->alloc_info.offset;
-         agm_client->ipc_agm_session_write_with_metadata(
+         auto status = agm_client->ipc_agm_session_write_with_metadata(
                                             handle, buf_hidl,
                                             *consumed_size,
                                       [&](int32_t _ret, uint32_t cnt)
@@ -837,6 +864,9 @@ int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, uint3
                                              if (ret != -ENOMEM)
                                                  *consumed_size = (size_t) cnt;
                                            });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
     }
 done:
     return ret;
@@ -874,7 +904,7 @@ int agm_session_read_with_metadata(uint64_t handle, struct agm_buff  *buf, uint3
 
         ALOGV("%s:%d size %d %d", __func__, __LINE__, buf_hidl.data()->size, buf->size);
         ALOGV("%s:%d: fd [0] %d fd [1] %d", __func__,__LINE__, allocHidlHandle->data[0], allocHidlHandle->data[1]);
-        agm_client->ipc_agm_session_read_with_metadata(handle, buf_hidl, *captured_size,
+        auto status = agm_client->ipc_agm_session_read_with_metadata(handle, buf_hidl, *captured_size,
                [&](int32_t ret_, hidl_vec<AgmBuff> ret_buf_hidl, uint32_t captured_size_ret)
                   {
                       if (ret_ > 0) {
@@ -898,6 +928,9 @@ int agm_session_read_with_metadata(uint64_t handle, struct agm_buff  *buf, uint3
                       }
                       ret = ret_;
                   });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
     }
 done:
     return ret;
