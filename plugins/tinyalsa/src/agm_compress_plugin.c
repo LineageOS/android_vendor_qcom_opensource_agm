@@ -78,6 +78,7 @@ struct agm_compress_priv {
     bool start_drain;
     bool eos;
     bool early_eos;
+    bool eos_received;
 
     enum agm_gapless_silence_type type;   /* Silence Type (Initial/Trailing) */
     uint32_t silence;  /* Samples to remove */
@@ -164,6 +165,9 @@ void agm_compress_event_cb(uint32_t session_id __unused,
         if (priv->eos) {
             pthread_cond_signal(&priv->eos_cond);
             priv->eos = false;
+        } else {
+            AGM_LOGD("%s: EOS received before drain called\n", __func__);
+            priv->eos_received = true;
         }
         pthread_mutex_unlock(&priv->eos_lock);
     } else if (event_params->event_id == AGM_EVENT_EARLY_EOS) {
@@ -197,6 +201,9 @@ int agm_compress_write(struct compress_plugin *plugin, const void *buff,
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
         return ret;
+
+    if (priv->eos_received)
+        priv->eos_received = false;
 
     if (count > priv->total_buf_size) {
         AGM_LOGE("%s: Size %zu is greater than total buf size %llu\n",
@@ -403,19 +410,26 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
         break;
 #endif
     case SND_AUDIOCODEC_WMA:
-        media_cfg->format = AGM_FORMAT_WMASTD;
-        sess_cfg->codec.wma_dec.fmt_tag = params->codec.format;
-        sess_cfg->codec.wma_dec.num_channels = params->codec.ch_in;
-        sess_cfg->codec.wma_dec.sample_rate = media_cfg->rate;
-        break;
-#ifdef SND_AUDIOCODEC_WMA_PRO
-    case SND_AUDIOCODEC_WMA_PRO:
-        media_cfg->format = AGM_FORMAT_WMAPRO;
-        sess_cfg->codec.wmapro_dec.fmt_tag = params->codec.format;
-        sess_cfg->codec.wmapro_dec.num_channels = params->codec.ch_in;
-        sess_cfg->codec.wmapro_dec.sample_rate = media_cfg->rate;
-        break;
+#ifdef SND_AUDIOPROFILE_WMA9_LOSSLESS
+        if ((params->codec.profile == SND_AUDIOPROFILE_WMA9_PRO) ||
+            (params->codec.profile == SND_AUDIOPROFILE_WMA9_LOSSLESS) ||
+            (params->codec.profile == SND_AUDIOPROFILE_WMA10_LOSSLESS)) {
+#else
+        if ((params->codec.profile == SND_AUDIOMODE_WMAPRO_LEVELM0) ||
+            (params->codec.profile == SND_AUDIOMODE_WMAPRO_LEVELM1) ||
+            (params->codec.profile == SND_AUDIOMODE_WMAPRO_LEVELM2)) {
 #endif
+            media_cfg->format = AGM_FORMAT_WMAPRO;
+            sess_cfg->codec.wmapro_dec.fmt_tag = params->codec.format;
+            sess_cfg->codec.wmapro_dec.num_channels = params->codec.ch_in;
+            sess_cfg->codec.wmapro_dec.sample_rate = media_cfg->rate;
+        } else {
+            media_cfg->format = AGM_FORMAT_WMASTD;
+            sess_cfg->codec.wma_dec.fmt_tag = params->codec.format;
+            sess_cfg->codec.wma_dec.num_channels = params->codec.ch_in;
+            sess_cfg->codec.wma_dec.sample_rate = media_cfg->rate;
+        }
+        break;
     case SND_AUDIOCODEC_VORBIS:
         media_cfg->format = AGM_FORMAT_VORBIS;
         break;
@@ -606,16 +620,19 @@ static int agm_compress_drain(struct compress_plugin *plugin)
      */
     /* TODO: how to handle wake up in SSR scenario */
     pthread_mutex_lock(&priv->eos_lock);
-    priv->eos = true;
-    ret = agm_session_eos(handle);
-    if (ret) {
-        AGM_LOGE("%s: EOS fail\n", __func__);
-        errno = ret;
-        pthread_mutex_unlock(&priv->eos_lock);
-        return ret;
+    if (!priv->eos_received) {
+        priv->eos = true;
+        ret = agm_session_eos(handle);
+        if (ret) {
+            AGM_LOGE("%s: EOS fail\n", __func__);
+            errno = ret;
+            pthread_mutex_unlock(&priv->eos_lock);
+            return ret;
+        }
+        pthread_cond_wait(&priv->eos_cond, &priv->eos_lock);
+        AGM_LOGD("%s: out of eos wait\n", __func__);
     }
-    pthread_cond_wait(&priv->eos_cond, &priv->eos_lock);
-    AGM_LOGD("%s: out of eos wait\n", __func__);
+    priv->eos_received = false;
     pthread_mutex_unlock(&priv->eos_lock);
 
     return 0;
@@ -963,22 +980,30 @@ void agm_session_update_codec_options(struct agm_session_config *sess_cfg,
         break;
 #endif
     case SND_AUDIOCODEC_WMA:
-        sess_cfg->codec.wma_dec.avg_bytes_per_sec = copt->generic.reserved[0];
-        sess_cfg->codec.wma_dec.blk_align = copt->generic.reserved[1];
-        sess_cfg->codec.wma_dec.bits_per_sample = copt->generic.reserved[2];
-        sess_cfg->codec.wma_dec.channel_mask = copt->generic.reserved[3];
-        sess_cfg->codec.wma_dec.enc_options = copt->generic.reserved[4];
-        break;
-#ifdef SND_AUDIOCODEC_WMA_PRO
-    case SND_AUDIOCODEC_WMA_PRO:
-        sess_cfg->codec.wmapro_dec.avg_bytes_per_sec = copt->generic.reserved[0];
-        sess_cfg->codec.wmapro_dec.blk_align = copt->generic.reserved[1];
-        sess_cfg->codec.wmapro_dec.bits_per_sample = copt->generic.reserved[2];
-        sess_cfg->codec.wmapro_dec.channel_mask = copt->generic.reserved[3];
-        sess_cfg->codec.wmapro_dec.enc_options = copt->generic.reserved[4];
-        sess_cfg->codec.wmapro_dec.advanced_enc_option = copt->generic.reserved[5];
-        break;
+#ifdef SND_AUDIOPROFILE_WMA9_LOSSLESS
+        if ((params->codec.profile == SND_AUDIOPROFILE_WMA9_PRO) ||
+            (params->codec.profile == SND_AUDIOPROFILE_WMA9_LOSSLESS) ||
+            (params->codec.profile == SND_AUDIOPROFILE_WMA10_LOSSLESS)) {
+#else
+        if ((params->codec.profile == SND_AUDIOMODE_WMAPRO_LEVELM0) ||
+            (params->codec.profile == SND_AUDIOMODE_WMAPRO_LEVELM1) ||
+            (params->codec.profile == SND_AUDIOMODE_WMAPRO_LEVELM2)) {
 #endif
+            sess_cfg->codec.wmapro_dec.avg_bytes_per_sec = copt->generic.reserved[0];
+            sess_cfg->codec.wmapro_dec.blk_align = copt->generic.reserved[1];
+            sess_cfg->codec.wmapro_dec.bits_per_sample = copt->generic.reserved[2];
+            sess_cfg->codec.wmapro_dec.channel_mask = copt->generic.reserved[3];
+            sess_cfg->codec.wmapro_dec.enc_options = copt->generic.reserved[4];
+            sess_cfg->codec.wmapro_dec.advanced_enc_option = copt->generic.reserved[5];
+            sess_cfg->codec.wmapro_dec.advanced_enc_option2 = copt->generic.reserved[6];
+        } else {
+            sess_cfg->codec.wma_dec.avg_bytes_per_sec = copt->generic.reserved[0];
+            sess_cfg->codec.wma_dec.blk_align = copt->generic.reserved[1];
+            sess_cfg->codec.wma_dec.bits_per_sample = copt->generic.reserved[2];
+            sess_cfg->codec.wma_dec.channel_mask = copt->generic.reserved[3];
+            sess_cfg->codec.wma_dec.enc_options = copt->generic.reserved[4];
+        }
+        break;
     default:
         break;
     }

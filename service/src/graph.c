@@ -651,6 +651,7 @@ tag_list:
 no_config:
     graph_obj->sess_obj = sess_obj;
 
+    metadata_print(meta_data_kv);
     ret = gsl_open((struct gsl_key_vector *)&meta_data_kv->gkv,
                    (struct gsl_key_vector *)&meta_data_kv->ckv,
                    &graph_obj->graph_handle);
@@ -1169,7 +1170,9 @@ int graph_read(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *siz
 
     ret = gsl_read(graph_obj->graph_handle,
                     read_mod_tag, &gsl_buff, (uint32_t *)&size_read);
-    if ((ret != 0) || (size_read == 0)) {
+    if ((ret != 0) ||
+        ((size_read == 0) &&
+         (graph_obj->sess_obj->stream_config.sess_mode != AGM_SESSION_NON_TUNNEL))) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("size_requested %zu size_read %d error %d\n",
                   *size, size_read, ret);
@@ -1217,6 +1220,7 @@ int graph_add(struct graph_obj *graph_obj,
     add_graph.cal_key_vect.num_kvps = meta_data_kv->ckv.num_kvs;
     add_graph.cal_key_vect.kvp = (struct gsl_key_value_pair *)
                                      meta_data_kv->ckv.kv;
+    metadata_print(meta_data_kv);
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_ADD_GRAPH, &add_graph,
                     sizeof(struct gsl_cmd_graph_select));
     if (ret != 0) {
@@ -1448,6 +1452,7 @@ int graph_change(struct graph_obj *graph_obj,
     change_graph.cal_key_vect.num_kvps = meta_data_kv->ckv.num_kvs;
     change_graph.cal_key_vect.kvp = (struct gsl_key_value_pair *)
                                      meta_data_kv->ckv.kv;
+    metadata_print(meta_data_kv);
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_CHANGE_GRAPH, &change_graph,
                     sizeof(struct gsl_cmd_graph_select));
     if (ret != 0) {
@@ -1494,6 +1499,7 @@ int graph_remove(struct graph_obj *graph_obj,
     rm_graph.graph_key_vector.num_kvps = meta_data_kv->gkv.num_kvs;
     rm_graph.graph_key_vector.kvp = (struct gsl_key_value_pair *)
                                      meta_data_kv->gkv.kv;
+    metadata_print(meta_data_kv);
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_REMOVE_GRAPH, &rm_graph,
                     sizeof(struct gsl_cmd_remove_graph));
     if (ret != 0) {

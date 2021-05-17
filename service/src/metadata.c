@@ -295,8 +295,6 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size __unused,
     memcpy(dest->sg_props.values, PTR_TO_PROPS(metadata),
            dest->sg_props.num_values * sizeof(uint32_t));
 
-    metadata_print(dest);
-
     return ret;
 
 }

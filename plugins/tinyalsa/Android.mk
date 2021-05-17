@@ -1,5 +1,3 @@
-ifeq ($(call is-board-platform-in-list, sdm845 msmnile kona lahaina taro bengal),true)
-
 LOCAL_PATH := $(call my-dir)
 # Build libagm_pcm_plugin
 include $(CLEAR_VARS)
@@ -128,4 +126,3 @@ endif
 
 include $(BUILD_SHARED_LIBRARY)
 
-endif

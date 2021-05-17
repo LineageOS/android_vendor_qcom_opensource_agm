@@ -115,7 +115,7 @@ int check_and_find_input_fd(uint64_t sess_handle, int input_fd, int *dup_fd)
                 for (int i = 0; i < hndle->shared_mem_fd_list.size(); i++) {
                      if (hndle->shared_mem_fd_list[i].first == input_fd) {
                         *dup_fd = hndle->shared_mem_fd_list[i].second;
-                        ALOGD("input fd %d found, return already dupped fd %d", input_fd, *dup_fd);
+                        ALOGV("input fd %d found, return already dupped fd %d", input_fd, *dup_fd);
                         pthread_mutex_unlock(&client_list_lock);
                         return 0;
                      }
@@ -152,7 +152,7 @@ void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
                     hndle->shared_mem_fd_list.erase(it);
                 }
                 hndle->shared_mem_fd_list.push_back(std::make_pair(input_fd, dup_fd));
-                ALOGD("sess_handle %x, session_id:%d input_fd %d, dup fd %d", hndle->handle,
+                ALOGV("sess_handle %x, session_id:%d input_fd %d, dup fd %d", hndle->handle,
                        hndle->session_id, input_fd, dup_fd);
             }
          }
@@ -192,7 +192,7 @@ void add_handle_to_list(uint32_t session_id, uint64_t handle)
                 }
                 hndl->handle = handle;
                 hndl->session_id = session_id;
-                ALOGD("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
+                ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
                 list_add_tail(&client_handle_temp->agm_client_hndl_list, &hndl->list);
                 flag = 1;
                 break;
@@ -210,7 +210,7 @@ void add_handle_to_list(uint32_t session_id, uint64_t handle)
             }
             hndl->handle = handle;
             hndl->session_id = session_id;
-            ALOGD("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
+            ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
             list_add_tail(&client_handle->agm_client_hndl_list, &hndl->list);
         }
     }
@@ -281,7 +281,7 @@ void ipc_callback (uint32_t session_id,
                           /*   it = (hndle->shared_mem_fd_list.begin() + i);
                              if (it != hndle->shared_mem_fd_list.end())
                                  hndle->shared_mem_fd_list.erase(it);*/
-                             ALOGD("input fd %d  payload fd %d\n", input_fd,
+                             ALOGV("input fd %d  payload fd %d\n", input_fd,
                                    rw_done_payload->buff.alloc_info.alloc_handle);
                              break;
                          }
@@ -297,6 +297,10 @@ void ipc_callback (uint32_t session_id,
          */
         native_handle_t *allocHidlHandle = nullptr;
         allocHidlHandle = native_handle_create(1, 1);
+        if (!allocHidlHandle) {
+            ALOGE("%s native_handle_create fails", __func__);
+            return;
+        }
         rw_evt_param_hidl.resize(sizeof(struct AgmReadWriteEventCbParams));
         rw_evt_param = rw_evt_param_hidl.data();
         rw_evt_param->source_module_id = evt_param->source_module_id;
@@ -326,6 +330,9 @@ void ipc_callback (uint32_t session_id,
         clbk_bdr->event_callback_rw_done(session_id, rw_evt_param_hidl,
                                   sr_clbk_dat->get_clnt_data());
 
+        // allocated during read_with_metadata()
+        if (rw_done_payload->buff.metadata)
+            free(rw_done_payload->buff.metadata);
         //close(rw_done_payload->buff.alloc_info.alloc_handle);
     } else {
         evt_param_l.resize(sizeof(struct agm_event_cb_params) +
@@ -887,7 +894,7 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
                                                      uint64_t ipc_client_data,
                                                      uint64_t clnt_data) {
     agm_event_cb ipc_cb;
-    SrvrClbk  *sr_clbk_data, *tmp_sr_clbk_data = NULL;
+    SrvrClbk  *sr_clbk_data = NULL, *tmp_sr_clbk_data = NULL;
     clbk_data *clbk_data_obj = NULL;
 
     if ( this->Client_death_notifier == NULL ) {
@@ -992,6 +999,10 @@ Return<void> AGM::ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t fla
     if (!ret) {
         if (flag & DATA_BUF) {
             dataHidlHandle = native_handle_create(1, 0);
+            if (!dataHidlHandle) {
+                ALOGE("%s native_handle_create fails", __func__);
+                goto exit;
+            }
             dataHidlHandle->data[0] = buf_info.data_buf_fd;
             info.dataSharedMemory = hidl_memory("ar_data_buf", hidl_handle(dataHidlHandle),
                     buf_info.data_buf_size);
@@ -999,6 +1010,10 @@ Return<void> AGM::ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t fla
         }
         if (flag & POS_BUF) {
             posHidlHandle = native_handle_create(1, 0);
+            if (!posHidlHandle) {
+                ALOGE("%s native_handle_create fails", __func__);
+                goto exit;
+            }
             posHidlHandle->data[0] = buf_info.pos_buf_fd;
             info.posSharedMemory = hidl_memory("ar_pos_buf", posHidlHandle,
                     buf_info.pos_buf_size);
@@ -1007,6 +1022,8 @@ Return<void> AGM::ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t fla
     }
 
     _hidl_cb(ret, info);
+
+exit:
     if (dataHidlHandle != nullptr)
         native_handle_delete(dataHidlHandle);
 
@@ -1114,19 +1131,30 @@ Return<void> AGM::ipc_agm_session_write_with_metadata(uint64_t hndl, const hidl_
     struct agm_buff buf;
     uint32_t bufSize;
     uint32_t consumed_size = consumed_sz;
+    const native_handle *allochandle = nullptr;
+    buf.addr = nullptr;
+    buf.metadata = nullptr;
 
     bufSize = buff_hidl.data()->size;
     buf.addr = (uint8_t *)calloc(1, bufSize);
+    if (!buf.addr) {
+        ALOGE("%s: failed to calloc", __func__);
+        goto exit;
+    }
     buf.size = (size_t)bufSize;
     buf.timestamp = buff_hidl.data()->timestamp;
     buf.flags = buff_hidl.data()->flags;
     if (buff_hidl.data()->metadata_size) {
         buf.metadata_size = buff_hidl.data()->metadata_size;
         buf.metadata = (uint8_t *)calloc(1, buf.metadata_size);
+        if (!buf.metadata) {
+            ALOGE("%s: failed to calloc", __func__);
+            goto exit;
+        }
         memcpy(buf.metadata, buff_hidl.data()->metadata.data(),
                buf.metadata_size);
     }
-    const native_handle *allochandle = nullptr;
+
     allochandle = buff_hidl.data()->alloc_info.alloc_handle.handle();
     buf.alloc_info.alloc_handle = dup(allochandle->data[0]);
     add_fd_to_list(hndl, allochandle->data[1], buf.alloc_info.alloc_handle);
@@ -1137,7 +1165,12 @@ Return<void> AGM::ipc_agm_session_write_with_metadata(uint64_t hndl, const hidl_
     ALOGV("%s:%d sz %d", __func__,__LINE__,bufSize);
     ret = agm_session_write_with_metadata(hndl, &buf, &consumed_size);
     _hidl_cb(ret, consumed_size);
-    free(buf.addr);
+
+exit:
+    if (buf.metadata != nullptr)
+        free(buf.metadata);
+    if (buf.addr != nullptr)
+        free(buf.addr);
     return Void();
 }
 
@@ -1150,13 +1183,20 @@ Return<void> AGM::ipc_agm_session_read_with_metadata(uint64_t hndl, const hidl_v
     hidl_vec<AgmBuff> outBuff_hidl;
     uint32_t bufSize;
     uint32_t captured_size = captured_sz;
+    const native_handle *allochandle = nullptr;
 
     bufSize = inBuff_hidl.data()->size;
     buf.addr = (uint8_t *)calloc(1, bufSize);
     buf.size = (size_t)bufSize;
     buf.metadata_size = inBuff_hidl.data()->metadata_size;
     buf.metadata = (uint8_t *)calloc(1, buf.metadata_size);
-    const native_handle *allochandle = nullptr;
+    if (!buf.addr || !buf.metadata) {
+        ALOGE("%s: failed to calloc", __func__);
+        goto exit;
+    }
+    buf.timestamp = 0;
+    buf.flags = 0;
+
     allochandle = inBuff_hidl.data()->alloc_info.alloc_handle.handle();
 
     buf.alloc_info.alloc_handle = dup(allochandle->data[0]);
@@ -1181,10 +1221,12 @@ Return<void> AGM::ipc_agm_session_read_with_metadata(uint64_t hndl, const hidl_v
         }
     }
     _hidl_cb(ret, outBuff_hidl, captured_size);
-    if (buf.addr)
-       free(buf.addr);
 
-     return Void();
+exit:
+    if (buf.addr)
+        free(buf.addr);
+
+    return Void();
 }
 
 }  // namespace implementation

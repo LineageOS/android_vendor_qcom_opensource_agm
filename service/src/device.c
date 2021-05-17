@@ -49,8 +49,8 @@
 #endif
 
 #define PCM_DEVICE_FILE "/proc/asound/pcm"
-#define MAX_RETRY 20 /*Device will try these many times before return an error*/
-#define RETRY_INTERVAL 5 /*Retry interval in seconds*/
+#define MAX_RETRY 100 /*Device will try these many times before return an error*/
+#define RETRY_INTERVAL 1 /*Retry interval in seconds*/
 
 #ifdef DYNAMIC_LOG_ENABLED
 #include <log_xml_parser.h>
@@ -90,6 +90,31 @@ static int sysfs_fd = -1;
 #define DEFAULT_PERIOD_COUNT         2
 
 #define MAX_USR_INPUT 9
+
+int get_pcm_bits_per_sample(enum agm_media_format fmt_id)
+{
+     int bits_per_sample = 16;
+
+     switch(fmt_id) {
+         case AGM_FORMAT_PCM_S8:      /**< 8-bit signed */
+              bits_per_sample = 8;
+              break;
+         case AGM_FORMAT_PCM_S24_LE:  /**< 24-bits in 4-bytes, 8_24 form*/
+              bits_per_sample = 32;
+              break;
+         case AGM_FORMAT_PCM_S24_3LE: /**< 24-bits in 3-bytes */
+              bits_per_sample = 24;
+              break;
+         case AGM_FORMAT_PCM_S32_LE:  /**< 32-bit signed */
+              bits_per_sample = 32;
+              break;
+         case AGM_FORMAT_PCM_S16_LE:  /**< 16-bit signed */
+         default:
+              bits_per_sample = 16;
+              break;
+     }
+     return bits_per_sample;
+}
 
 static void update_sysfs_fd (int8_t pcm_id, int8_t state)
 {
@@ -183,7 +208,7 @@ int device_open(struct device_obj *dev_obj)
     rate = dev_obj->media_config.rate;
     format = agm_to_alsa_format(dev_obj->media_config.format);
     period_size = (MAX_PERIOD_BUFFER)/(channels *
-                              (get_pcm_bit_width(dev_obj->media_config.format)/8));
+                              (get_pcm_bits_per_sample(dev_obj->media_config.format)/8));
     period_count = DEFAULT_PERIOD_COUNT;
 
     ret = snd_pcm_open(&pcm, pcm_name, stream, 0);
@@ -264,7 +289,7 @@ int device_open(struct device_obj *dev_obj)
     config.rate = dev_obj->media_config.rate;
     config.format = agm_to_pcm_format(dev_obj->media_config.format);
     config.period_size = (MAX_PERIOD_BUFFER)/((config.channels) *
-                              (get_pcm_bit_width(dev_obj->media_config.format)/8));
+                              (get_pcm_bits_per_sample(dev_obj->media_config.format)/8));
     config.period_count = DEFAULT_PERIOD_COUNT;
     config.start_threshold = config.period_size / 4;
     config.stop_threshold = INT_MAX;
@@ -403,6 +428,12 @@ int device_close(struct device_obj *dev_obj)
     }
 
     pthread_mutex_lock(&dev_obj->lock);
+    if (!dev_obj->refcnt.open) {
+        AGM_LOGE("PCM device %u already closed\n",
+              dev_obj->pcm_id);
+        goto done;
+    }
+
     if (--dev_obj->refcnt.open == 0) {
         update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
 #ifdef DEVICE_USES_ALSALIB
@@ -419,6 +450,7 @@ int device_close(struct device_obj *dev_obj)
         dev_obj->refcnt.start = 0;
     }
 
+done:
     pthread_mutex_unlock(&dev_obj->lock);
     return ret;
 }
@@ -628,7 +660,6 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         AGM_LOGE("Invalid mixer control: %s\n", mixer_str);
-        free(mixer_str);
         ret = -ENOENT;
         goto err_get_ctl;
     }
