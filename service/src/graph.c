@@ -1017,6 +1017,31 @@ int graph_resume(struct graph_obj *graph_obj)
     return graph_pause_resume(graph_obj, false);
 }
 
+int graph_suspend(struct graph_obj *graph_obj)
+{
+    int ret = 0;
+
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object\n");
+        return -EINVAL;
+    }
+
+    pthread_mutex_lock(&graph_obj->lock);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
+
+    ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_SUSPEND, NULL, 0);
+    if (ret !=0) {
+        ret = ar_err_get_lnx_err_code(ret);
+        AGM_LOGE("graph_suspend failed %d\n", ret);
+        goto done;
+    }
+
+done:
+    pthread_mutex_unlock(&graph_obj->lock);
+    AGM_LOGD("exit\n");
+    return ret;
+}
+
 int graph_set_config(struct graph_obj *graph_obj, void *payload,
                      size_t payload_size)
 {
