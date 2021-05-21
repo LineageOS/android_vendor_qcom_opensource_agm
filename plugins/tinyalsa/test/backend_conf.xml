@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<!-- Copyright (c) 2020, The Linux Foundation. All rights reserved.       -->
+<!-- Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.       -->
 <!--                                                                           -->
 <!-- Redistribution and use in source and binary forms, with or without        -->
 <!-- modification, are permitted provided that the following conditions are    -->
@@ -38,5 +38,29 @@
     <device name="MI2S-LPAIF_AXI-TX-PRIMARY" rate="48000" ch="1" bits="16" />
     <device name="SLIM-DEV1-TX-0" rate="48000" ch="1" bits="16" />
     <device name="USB_AUDIO-TX" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF_AUD-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF_AUD-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF-RX-TERTIARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF-TX-TERTIARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF_RXTX-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF_RXTX-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF_VA-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF_VA-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF_WSA-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="MI2S-LPAIF_WSA-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF_AUD-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF_AUD-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF-RX-TERTIARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF-TX-TERTIARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF_RXTX-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF_RXTX-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF_VA-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF_VA-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF_WSA-RX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF_WSA-TX-PRIMARY" rate="48000" ch="1" bits="16" />
 </config>
 

@@ -43,6 +43,7 @@
 #define  PCM_INTF_IDX_TERTIARY      0x2
 #define  PCM_INTF_IDX_QUATERNARY    0x3
 #define  PCM_INTF_IDX_QUINARY       0x4
+#define  PCM_INTF_IDX_SENARY        0x5
 
 #define  CODEC_DMA                  0x0
 #define  MI2S                       0x1
