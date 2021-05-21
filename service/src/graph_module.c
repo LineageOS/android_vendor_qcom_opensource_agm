@@ -698,6 +698,9 @@ int configure_hw_ep(struct module_info *mod,
     case PCM_RT_PROXY:
         AGM_LOGD("no ep configuration for %d\n",  dev_obj->hw_ep_info.intf);
         break;
+    case AUDIOSS_DMA:
+        AGM_LOGD("no ep configuration for %d\n",  dev_obj->hw_ep_info.intf);
+        break;
     default:
          AGM_LOGE("hw intf %d not enabled yet", dev_obj->hw_ep_info.intf);
          break;

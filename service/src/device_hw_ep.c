@@ -159,6 +159,40 @@ static int populate_hw_ep_direction(hw_ep_info_t *hw_ep_info, char *dir)
     return 0;
 }
 
+static int populate_audioss_dma_ep_info(hw_ep_info_t *hw_ep_info, char *value)
+{
+    char lpaif_type[DEV_ARG_SIZE];
+    char arg[DEV_ARG_SIZE] = {0};
+
+    struct hw_ep_audioss_dma_config *audioss_dma_config;
+    int ret = 0;
+
+    audioss_dma_config = &hw_ep_info->ep_config.audioss_dma_config;
+
+    sscanf(value, "%20[^-]-%60s", arg, value);
+    strlcpy(lpaif_type, arg, strlen(arg)+1);
+    sscanf(value, "%20[^-]-%60s", arg, value);
+
+    if (!strcmp(lpaif_type, "LPAIF_VA")) {
+         audioss_dma_config->lpaif_type = LPAIF_VA;
+    } else {
+         AGM_LOGE("No matching lpaif_type found\n");
+         return -EINVAL;
+    }
+
+    ret = populate_hw_ep_direction(hw_ep_info, arg);
+    if (ret) {
+        AGM_LOGE("failed to parse direction\n");
+        return ret;
+    }
+
+    sscanf(value, "%20[^-]-%60s", arg, value);
+    audioss_dma_config->dev_id = atoi(arg);
+
+    return ret;
+
+}
+
 static int populate_pcm_rt_proxy_ep_info(hw_ep_info_t *hw_ep_info, char *value)
 {
     char arg[DEV_ARG_SIZE] = {0};
@@ -277,6 +311,8 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj)
         return populate_slim_dp_usb_ep_info(&dev_obj->hw_ep_info, value);
     case PCM_RT_PROXY:
         return populate_pcm_rt_proxy_ep_info(&dev_obj->hw_ep_info, value);
+    case AUDIOSS_DMA:
+        return populate_audioss_dma_ep_info(&dev_obj->hw_ep_info, value);
     default:
         AGM_LOGE("Unsupported interface name %s\n", __func__, dev_obj->name);
         return -EINVAL;
