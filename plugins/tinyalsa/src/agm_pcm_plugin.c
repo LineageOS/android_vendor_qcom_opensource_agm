@@ -52,7 +52,7 @@
 
 /* 2 words of uint32_t = 64 bits of mask */
 #define PCM_MASK_SIZE (2)
-#define PCM_FORMAT_BIT(x) (1 << x)
+#define PCM_FORMAT_BIT(x) ((uint64_t)1 << x)
 
 /* pull-push mode macros */
 #define AGM_PULL_PUSH_IDX_RETRY_COUNT 2
