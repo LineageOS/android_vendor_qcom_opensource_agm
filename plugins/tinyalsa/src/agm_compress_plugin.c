@@ -548,6 +548,7 @@ static int agm_compress_stop(struct compress_plugin *plugin)
         pthread_cond_signal(&priv->eos_cond);
         priv->eos = false;
     }
+    priv->eos_received = true;
     pthread_mutex_unlock(&priv->eos_lock);
 
     /* Unblock eos wait if early eos event cb has not been called */
