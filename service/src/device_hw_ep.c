@@ -106,6 +106,8 @@ static int populate_hw_ep_intf_idx(hw_ep_info_t *hw_ep_info, char *intf_idx)
             cdc_dma_i2s_tdm_config->intf_idx = PCM_INTF_IDX_QUATERNARY;
         else if(!strcmp(intf_idx, "QUINARY"))
             cdc_dma_i2s_tdm_config->intf_idx = PCM_INTF_IDX_QUINARY;
+        else if(!strcmp(intf_idx, "SENARY"))
+            cdc_dma_i2s_tdm_config->intf_idx = PCM_INTF_IDX_SENARY;
         else {
             AGM_LOGE("No matching intf_idx found\n");
             return -EINVAL;
@@ -230,6 +232,8 @@ static int populate_cdc_dma_i2s_tdm_pcm_ep_info(hw_ep_info_t *hw_ep_info, char *
         cdc_dma_i2s_tdm_config->lpaif_type = LPAIF_VA;
     else if (!strcmp(lpaif_type, "LPAIF_AXI"))
         cdc_dma_i2s_tdm_config->lpaif_type = LPAIF_AXI;
+    else if (!strcmp(lpaif_type, "LPAIF_AUD"))
+        cdc_dma_i2s_tdm_config->lpaif_type = LPAIF_AUD;
     else {
         AGM_LOGE("No matching lpaif_type found\n");
         return -EINVAL;
