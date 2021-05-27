@@ -1433,12 +1433,13 @@ int session_obj_rw_acdb_params_with_tag(
 
         merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
                           &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
-        if (!merged_metadata) {
-            AGM_LOGE("Error merging metadata session_id:%d aif_id:%d\n",
-                sess_obj->sess_id, aif_obj->aif_id);
-            ret = -ENOMEM;
-            goto error;
-        }
+    }
+
+    if (!merged_metadata) {
+        AGM_LOGE("Error merging metadata session_id:%d aif_id:%d\n",
+            sess_obj->sess_id, aif_obj->aif_id);
+        ret = -ENOMEM;
+        goto error;
     }
 
     tckv.num_kvs= acdb_param->num_kvs;
