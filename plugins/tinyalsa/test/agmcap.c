@@ -250,7 +250,7 @@ unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
     }
 
     /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, intf_name, CAPTURE, dev_config->rate, dev_config->bits)) {
+    if (set_agm_audio_intf_metadata(mixer, intf_name, CAPTURE, dev_config->rate, dev_config->bits, PCM_RECORD)) {
         printf("Failed to set device metadata\n");
         goto err_close_mixer;
     }

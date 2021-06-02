@@ -331,7 +331,7 @@ static void capture_samples(char *name, unsigned int card, unsigned int device,
 	}
 
 	/* set audio interface metadata mixer control */
-	if (set_agm_audio_intf_metadata(mixer, intf_name, CAPTURE, rate, samplebits)) {
+	if (set_agm_audio_intf_metadata(mixer, intf_name, CAPTURE, rate, samplebits, PCM_RECORD)) {
 		printf("Failed to set device metadata\n");
 		goto mixer_exit;
 	}
