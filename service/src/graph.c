@@ -766,8 +766,12 @@ int graph_prepare(struct graph_obj *graph_obj)
      */
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
-        if (mod->is_configured)
-            continue;
+        if (mod->is_configured) {
+            if ((mod->tag == DEVICE_HW_ENDPOINT_RX) || (mod->tag == DEVICE_HW_ENDPOINT_TX))
+                goto force_configure;
+            else
+                continue;
+        }
         if ((mod->tag == STREAM_INPUT_MEDIA_FORMAT) &&
              (stream_config.sess_mode == AGM_SESSION_NO_HOST)) {
             AGM_LOGE("Shared mem mod present for a hostless session error out\n");
@@ -785,6 +789,7 @@ int graph_prepare(struct graph_obj *graph_obj)
              goto done;
         }
 
+force_configure:
         if (mod->configure) {
             if ((mod->dev_obj != NULL) &&
                 ((mod->tag == DEVICE_HW_ENDPOINT_RX)|| (mod->tag == DEVICE_HW_ENDPOINT_TX)) &&
