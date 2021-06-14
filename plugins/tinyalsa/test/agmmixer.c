@@ -370,7 +370,7 @@ int agm_mixer_set_ecref_path(struct mixer *mixer, unsigned int device, enum stre
     return ret;
 }
 
-int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir d, int rate, int bitwidth)
+int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir d, int rate, int bitwidth, uint32_t val)
 {
     char *control = "metadata";
     struct mixer_ctl *ctl;
@@ -406,7 +406,7 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir d
     if (d == PLAYBACK) {
         gkv[0].key = DEVICERX;
         gkv[0].value = SPEAKER;
-    } else if (!strcmp(intf_name, "CODEC_DMA-LPAIF_VA-TX-0")) {
+    } else if (val == VOICE_UI) {
         gkv[0].key = DEVICETX;
         gkv[0].value = HANDSETMIC_VA;
     } else {
