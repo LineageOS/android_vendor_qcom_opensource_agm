@@ -1142,7 +1142,7 @@ int graph_write(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *si
         AGM_LOGE("gsl_write for size %zu failed with error %d\n", *size, ret);
         goto done;
     }
-    *size = size_written;
+    *size = (size_t)size_written;
 done:
     return ret;
 }
