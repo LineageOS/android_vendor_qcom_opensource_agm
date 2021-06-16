@@ -45,7 +45,7 @@
 static int session_close(struct session_obj *sess_obj);
 static int session_set_loopback(struct session_obj *sess_obj,
                            uint32_t session_id, bool enable);
-
+static pthread_mutex_t hwep_lock;
 static struct aif *aif_obj_get_from_pool(struct session_obj *sess_obj,
                                       uint32_t aif)
 {
@@ -507,6 +507,7 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
         return ret;
     }
 
+    pthread_mutex_lock(&hwep_lock);
     if (opened_count == 1) {
         //this is SSSD condition, hence stop just the stream/stream-device,
         //merged only sess-aif, aif
@@ -517,6 +518,7 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
                           audio interface id:%d \n",
                           sess_obj->sess_id, aif_obj->aif_id);
             ret = -ENOMEM;
+            pthread_mutex_unlock(&hwep_lock);
             return ret;
         }
 
@@ -544,6 +546,9 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
         AGM_LOGE("Error:%d closing device object with id:%d \n",
             ret, aif_obj->aif_id);
     }
+    pthread_mutex_unlock(&hwep_lock);
+    if (merged_meta_sess_aif)
+        metadata_free(merged_meta_sess_aif);
 
     metadata_free(merged_metadata);
     return ret;
@@ -894,7 +899,9 @@ static int session_prepare(struct session_obj *sess_obj)
         }
 
         if ((sess_obj->state != SESSION_STARTED)) {
+            pthread_mutex_lock(&hwep_lock);
             ret = graph_prepare(sess_obj->graph);
+            pthread_mutex_unlock(&hwep_lock);
             if (ret) {
                 AGM_LOGE("Error:%d preparing graph\n", ret);
                 goto done;
@@ -983,9 +990,11 @@ static int session_start(struct session_obj *sess_obj)
             }
         }
 
+        pthread_mutex_lock(&hwep_lock);
         ret = graph_start(sess_obj->graph);
         if (ret) {
             AGM_LOGE("Error:%d starting graph\n", ret);
+            pthread_mutex_unlock(&hwep_lock);
             goto done;
         }
 
@@ -1016,6 +1025,7 @@ static int session_start(struct session_obj *sess_obj)
                 aif_obj->state = AIF_STARTED;
             }
         }
+        pthread_mutex_unlock(&hwep_lock);
 
 
     } else {
@@ -1031,6 +1041,7 @@ static int session_start(struct session_obj *sess_obj)
 
 unwind:
 
+    pthread_mutex_lock(&hwep_lock);
     graph_stop(sess_obj->graph, NULL);
 
     if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
@@ -1044,6 +1055,7 @@ unwind:
             }
         }
     }
+    pthread_mutex_unlock(&hwep_lock);
 done:
     return ret;
 }
@@ -1065,9 +1077,11 @@ static int session_stop(struct session_obj *sess_obj)
 
     if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         if (dir == RX) {
+            pthread_mutex_lock(&hwep_lock);
             ret = graph_stop(sess_obj->graph, NULL);
             if (ret) {
                 AGM_LOGE("Error:%d stopping graph\n", ret);
+                pthread_mutex_unlock(&hwep_lock);
                 goto done;
             }
         }
@@ -1095,6 +1109,7 @@ static int session_stop(struct session_obj *sess_obj)
                 AGM_LOGE("Error:%d stopping graph\n", ret);
             }
         }
+        pthread_mutex_unlock(&hwep_lock);
     } else {
             ret = graph_stop(sess_obj->graph, NULL);
             if (ret) {
@@ -1119,8 +1134,9 @@ static int session_close(struct session_obj *sess_obj)
         return -EALREADY;
     }
 
+    pthread_mutex_lock(&hwep_lock);
     if (sess_obj->state == SESSION_STARTED) {
-        ret = graph_stop (sess_obj->graph, NULL);
+        ret = graph_stop(sess_obj->graph, NULL);
         if (ret) {
            AGM_LOGE("Error:%d closing graph\n", ret);
         }
@@ -1151,6 +1167,7 @@ static int session_close(struct session_obj *sess_obj)
             }
         }
     }
+    pthread_mutex_unlock(&hwep_lock);
     sess_obj->state = SESSION_CLOSED;
     AGM_LOGE("exit");
     return ret;
@@ -1186,6 +1203,7 @@ int session_obj_init()
         AGM_LOGE("Error:%d initializing session_pool\n", ret);
         goto graph_deinit;
     }
+    pthread_mutex_init(&hwep_lock, (const pthread_mutexattr_t *) NULL);
     goto done;
 
 graph_deinit:
