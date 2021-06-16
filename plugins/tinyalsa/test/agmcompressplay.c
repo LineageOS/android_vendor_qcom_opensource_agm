@@ -281,6 +281,9 @@ int main(int argc, char **argv)
 			argv++;
 	}
 
+	if (intf_name == NULL)
+		return 1;
+
 	ret = get_device_media_config(BACKEND_CONF_FILE, intf_name, &config);
 	if (ret) {
 		printf("Invalid input, entry not found for : %s\n", intf_name);
