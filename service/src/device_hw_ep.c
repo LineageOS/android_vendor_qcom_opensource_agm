@@ -139,6 +139,8 @@ static int populate_hw_ep_intf(hw_ep_info_t *hw_ep_info, char *intf)
         hw_ep_info->intf = AUXPCM;
     else if (!strcmp(intf, "PCM_RT_PROXY"))
         hw_ep_info->intf = PCM_RT_PROXY;
+    else if (!strcmp(intf, "AUDIOSS_DMA"))
+        hw_ep_info->intf = AUDIOSS_DMA;
     else {
         AGM_LOGE("No matching intf found\n");
         return -EINVAL;
