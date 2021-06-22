@@ -312,6 +312,7 @@ void metadata_free(struct agm_meta_data_gsl *metadata)
 
         if (metadata->sg_props.values)
             free(metadata->sg_props.values);
+        metadata->sg_props.values = NULL;
 
         memset(metadata, 0, sizeof(struct agm_meta_data_gsl));
     }
