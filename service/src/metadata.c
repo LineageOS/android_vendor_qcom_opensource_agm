@@ -84,7 +84,7 @@ void metadata_print(struct agm_meta_data_gsl* metadata)
     count = metadata->ckv.num_kvs;
     AGM_LOGD("\nCKV count:%d\n", count);
     for (i = 0; i < count; i++) {
-        AGM_LOGD("key:0x%x, value:0x%d ", metadata->ckv.kv[i].key,
+        AGM_LOGD("key:0x%x, value:0x%x ", metadata->ckv.kv[i].key,
                                        metadata->ckv.kv[i].value);
     }
     AGM_LOGD("\n");

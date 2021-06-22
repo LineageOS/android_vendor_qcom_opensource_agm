@@ -698,13 +698,15 @@ int configure_hw_ep(struct module_info *mod,
     case PCM_RT_PROXY:
         AGM_LOGD("no ep configuration for %d\n",  dev_obj->hw_ep_info.intf);
         break;
+    case AUDIOSS_DMA:
+        AGM_LOGD("no ep configuration for %d\n",  dev_obj->hw_ep_info.intf);
+        break;
     default:
          AGM_LOGE("hw intf %d not enabled yet", dev_obj->hw_ep_info.intf);
          break;
     }
     return ret;
 }
-
 
 /**
  *PCM DECODER/ENCODER and PCM CONVERTER are configured with the
@@ -859,6 +861,76 @@ int configure_output_media_format(struct module_info *mod,
 done:
     free(payload);
     AGM_LOGD("exit");
+    return ret;
+}
+
+static int configure_pcm_encoder_frame_size(struct module_info *mod,
+                                    struct graph_obj *graph_obj,
+                                    uint32_t frame_size_samples)
+{
+    struct apm_module_param_data_t *header;
+    struct param_id_pcm_encoder_frame_size_t *frame_size_payload;
+    uint8_t *payload = NULL;
+    size_t payload_size = 0;
+    int ret = 0;
+
+    payload_size = sizeof(struct apm_module_param_data_t) +
+                   sizeof(struct param_id_pcm_encoder_frame_size_t);
+    payload = calloc(1, (size_t)payload_size);
+    if (!payload) {
+        AGM_LOGE("Not enough memory for payload");
+        return -ENOMEM;
+    }
+    header = (struct apm_module_param_data_t*)payload;
+    frame_size_payload = (struct param_id_pcm_encoder_frame_size_t*)(payload +
+                            sizeof(struct apm_module_param_data_t));
+    header->module_instance_id = mod->miid;
+    header->param_id = PARAM_ID_PCM_ENCODER_FRAME_SIZE;
+    header->error_code = 0x0;
+    header->param_size = sizeof(struct param_id_pcm_encoder_frame_size_t);
+
+    frame_size_payload->frame_size_type = 1; /* frame_size_in_samples */
+    frame_size_payload->frame_size_in_samples = frame_size_samples;
+
+    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
+    if (ret != 0) {
+        ret = ar_err_get_lnx_err_code(ret);
+        AGM_LOGE("pcm encoder frame size config for module %d failed with error %d",
+                      mod->tag, ret);
+    }
+    free(payload);
+    return ret;
+}
+
+int configure_pcm_encoder_params(struct module_info *mod,
+                                struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+    uint32_t samples_per_msec = 0, frame_size = 0;
+    uint32_t channels = MONO, bits = 16;
+
+    /* configure output media format */
+    ret = configure_output_media_format(mod, graph_obj);
+    if (ret)
+        return ret;
+
+    /* configure pcm encoder frame size */
+    if (sess_obj->stream_config.sess_mode != AGM_SESSION_NON_TUNNEL) {
+        samples_per_msec = sess_obj->in_media_config.rate/1000;
+        channels = sess_obj->in_media_config.channels;
+        bits = get_pcm_bit_width(sess_obj->in_media_config.format);
+        channels = (channels == 0) ? MONO : channels;
+        bits = (bits == 0) ? 16 : bits;
+        frame_size = (sess_obj->in_buffer_config.size * 8) /
+                        (channels * bits);
+
+        if (samples_per_msec &&
+            (((frame_size/samples_per_msec) * samples_per_msec) != frame_size))
+            AGM_LOGD("pcm encoder: frame_size %d\n", frame_size);
+            ret = configure_pcm_encoder_frame_size(mod, graph_obj, frame_size);
+    }
+
     return ret;
 }
 
@@ -1077,7 +1149,7 @@ int configure_placeholder_dec(struct module_info *mod,
 {
     int ret = 0;
     struct gsl_key_vector tkv;
-    struct session_obj *sess_obj = graph_obj->sess_obj;
+    struct session_obj *sess_obj = NULL;
 
     size_t payload_size = 0, real_fmt_id = 0;
 
@@ -1086,6 +1158,7 @@ int configure_placeholder_dec(struct module_info *mod,
         AGM_LOGE("invalid graph object");
         return -EINVAL;
     }
+    sess_obj = graph_obj->sess_obj;
 
     /* 1. Configure placeholder decoder with Real ID */
     ret = get_media_fmt_id_and_size(sess_obj->out_media_config.format,
@@ -1101,6 +1174,10 @@ int configure_placeholder_dec(struct module_info *mod,
 
     tkv.num_kvps = 1;
     tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
+    if (!tkv.kvp) {
+        AGM_LOGE("Not enough memory for tkv.kvp\n");
+        return -ENOMEM;
+    }
     tkv.kvp->key = MEDIA_FMT_ID;
     tkv.kvp->value = real_fmt_id;
 
@@ -1134,7 +1211,7 @@ int configure_placeholder_enc(struct module_info *mod,
 {
     int ret = 0;
     struct gsl_key_vector tkv;
-    struct session_obj *sess_obj = graph_obj->sess_obj;
+    struct session_obj *sess_obj = NULL;
 
     size_t payload_size = 0, real_fmt_id = 0;
 
@@ -1143,6 +1220,7 @@ int configure_placeholder_enc(struct module_info *mod,
         AGM_LOGE("invalid graph object");
         return -EINVAL;
     }
+    sess_obj = graph_obj->sess_obj;
 
     /* 1. Configure placeholder encoder with Real ID */
     ret = get_media_fmt_id_and_size(sess_obj->in_media_config.format,
@@ -1158,6 +1236,10 @@ int configure_placeholder_enc(struct module_info *mod,
 
     tkv.num_kvps = 1;
     tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
+    if (!tkv.kvp) {
+        AGM_LOGE("Not enough memory for tkv.kvp\n");
+        return -ENOMEM;
+    }
     tkv.kvp->key = MEDIA_FMT_ID;
     tkv.kvp->value = real_fmt_id;
 
@@ -1217,6 +1299,10 @@ int configure_compress_shared_mem_ep(struct module_info *mod,
     ALIGN_PAYLOAD(payload_size, 8);
 
     payload = calloc(1, (size_t)payload_size);
+    if (!payload) {
+        AGM_LOGE("Not enough memory for payload\n");
+        return -ENOMEM;
+    }
 
     header = (struct apm_module_param_data_t*)payload;
 
@@ -1534,7 +1620,7 @@ module_info_t stream_module_list[] = {
     {
         .module = MODULE_PCM_ENCODER,
         .tag = STREAM_PCM_ENCODER,
-        .configure = configure_output_media_format,
+        .configure = configure_pcm_encoder_params,
     },
     {
         .module = MODULE_PCM_DECODER,

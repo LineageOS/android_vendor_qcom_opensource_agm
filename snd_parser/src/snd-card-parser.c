@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019, The Linux Foundation. All rights reserved.
+** Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -449,7 +449,7 @@ void *snd_card_def_get_card(unsigned int card)
     snprintf(filename, MAX_PATH, "/proc/asound/card%d/id", card);
     if (access(filename, F_OK ) != -1 ) {
         file = fopen(filename, "r");
-        if (file < 0) {
+        if (!file) {
             printf("open %s: failed\n", filename);
         } else {
             snd_card_name = calloc(1, BUF_SIZE);

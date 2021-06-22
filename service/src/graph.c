@@ -296,7 +296,7 @@ int graph_init()
     snprintf(filename, MAX_PATH, "/proc/asound/card%d/id", card);
     if (access(filename, F_OK) != -1) {
         file = fopen(filename, "r");
-        if (file < 0) {
+        if (!file) {
             AGM_LOGE("open %s: failed\n", filename);
             ret = -EIO;
             goto err;
@@ -313,6 +313,9 @@ int graph_init()
                     snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, "QRD");
                 } else {
                     snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, "IDP");
+                    if (strstr(snd_card_name, "slate")) {
+                        strlcat(acdb_path, "/slate", ACDB_PATH_MAX_LENGTH);
+                    }
                 }
                 free(snd_card_name);
                 snd_card_name = NULL;
@@ -428,7 +431,7 @@ static int get_tags_with_module_info(struct agm_key_vector_gsl *gkv,
     // start with TAGGED_MOD_SIZE_BYTES
     *size = TAGGED_MOD_SIZE_BYTES;
     *payload = calloc(1, *size);
-    if (!payload) {
+    if (NULL == *payload) {
         AGM_LOGE("Not enough memory for payload\n");
         ret = -ENOMEM;
         goto error;
@@ -552,7 +555,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     /*Get all the tags info of the graph and store it tag_module_info structure*/
     ret = get_tags_with_module_info(&meta_data_kv->gkv,
                                     (void**) &tag_module_info, &tag_module_info_size);
-    if (ret != 0)
+    if (ret != 0 || !tag_module_info)
         goto free_graph_obj;
 
     gsl_tag_entry = (struct gsl_tag_module_info_entry *)(tag_module_info->tag_module_entry);
@@ -763,8 +766,12 @@ int graph_prepare(struct graph_obj *graph_obj)
      */
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
-        if (mod->is_configured)
-            continue;
+        if (mod->is_configured) {
+            if ((mod->tag == DEVICE_HW_ENDPOINT_RX) || (mod->tag == DEVICE_HW_ENDPOINT_TX))
+                goto force_configure;
+            else
+                continue;
+        }
         if ((mod->tag == STREAM_INPUT_MEDIA_FORMAT) &&
              (stream_config.sess_mode == AGM_SESSION_NO_HOST)) {
             AGM_LOGE("Shared mem mod present for a hostless session error out\n");
@@ -782,6 +789,7 @@ int graph_prepare(struct graph_obj *graph_obj)
              goto done;
         }
 
+force_configure:
         if (mod->configure) {
             if ((mod->dev_obj != NULL) &&
                 ((mod->tag == DEVICE_HW_ENDPOINT_RX)|| (mod->tag == DEVICE_HW_ENDPOINT_TX)) &&

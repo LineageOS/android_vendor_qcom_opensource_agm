@@ -48,6 +48,7 @@
 #include "slimbus_api.h"
 #include "spr_api.h"
 #include "gapless_api.h"
+#include "pcm_encoder_api.h"
 
 /*
  *Internal enum to identify different modules

@@ -149,6 +149,9 @@ int main(int argc, char **argv)
             argv++;
     }
 
+    if (intf_name == NULL)
+        return 1;
+
     ret = get_device_media_config(BACKEND_CONF_FILE, intf_name, &config);
     if (ret) {
         printf("Invalid input, entry not found for : %s\n", intf_name);
@@ -205,7 +208,7 @@ void play_sample(FILE *file, unsigned int card, unsigned int device,
 
     /* set audio interface metadata mixer control */
     if (set_agm_audio_intf_metadata(mixer, name, PLAYBACK,
-                                    dev_config->rate, dev_config->bits)) {
+                                    dev_config->rate, dev_config->bits, PCM_LL_PLAYBACK)) {
         printf("Failed to set device metadata\n");
         goto err_close_mixer;
     }

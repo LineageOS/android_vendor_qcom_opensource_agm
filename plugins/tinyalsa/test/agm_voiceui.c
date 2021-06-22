@@ -276,7 +276,7 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
     }
 
     /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, intf_name, CAPTURE, config.rate, pcm_format_to_bits(format))) {
+    if (set_agm_audio_intf_metadata(mixer, intf_name, CAPTURE, config.rate, pcm_format_to_bits(format), VOICE_UI)) {
         printf("Failed to set device metadata\n");
         goto err_close_mixer;
     }
