@@ -1643,9 +1643,9 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
     pthread_mutex_lock(&graph_obj->lock);
     AGM_LOGV("entry graph_handle %p\n", graph_obj->graph_handle);
     if (!(graph_obj->state & (STARTED))) {
-       AGM_LOGE("graph object is not in correct state, current state %d\n",
+       AGM_LOGV("graph object is not in correct state, current state %d\n",
                     graph_obj->state);
-       ret = -EINVAL;
+       ret = 0;
        goto done;
     }
     if (graph_obj->spr_miid == 0) {
