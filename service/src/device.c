@@ -65,7 +65,7 @@
 #define DEVICE_DISABLE 0
 
 /* Global list to store supported devices */
-struct device_obj **device_list;
+static struct listnode device_list;
 static uint32_t num_audio_intfs;
 
 #ifdef DEVICE_USES_ALSALIB
@@ -148,12 +148,14 @@ static void update_sysfs_fd (int8_t pcm_id, int8_t state)
 
 int device_get_snd_card_id()
 {
-    struct device_obj *dev_obj = device_list[0];
+    struct device_obj *dev_obj = node_to_item(list_head(&device_list),
+                                              struct device_obj, list_node);
 
     if (dev_obj == NULL) {
         AGM_LOGE("%s: Invalid device object\n", __func__);
         return -EINVAL;
     }
+     AGM_LOGE("SND CARD Id = %d", dev_obj->card_id);
     return dev_obj->card_id;
 }
 
@@ -465,16 +467,20 @@ int device_get_aif_info_list(struct aif_info *aif_list, size_t *audio_intfs)
     struct device_obj *dev_obj;
     uint32_t copied = 0;
     uint32_t requested = *audio_intfs;
+    struct listnode *dev_node, *temp;
 
     if (*audio_intfs == 0){
         *audio_intfs = num_audio_intfs;
     } else {
-        for(copied = 0; (copied < num_audio_intfs) && (copied < requested);
-                                                               copied++) {
-            dev_obj = device_list[copied];
+        list_for_each_safe(dev_node, temp, &device_list) {
+            dev_obj = node_to_item(dev_node, struct device_obj, list_node);
             strlcpy(aif_list[copied].aif_name, dev_obj->name,
-                                          AIF_NAME_MAX_LEN );
+                                          AIF_NAME_MAX_LEN);
             aif_list[copied].dir = dev_obj->hw_ep_info.dir;
+            AGM_LOGE("AIF name[%d] = [%s]\n", copied, aif_list[copied].aif_name);
+            copied++;
+            if (copied == requested)
+                break;
         }
         *audio_intfs = copied;
     }
@@ -483,14 +489,25 @@ int device_get_aif_info_list(struct aif_info *aif_list, size_t *audio_intfs)
 
 int device_get_obj(uint32_t device_idx, struct device_obj **dev_obj)
 {
+    int i = 0;
+    struct listnode *dev_node, *temp;
+    struct device_obj *obj;
+
     if (device_idx > num_audio_intfs) {
         AGM_LOGE("Invalid device_id %u, max_supported device id: %d\n",
                 device_idx, num_audio_intfs);
         return -EINVAL;
     }
 
-    *dev_obj = device_list[device_idx];
-    return 0;
+    list_for_each_safe(dev_node, temp, &device_list) {
+        if (i++ == device_idx) {
+            obj = node_to_item(dev_node, struct device_obj, list_node);
+            *dev_obj = obj;
+            AGM_LOGE("device obj at %d is %s\n", device_idx, obj->name);
+            return 0;
+        }
+    }
+    return -EINVAL;
 }
 
 int device_set_media_config(struct device_obj *dev_obj,
@@ -686,6 +703,8 @@ int parse_snd_card()
     unsigned int count = 0, i = 0;
     FILE *fp;
     int ret = 0;
+    struct listnode *dev_node, *temp;
+    struct device_obj *dev_obj = NULL;
 
     fp = fopen(PCM_DEVICE_FILE, "r");
     if (!fp) {
@@ -694,20 +713,10 @@ int parse_snd_card()
         return -ENODEV;
     }
 
-    while (fgets(buffer, MAX_BUF_SIZE - 1, fp) != NULL)
-        num_audio_intfs++;
-
-    device_list = calloc (num_audio_intfs, sizeof(struct device_obj*));
-    if (!device_list) {
-        ret = -ENOMEM;
-        goto close_file;
-    }
-
-    rewind(fp);
-
+    list_init(&device_list);
     while (fgets(buffer, MAX_BUF_SIZE - 1, fp) != NULL)
     {
-        struct device_obj *dev_obj = calloc(1, sizeof(struct device_obj));
+        dev_obj = calloc(1, sizeof(struct device_obj));
 
         if (!dev_obj) {
             AGM_LOGE("failed to allocate device_obj mem\n");
@@ -737,7 +746,7 @@ int parse_snd_card()
         }
 
         pthread_mutex_init(&dev_obj->lock, (const pthread_mutexattr_t *) NULL);
-        device_list[count] = dev_obj;
+        list_add_tail(&device_list, &dev_obj->list_node);
         count++;
         dev_obj = NULL;
     }
@@ -754,12 +763,14 @@ int parse_snd_card()
     goto close_file;
 
 free_device:
-    for (i = 0; i < num_audio_intfs; i++) {
-        if (device_list[i])
-            free(device_list[i]);
+    list_for_each_safe(dev_node, temp, &device_list) {
+        dev_obj = node_to_item(dev_node, struct device_obj, list_node);
+        list_remove(dev_node);
+        free(dev_obj);
+        dev_obj = NULL;
     }
-    if (device_list)
-       free(device_list);
+
+    list_remove(&device_list);
 close_file:
     fclose(fp);
     return ret;
@@ -787,10 +798,13 @@ void device_deinit()
 {
     unsigned int list_count = 0;
     struct device_obj *dev_obj = NULL;
+    struct listnode *dev_node, *temp;
 
     AGM_LOGE("device deinit called\n");
-    for (list_count = 0; list_count < num_audio_intfs; list_count++) {
-        dev_obj = device_list[list_count];
+    list_for_each_safe(dev_node, temp, &device_list) {
+        dev_obj = node_to_item(dev_node, struct device_obj, list_node);
+        list_remove(dev_node);
+
         metadata_free(&dev_obj->metadata);
 
         if (dev_obj->params)
@@ -799,6 +813,8 @@ void device_deinit()
         free(dev_obj);
         dev_obj = NULL;
     }
+
+    list_remove(&device_list);
     if (sysfs_fd >= 0)
         close(sysfs_fd);
     sysfs_fd = -1;
@@ -810,7 +826,4 @@ void device_deinit()
     if (mixer)
         mixer_close(mixer);
 #endif
-
-    free(device_list);
-    device_list = NULL;
 }
