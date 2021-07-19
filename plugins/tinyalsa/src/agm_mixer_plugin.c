@@ -700,7 +700,7 @@ static int amp_be_media_fmt_get(struct mixer_plugin *plugin __unused,
                 struct snd_control *ctl __unused, struct snd_ctl_elem_value *ev __unused)
 {
     //TODO: AGM should support get function.
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     return 0;
 }
 
@@ -711,7 +711,7 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
     uint32_t audio_intf_id = ctl->private_value;
     int ret = 0;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     amp_priv->media_fmt.rate = (uint32_t)ev->value.integer.value[0];
     amp_priv->media_fmt.channels = (uint32_t)ev->value.integer.value[1];
     amp_priv->media_fmt.format = alsa_to_agm_fmt(ev->value.integer.value[2]);
@@ -763,7 +763,7 @@ static int amp_be_set_param_put(struct mixer_plugin *plugin __unused,
     size_t tlv_size = 0;
     int ret;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     payload = &tlv->tlv[0];
     tlv_size = tlv->length;
 
@@ -779,7 +779,7 @@ static int amp_be_metadata_get(struct mixer_plugin *plugin __unused,
                 struct snd_control *ctl __unused, struct snd_ctl_tlv *tlv __unused)
 {
     /* AGM should provide a get */
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     return 0;
 }
 
@@ -791,7 +791,7 @@ static int amp_be_metadata_put(struct mixer_plugin *plugin __unused,
     uint32_t tlv_size;
     int ret;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     payload = &tlv->tlv[0];
     tlv_size = tlv->length;
     if (tlv_size == 0) {
@@ -814,7 +814,7 @@ static int amp_pcm_aif_connect_get(struct mixer_plugin *plugin __unused,
                 struct snd_control *ctl __unused, struct snd_ctl_elem_value *ev __unused)
 {
     /* TODO: Need AGM support to perform get */
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     return 0;
 }
 
@@ -829,7 +829,7 @@ static int amp_pcm_aif_connect_put(struct mixer_plugin *plugin,
     int ret;
     bool state;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     be_adi = amp_get_be_adi(amp_priv, pcm_adi->dir);
     if (!be_adi)
         return -EINVAL;
@@ -870,7 +870,7 @@ static int amp_pcm_mtd_control_get(struct mixer_plugin *plugin __unused,
 
     ev->value.enumerated.item[0] = pcm_adi->pcm_mtd_ctl[idx];
 
-    AGM_LOGD("%s: enter, val = %u\n", __func__,
+    AGM_LOGV("%s: enter, val = %u\n", __func__,
             ev->value.enumerated.item[0]);
     return 0;
 }
@@ -885,7 +885,7 @@ static int amp_pcm_mtd_control_put(struct mixer_plugin *plugin __unused,
     val = ev->value.enumerated.item[0];
     pcm_adi->pcm_mtd_ctl[idx] = val;
 
-    AGM_LOGD("%s: value = %u\n", __func__, val);
+    AGM_LOGV("%s: value = %u\n", __func__, val);
     return 0;
 }
 
@@ -898,7 +898,7 @@ static int amp_pcm_event_get(struct mixer_plugin *plugin,
     struct agm_event_cb_params *eparams;
     int session_id = ctl->private_value;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     list_for_each_safe(eparams_node, temp, &amp_priv->events_paramlist) {
         event_node = node_to_item(eparams_node, struct event_params_node, node);
         if (event_node->session_id == session_id) {
@@ -939,7 +939,7 @@ static int amp_pcm_metadata_get(struct mixer_plugin *plugin __unused,
                 struct snd_control *Ctl __unused, struct snd_ctl_tlv *tlv __unused)
 {
     /* TODO: AGM needs to provide this in a API */
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     return 0;
 }
 
@@ -953,7 +953,7 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
     uint32_t tlv_size;
     void *payload;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
 
     pcm_control = amp_pcm_get_control_value(plugin->priv, pcm_idx, pcm_adi);
     if (pcm_control < 0)
@@ -1013,7 +1013,7 @@ static int amp_pcm_calibration_get(struct mixer_plugin *plugin __unused,
                 struct snd_control *Ctl __unused, struct snd_ctl_elem_value *ev __unused)
 {
     /* TODO: AGM needs to provide this in a API */
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     return 0;
 }
 
@@ -1067,7 +1067,7 @@ static int amp_pcm_set_param_put(struct mixer_plugin *plugin,
     bool is_param_tag = false;
     bool is_param_tag_acdb = false;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
 
     if (strstr(ctl->name, "setParamTag"))
         is_param_tag = true;
@@ -1184,7 +1184,7 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
     int pcm_control, be_idx = -1, ret = 0;
     size_t tlv_size, get_size = 0;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
 
     pcm_control = amp_pcm_get_control_value(plugin->priv, pcm_idx, pcm_adi);
     if (pcm_control < 0)
@@ -1220,7 +1220,7 @@ static int amp_pcm_loopback_get(struct mixer_plugin *plugin __unused,
                 struct snd_control *Ctl __unused, struct snd_ctl_elem_value *ev __unused)
 {
     /* TODO: AGM API not available */
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     return 0;
 }
 
@@ -1234,7 +1234,7 @@ static int amp_pcm_loopback_put(struct mixer_plugin *plugin,
     bool state = true;
     int ret;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     pcm_rx_adi = &amp_priv->rx_pcm_devs;
     if (!pcm_rx_adi)
         return -EINVAL;
@@ -1264,7 +1264,7 @@ static int amp_pcm_echoref_get(struct mixer_plugin *plugin __unused,
                 struct snd_control *Ctl __unused, struct snd_ctl_elem_value *ev __unused)
 {
     /* TODO: AGM API not available */
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     return 0;
 }
 
@@ -1278,7 +1278,7 @@ static int amp_pcm_echoref_put(struct mixer_plugin *plugin,
     int ret;
     bool state = true;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     be_adi = amp_get_be_adi(amp_priv, RX);
     if (!be_adi)
         return -EINVAL;
@@ -1305,7 +1305,7 @@ static int amp_pcm_sidetone_get(struct mixer_plugin *plugin __unused,
                 struct snd_control *Ctl __unused, struct snd_ctl_elem_value *ev __unused)
 {
     /* TODO: AGM API not available */
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
     return 0;
 }
 
@@ -1771,7 +1771,7 @@ static int amp_subscribe_events(struct mixer_plugin *plugin,
     struct event_params_node *event_node;
     struct mixer_plugin_event_data *ev_data;
 
-    AGM_LOGD("%s: enter\n", __func__);
+    AGM_LOGV("%s: enter\n", __func__);
 
     amp_priv->event_cb = event_cb;
 
@@ -1825,7 +1825,7 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     int ret = 0;
     int be_ctl_cnt, pcm_ctl_cnt, total_ctl_cnt = 0;
 
-    AGM_LOGD("%s: enter, card %u\n", __func__, card);
+    AGM_LOGI("%s: enter, card %u\n", __func__, card);
 
     amp = calloc(1, sizeof(*amp));
     if (!amp) {

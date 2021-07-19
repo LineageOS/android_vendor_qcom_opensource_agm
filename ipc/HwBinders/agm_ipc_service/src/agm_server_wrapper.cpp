@@ -327,8 +327,11 @@ void ipc_callback (uint32_t session_id,
             memcpy(rw_payload->buff.metadata.data(), rw_done_payload->buff.metadata,
                    rw_done_payload->buff.metadata_size);
         }
-        clbk_bdr->event_callback_rw_done(session_id, rw_evt_param_hidl,
+        auto status = clbk_bdr->event_callback_rw_done(session_id, rw_evt_param_hidl,
                                   sr_clbk_dat->get_clnt_data());
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed.\n", __func__);
+        }
 
         // allocated during read_with_metadata()
         if (rw_done_payload->buff.metadata)
@@ -344,8 +347,11 @@ void ipc_callback (uint32_t session_id,
         int8_t *dst = (int8_t *)evt_param_l.data()->event_payload.data();
         int8_t *src = (int8_t *)evt_param->event_payload;
         memcpy(dst, src, evt_param->event_payload_size);
-        clbk_bdr->event_callback(session_id, evt_param_l,
+        auto status = clbk_bdr->event_callback(session_id, evt_param_l,
                                   sr_clbk_dat->get_clnt_data());
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed.\n", __func__);
+        }
     }
 }
 // Methods from ::vendor::qti::hardware::AGMIPC::V1_0::IAGM follow.

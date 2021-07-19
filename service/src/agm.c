@@ -53,10 +53,12 @@ static void *ats_init_thread(void *obj __unused)
         if (agm_initialized) {
             sleep(2);
             ret = ats_init();
-            if (0 != ret)
+            if (0 != ret) {
                 AGM_LOGE("ats init failed with err = %d", ret);
-            AGM_LOGD("ATS initialized\n");
-            break;
+            } else {
+                AGM_LOGD("ATS initialized\n");
+                break;
+            }
         }
         sleep(5);
     }
