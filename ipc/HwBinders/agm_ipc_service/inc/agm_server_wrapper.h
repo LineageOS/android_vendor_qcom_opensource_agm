@@ -254,7 +254,7 @@ struct AGM : public IAGM {
     int is_agm_initialized() { return agm_initialized;}
 
 private:
-    sp<client_death_notifier> Client_death_notifier = NULL;
+    sp<client_death_notifier> mDeathNotifier = NULL;
     bool agm_initialized;
 };
 

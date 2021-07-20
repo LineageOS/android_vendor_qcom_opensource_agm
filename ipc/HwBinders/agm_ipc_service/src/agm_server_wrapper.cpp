@@ -36,11 +36,13 @@
 #include <hwbinder/IPCThreadState.h>
 
 #define MAX_CACHE_SIZE 64
+using AgmCallbackData = ::vendor::qti::hardware::AGMIPC::V1_0::implementation::clbk_data;
+using AgmServerCallback = ::vendor::qti::hardware::AGMIPC::V1_0::implementation::SrvrClbk;
 
 void client_death_notifier::serviceDied(uint64_t cookie,
                    const android::wp<::android::hidl::base::V1_0::IBase>& who __unused)
 {
-    ALOGI("Client died ,cookie (pid): %llu",(unsigned long long) cookie);
+    ALOGI("Client died (pid): %llu",(unsigned long long) cookie);
     struct listnode *node = NULL;
     struct listnode *tempnode = NULL;
     agm_client_session_handle *hndl = NULL;
@@ -48,28 +50,26 @@ void client_death_notifier::serviceDied(uint64_t cookie,
     struct listnode *sess_node = NULL;
     struct listnode *sess_tempnode = NULL;
 
-    ::vendor::qti::hardware::AGMIPC::V1_0::implementation::clbk_data *clbk_data_hndl = NULL;
+    AgmCallbackData* clbk_data_hndl = NULL;
     if (clbk_data_list_init) {
-    pthread_mutex_lock(&clbk_data_list_lock);
-    list_for_each_safe(node, tempnode, &clbk_data_list) {
-        clbk_data_hndl = node_to_item(node,
-             ::vendor::qti::hardware::AGMIPC::V1_0::implementation::clbk_data, list);
-        if (clbk_data_hndl->srv_clt_data->pid == cookie) {
-            ALOGV("%s : Matched pid with cookie = \" %d \" ", __func__,
-                                               clbk_data_hndl->srv_clt_data->pid);
-            ::vendor::qti::hardware::AGMIPC::V1_0::implementation::SrvrClbk *tmp_sr_clbk_data =
-                                                                   clbk_data_hndl->srv_clt_data;
-            /*Unregister this callback from session_obj*/
-            agm_session_register_cb(tmp_sr_clbk_data->session_id,
-                                    NULL,
-                                    (enum event_type)tmp_sr_clbk_data->event,
-                                    tmp_sr_clbk_data),
-            list_remove(node);
-            free(clbk_data_hndl);
+        pthread_mutex_lock(&clbk_data_list_lock);
+        list_for_each_safe(node, tempnode, &clbk_data_list) {
+            clbk_data_hndl = node_to_item(node, AgmCallbackData, list);
+            if (clbk_data_hndl->srv_clt_data->pid == cookie) {
+                ALOGV("%s pid matched %d ", __func__, clbk_data_hndl->srv_clt_data->pid);
+                AgmServerCallback* tmp_sr_clbk_data = clbk_data_hndl->srv_clt_data;
+                /*Unregister this callback from session_obj*/
+                agm_session_register_cb(tmp_sr_clbk_data->session_id,
+                                        NULL,
+                                        (enum event_type)tmp_sr_clbk_data->event,
+                                        tmp_sr_clbk_data),
+                list_remove(node);
+                free(clbk_data_hndl);
+            }
         }
+        pthread_mutex_unlock(&clbk_data_list_lock);
     }
-    pthread_mutex_unlock(&clbk_data_list_lock);
-    }
+
     pthread_mutex_lock(&client_list_lock);
     if (client_list_init) {
         list_for_each_safe(node, tempnode, &client_list) {
@@ -903,15 +903,11 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
     SrvrClbk  *sr_clbk_data = NULL, *tmp_sr_clbk_data = NULL;
     clbk_data *clbk_data_obj = NULL;
 
-    if ( this->Client_death_notifier == NULL ) {
-        this->Client_death_notifier = new client_death_notifier();
-        ALOGV("Client_death_notifier = %p", this->Client_death_notifier.get());
-    }
     int pid = ::android::hardware::IPCThreadState::self()->getCallingPid();
-    ALOGV("%s : client about to link to death with pid = %d\n", __func__, pid);
 
     if (cb != NULL) {
-        cb->linkToDeath(this->Client_death_notifier, pid);
+        bool newClient = true;
+
         ALOGV("%s : client linked to death with pid = %d\n", __func__, pid);
         sr_clbk_data = new SrvrClbk (session_id, cb, evt_type, ipc_client_data, pid);
         ALOGV("%s new SrvrClbk= %p, clntdata= %llx, sess id= %d, evt_type= %d \n",
@@ -924,7 +920,31 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
             (const pthread_mutexattr_t *) NULL);
             list_init(&clbk_data_list);
             clbk_data_list_init = true;
+        } else {
+            struct listnode* node = NULL;
+            clbk_data* callbackData = NULL;
+            pthread_mutex_lock(&clbk_data_list_lock);
+
+            list_for_each(node, &clbk_data_list) {
+                callbackData = node_to_item(node, clbk_data, list);
+                if (callbackData->srv_clt_data->pid == pid) {
+                    ALOGV("client with pid %d already exists", pid);
+                    newClient = false;
+                    break;
+                }
+            }
+
+            pthread_mutex_unlock(&clbk_data_list_lock);
         }
+
+        if (newClient) {
+            if (mDeathNotifier == NULL) {
+                mDeathNotifier = new client_death_notifier();
+            }
+            ALOGI("linkToDeath for pid %d", pid);
+            cb->linkToDeath(mDeathNotifier, pid);
+        }
+
         clbk_data_obj = (clbk_data *)calloc(1, sizeof(clbk_data));
         if (clbk_data_obj == NULL) {
             ALOGE("%s: Cannot allocate memory for cb data object\n", __func__);
