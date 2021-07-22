@@ -255,6 +255,8 @@ struct AGM : public IAGM {
                         const hidl_vec<AgmGroupMediaConfig>& media_config) override;
     Return<void> ipc_agm_get_group_aif_info_list(uint32_t num_groups,
                                ipc_agm_get_aif_info_list_cb _hidl_cb) override;
+    Return<int32_t> ipc_agm_session_write_datapath_params(uint32_t session_id,
+                               const hidl_vec<AgmBuff>& buff) override;
 
     int is_agm_initialized() { return agm_initialized;}
 
