@@ -514,10 +514,13 @@ int device_set_media_config(struct device_obj *dev_obj,
        AGM_LOGE("Invalid device object\n");
        return -EINVAL;
    }
+
+   pthread_mutex_lock(&dev_obj->lock);
    dev_obj->media_config.channels = device_media_config->channels;
    dev_obj->media_config.rate = device_media_config->rate;
    dev_obj->media_config.format = device_media_config->format;
    dev_obj->media_config.data_format = device_media_config->data_format;
+   pthread_mutex_unlock(&dev_obj->lock);
 
    return 0;
 }
@@ -525,8 +528,14 @@ int device_set_media_config(struct device_obj *dev_obj,
 int device_set_metadata(struct device_obj *dev_obj, uint32_t size,
                                                 uint8_t *metadata)
 {
+   int ret = 0;
+
+   pthread_mutex_lock(&dev_obj->lock);
    metadata_free(&dev_obj->metadata);
-   return metadata_copy(&(dev_obj->metadata), size, metadata);
+   ret = metadata_copy(&(dev_obj->metadata), size, metadata);
+   pthread_mutex_unlock(&dev_obj->lock);
+
+   return ret;
 }
 
 int device_set_params(struct device_obj *dev_obj,
@@ -534,7 +543,7 @@ int device_set_params(struct device_obj *dev_obj,
 {
    int ret = 0;
 
-   pthread_mutex_unlock(&dev_obj->lock);
+   pthread_mutex_lock(&dev_obj->lock);
 
    if (dev_obj->params) {
        free(dev_obj->params);
