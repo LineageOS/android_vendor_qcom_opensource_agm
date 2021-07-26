@@ -148,6 +148,10 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     enum agm_data_mode mode = sess_obj->stream_config.data_mode;
     struct agm_buffer_config buffer_config = {0};
 
+    if (gph_obj == NULL){
+        AGM_LOGE("invalid graph object\n");
+        return -EINVAL;
+    }
     if (gph_obj->is_config_buf_params_done) {
         AGM_LOGD("configure buf params already done");
         return 0;
@@ -1735,6 +1739,10 @@ static int graph_fill_buf_info(struct graph_obj *gph_obj,
     struct ar_shmem_handle *shmem_handle;
     int ret = -1;
 
+    if (gph_obj == NULL){
+        AGM_LOGE("invalid graph object\n");
+        return -EINVAL;
+    }
     shmem_buf_info = calloc(1, sizeof(struct gsl_cmd_get_shmem_buf_info));
     if (!shmem_buf_info) {
         AGM_LOGE("shmem_buf_info allocation failed\n");
@@ -1836,6 +1844,10 @@ int graph_set_gapless_metadata(struct graph_obj *graph_obj,
     size_t payload_size = 0;
     uint32_t decoder_miid = 0;
 
+    if (graph_obj == NULL){
+        AGM_LOGE("invalid graph object\n");
+        return -EINVAL;
+    }
     pthread_mutex_lock(&graph_obj->lock);
 
     list_for_each(node, &graph_obj->tagged_mod_list) {
