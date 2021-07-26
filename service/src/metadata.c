@@ -234,19 +234,24 @@ struct agm_meta_data_gsl* metadata_merge(int num, ...)
     for (i = 0; i < num; i++) {
         temp = va_arg(valist, struct agm_meta_data_gsl*);
         if (temp) {
-            memcpy(gkv_offset, temp->gkv.kv, temp->gkv.num_kvs *
-                                  sizeof(struct agm_key_value));
-            gkv_offset += temp->gkv.num_kvs;
+            if (temp->gkv.kv) {
+                memcpy(gkv_offset, temp->gkv.kv, temp->gkv.num_kvs *
+                                      sizeof(struct agm_key_value));
+                gkv_offset += temp->gkv.num_kvs;
+            }
 
-            memcpy(ckv_offset, temp->ckv.kv, temp->ckv.num_kvs *
-                                  sizeof(struct agm_key_value));
-            ckv_offset += temp->ckv.num_kvs;
+            if (temp->ckv.kv) {
+                memcpy(ckv_offset, temp->ckv.kv, temp->ckv.num_kvs *
+                                      sizeof(struct agm_key_value));
+                ckv_offset += temp->ckv.num_kvs;
+            }
 
-            merged->sg_props.prop_id = temp->sg_props.prop_id;
-            memcpy(prop_offset, temp->sg_props.values,
-                   temp->sg_props.num_values * sizeof(uint32_t));
-            prop_offset += temp->sg_props.num_values;
-
+            if (temp->sg_props.values) {
+                merged->sg_props.prop_id = temp->sg_props.prop_id;
+                memcpy(prop_offset, temp->sg_props.values,
+                       temp->sg_props.num_values * sizeof(uint32_t));
+                prop_offset += temp->sg_props.num_values;
+            }
         }
     }
     va_end(valist);
