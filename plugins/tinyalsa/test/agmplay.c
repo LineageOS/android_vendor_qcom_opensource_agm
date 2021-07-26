@@ -67,7 +67,7 @@ struct chunk_fmt {
 static int close = 0;
 
 void play_sample(FILE *file, unsigned int card, unsigned int device,
-                 struct chunk_fmt fmt, struct device_config *dev_config);
+                 struct chunk_fmt fmt, struct device_config *dev_config, bool haptics);
 
 void stream_close(int sig)
 {
@@ -83,13 +83,14 @@ int main(int argc, char **argv)
     struct chunk_header chunk_header;
     struct chunk_fmt chunk_fmt;
     unsigned int card = 100, device = 100;
+    bool haptics;
     char *intf_name = NULL;
     struct device_config config;
     char *filename;
     int more_chunks = 1, ret = 0;
 
-    if (argc < 2) {
-        printf("Usage: %s file.wav [-D card] [-d device] [-i device_id]\n",
+    if (argc < 3) {
+        printf("Usage: %s file.wav [-D card] [-d device] [-i device_id] [-h haptics]\n",
                 argv[0]);
         return 1;
     }
@@ -145,6 +146,11 @@ int main(int argc, char **argv)
             if (*argv)
                 intf_name = *argv;
         }
+       if (strcmp(*argv, "-h") == 0) {
+            argv++;
+            if (*argv)
+                haptics = *argv;
+       }
         if (*argv)
             argv++;
     }
@@ -158,7 +164,7 @@ int main(int argc, char **argv)
         fclose(file);
         return ret;
     }
-    play_sample(file, card, device, chunk_fmt, &config);
+    play_sample(file, card, device, chunk_fmt, &config, haptics);
 
     fclose(file);
 
@@ -166,12 +172,13 @@ int main(int argc, char **argv)
 }
 
 void play_sample(FILE *file, unsigned int card, unsigned int device,
-                 struct chunk_fmt fmt, struct device_config *dev_config)
+                 struct chunk_fmt fmt, struct device_config *dev_config, bool haptics)
 {
     struct pcm_config config;
     struct pcm *pcm;
     struct mixer *mixer;
     char *buffer;
+    int playback_path, playback_value;
     int size;
     int num_read;
     char *name = dev_config->name;
@@ -205,16 +212,21 @@ void play_sample(FILE *file, unsigned int card, unsigned int device,
         printf("Failed to set device media config\n");
         goto err_close_mixer;
     }
-
-    /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, name, PLAYBACK,
+    if (haptics) {
+        playback_path = HAPTICS;
+        playback_value = HAPTICS_PLAYBACK;
+    } else {
+        playback_path = PLAYBACK;
+        playback_value = PCM_LL_PLAYBACK;
+    }
+     /* set audio interface metadata mixer control */
+    if (set_agm_audio_intf_metadata(mixer, name, playback_path,
                                     dev_config->rate, dev_config->bits, PCM_LL_PLAYBACK)) {
         printf("Failed to set device metadata\n");
         goto err_close_mixer;
     }
-
     /* set audio interface metadata mixer control */
-    if (set_agm_stream_metadata(mixer, device, PCM_LL_PLAYBACK, PLAYBACK, STREAM_PCM, NULL)) {
+    if (set_agm_stream_metadata(mixer, device, playback_value, PLAYBACK, STREAM_PCM, NULL)) {
         printf("Failed to set pcm metadata\n");
         goto err_close_mixer;
     }
