@@ -27,7 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #define LOG_TAG "AGM: API"
-#include <agm/agm_api.h> 
+#include <agm/agm_api.h>
 #include <agm/device.h>
 #include <agm/session_obj.h>
 #include <agm/utils.h>
@@ -45,22 +45,23 @@
 
 static bool agm_initialized = 0;
 static pthread_t ats_thread;
+static const int MAX_RETRIES = 18;
 
 static void *ats_init_thread(void *obj __unused)
 {
     int ret = 0;
-    while(1) {
+    int retry = 0;
+    while(retry++ < MAX_RETRIES) {
         if (agm_initialized) {
-            sleep(2);
             ret = ats_init();
             if (0 != ret) {
-                AGM_LOGE("ats init failed with err = %d", ret);
+                AGM_LOGE("ats_init failed retry %d err %d", retry, ret);
             } else {
-                AGM_LOGD("ATS initialized\n");
+                AGM_LOGD("ATS initialized");
                 break;
             }
         }
-        sleep(5);
+        sleep(10);
     }
     return NULL;
 }
