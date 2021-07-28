@@ -155,7 +155,6 @@ int device_get_snd_card_id()
         AGM_LOGE("%s: Invalid device object\n", __func__);
         return -EINVAL;
     }
-     AGM_LOGE("SND CARD Id = %d", dev_obj->card_id);
     return dev_obj->card_id;
 }
 
@@ -477,7 +476,6 @@ int device_get_aif_info_list(struct aif_info *aif_list, size_t *audio_intfs)
             strlcpy(aif_list[copied].aif_name, dev_obj->name,
                                           AIF_NAME_MAX_LEN);
             aif_list[copied].dir = dev_obj->hw_ep_info.dir;
-            AGM_LOGE("AIF name[%d] = [%s]\n", copied, aif_list[copied].aif_name);
             copied++;
             if (copied == requested)
                 break;
@@ -503,7 +501,6 @@ int device_get_obj(uint32_t device_idx, struct device_obj **dev_obj)
         if (i++ == device_idx) {
             obj = node_to_item(dev_node, struct device_obj, list_node);
             *dev_obj = obj;
-            AGM_LOGE("device obj at %d is %s\n", device_idx, obj->name);
             return 0;
         }
     }
