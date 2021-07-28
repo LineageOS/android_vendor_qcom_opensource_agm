@@ -1833,7 +1833,9 @@ int session_obj_sess_aif_connect(struct session_obj *sess_obj,
     goto done;
 
 unwind:
+    aif_obj->state = AIF_CLOSE;
     session_disconnect_aif(sess_obj, aif_obj, opened_count);
+    opened_count--;
 
 done:
     pthread_mutex_unlock(&sess_obj->lock);
