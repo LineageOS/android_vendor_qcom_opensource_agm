@@ -826,7 +826,7 @@ int agm_session_set_non_tunnel_mode_config(uint64_t handle,
     return -EINVAL;
 }
 
-int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, uint32_t *consumed_size)
+int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, size_t *consumed_size)
 {
     ALOGV("%s called with handle = %x \n", __func__, handle);
     int32_t ret = -EINVAL;

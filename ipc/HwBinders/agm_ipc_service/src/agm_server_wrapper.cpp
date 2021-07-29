@@ -1156,13 +1156,13 @@ Return<int32_t> AGM::ipc_agm_session_set_non_tunnel_mode_config(uint64_t hndl,
 }
 
 Return<void> AGM::ipc_agm_session_write_with_metadata(uint64_t hndl, const hidl_vec<AgmBuff>& buff_hidl,
-                                               uint32_t consumed_sz,
+                                               uint64_t consumed_sz,
                                                ipc_agm_session_write_with_metadata_cb _hidl_cb)
 {
     int32_t ret = -EINVAL;
     struct agm_buff buf;
     uint32_t bufSize;
-    uint32_t consumed_size = consumed_sz;
+    size_t consumed_size = consumed_sz;
     const native_handle *allochandle = nullptr;
     buf.addr = nullptr;
     buf.metadata = nullptr;

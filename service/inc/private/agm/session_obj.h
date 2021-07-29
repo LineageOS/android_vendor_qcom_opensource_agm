@@ -175,7 +175,7 @@ int session_obj_set_gapless_metadata(struct session_obj *sess_obj,
                                      uint32_t silence);
 int session_obj_write_with_metadata(struct session_obj *sess_obj,
                                     struct agm_buff *buff,
-                                    uint32_t *consumed_size);
+                                    size_t *consumed_size);
 int session_obj_read_with_metadata(struct session_obj *sess_obj,
                                    struct agm_buff *buff,
                                    uint32_t *captured_size);

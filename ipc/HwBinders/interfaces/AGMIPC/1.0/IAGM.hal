@@ -112,7 +112,7 @@ interface IAGM
     ipc_agm_set_gapless_session_metadata(uint64_t hndl, AgmGaplessSilenceType type,
                     uint32_t silence)
                     generates (int32_t ret);
-    ipc_agm_session_write_with_metadata(uint64_t hndl, vec<AgmBuff> buff, uint32_t consumed_size)
+    ipc_agm_session_write_with_metadata(uint64_t hndl, vec<AgmBuff> buff, uint64_t consumed_size)
                     generates (int32_t ret, uint32_t consumed_size);
     ipc_agm_session_read_with_metadata(uint64_t hndl, vec<AgmBuff> buff, uint32_t captured_size)
                     generates (int32_t ret, vec<AgmBuff> buff, uint32_t captured_size);

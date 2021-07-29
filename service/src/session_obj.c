@@ -2360,7 +2360,7 @@ done:
 
 int session_obj_write_with_metadata(struct session_obj *sess_obj,
                                     struct agm_buff *buffer,
-                                    uint32_t *consumed_size)
+                                    size_t *consumed_size)
 {
     int ret = 0;
 

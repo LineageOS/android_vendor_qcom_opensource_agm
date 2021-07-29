@@ -773,7 +773,7 @@ int agm_set_gapless_session_metadata(uint64_t handle,
 }
 
 int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buff,
-                                    uint32_t *consumed_size)
+                                    size_t *consumed_size)
 {
     if (!handle) {
         AGM_LOGE("%s Invalid handle\n", __func__);

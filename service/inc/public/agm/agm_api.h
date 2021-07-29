@@ -1019,7 +1019,7 @@ int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_t
  * \return 0 on success, error code otherwise
  */
 int agm_session_write_with_metadata(uint64_t hndl, struct agm_buff *buff,
-                                    uint32_t *consumed_size);
+                                    size_t *consumed_size);
 
 /**
  * \brief Read data buffers with metadata to session

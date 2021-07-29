@@ -246,7 +246,7 @@ struct AGM : public IAGM {
                        const hidl_vec<AgmBufferConfig>& in_buffer_config,
                        const hidl_vec<AgmBufferConfig>& out_buffer_config) override;
     Return<void> ipc_agm_session_write_with_metadata(uint64_t hndl, const hidl_vec<AgmBuff>& buff,
-                                               uint32_t consumed_size,
+                                               uint64_t consumed_size,
                                                ipc_agm_session_write_with_metadata_cb) override;
     Return<void> ipc_agm_session_read_with_metadata(uint64_t hndl, const hidl_vec<AgmBuff>& buff,
                                                uint32_t captured_size,
