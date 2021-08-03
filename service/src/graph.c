@@ -541,6 +541,9 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
         ret = -ENOMEM;
         goto done;
     }
+
+    metadata_print(meta_data_kv);
+
     list_init(&graph_obj->tagged_mod_list);
     pthread_mutex_init(&graph_obj->lock, (const pthread_mutexattr_t *)NULL);
     if (sess_obj->stream_config.sess_mode == AGM_SESSION_NO_CONFIG)
@@ -658,7 +661,6 @@ tag_list:
 no_config:
     graph_obj->sess_obj = sess_obj;
 
-    metadata_print(meta_data_kv);
     ret = gsl_open((struct gsl_key_vector *)&meta_data_kv->gkv,
                    (struct gsl_key_vector *)&meta_data_kv->ckv,
                    &graph_obj->graph_handle);
