@@ -1820,6 +1820,11 @@ int graph_get_buf_info(struct graph_obj *graph_obj, struct agm_buf_info *buf_inf
     int ret = -EINVAL;
     struct agm_buffer_config buffer_config = {0};
 
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object");
+        return -EINVAL;
+    }
+
     sess_obj = graph_obj->sess_obj;
     if (sess_obj == NULL) {
         AGM_LOGE("invalid sess object");
