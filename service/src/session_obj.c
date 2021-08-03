@@ -2051,6 +2051,22 @@ int session_obj_resume(struct session_obj *sess_obj)
     return ret;
 }
 
+int session_obj_suspend(struct session_obj *sess_obj)
+{
+    int ret = 0;
+
+    pthread_mutex_lock(&sess_obj->lock);
+
+    ret = graph_suspend(sess_obj->graph);
+    if (ret) {
+        AGM_LOGE("Error:%d suspending graph\n", ret);
+    }
+
+done:
+    pthread_mutex_unlock(&sess_obj->lock);
+    return ret;
+}
+
 int session_obj_read(struct session_obj *sess_obj, void *buff, size_t *count)
 {
     int ret = 0;

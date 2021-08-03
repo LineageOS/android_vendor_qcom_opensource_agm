@@ -798,6 +798,12 @@ Return<int32_t> AGM::ipc_agm_session_resume(uint64_t hndl) {
     return agm_session_resume(hndl);
 }
 
+Return<int32_t> AGM::ipc_agm_session_suspend(uint64_t hndl) {
+    ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
+
+    return agm_session_suspend(hndl);
+}
+
 Return<void> AGM::ipc_agm_session_read(uint64_t hndl, uint32_t count,
                                              ipc_agm_session_read_cb _hidl_cb) {
     ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
