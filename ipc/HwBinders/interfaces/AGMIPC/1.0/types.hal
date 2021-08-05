@@ -202,6 +202,17 @@ struct AgmMediaConfig {
 };
 
 /**
+ * Group Media Config
+ */
+struct AgmGroupMediaConfig {
+    uint32_t rate;
+    uint32_t channels;
+    AgmMediaFormat format;
+    uint32_t data_format;
+    uint32_t slot_mask;
+};
+
+/**
  * Session Direction
  */
 enum Direction : uint32_t{

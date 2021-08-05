@@ -799,9 +799,9 @@ force_configure:
         if (mod->configure) {
             if ((mod->dev_obj != NULL) &&
                 ((mod->tag == DEVICE_HW_ENDPOINT_RX)|| (mod->tag == DEVICE_HW_ENDPOINT_TX)) &&
-                (mod->dev_obj->refcnt.start > 0)) {
+                (device_get_start_refcnt(mod->dev_obj) > 0)) {
                 AGM_LOGE("device obj:%s in started state, start ref_cnt:%d miid %x mid %x tag %x\n",
-                             mod->dev_obj->name, mod->dev_obj->refcnt.start, mod->miid, mod->mid, mod->tag);
+                             mod->dev_obj->name, device_get_start_refcnt(mod->dev_obj), mod->miid, mod->mid, mod->tag);
                 mod->is_configured = true;
                 continue;
             } else {
@@ -1355,9 +1355,9 @@ int graph_add(struct graph_obj *graph_obj,
             if ((mod->dev_obj != NULL) &&
                 ((mod->tag == DEVICE_HW_ENDPOINT_RX) ||
                 (mod->tag == DEVICE_HW_ENDPOINT_TX)) &&
-                (mod->dev_obj->refcnt.start > 0)) {
+                (device_get_start_refcnt(mod->dev_obj) > 0)) {
                 AGM_LOGE("device obj:%s in started state, start ref_cnt:%d\n",
-                      mod->dev_obj->name, mod->dev_obj->refcnt.start);
+                      mod->dev_obj->name, device_get_start_refcnt(mod->dev_obj));
                 mod->is_configured = true;
                 continue;
             }
@@ -1503,7 +1503,7 @@ int graph_change(struct graph_obj *graph_obj,
     list_for_each(node, &graph_obj->tagged_mod_list) {
         mod = node_to_item(node, module_info_t, list);
         if (mod->configure && !mod->is_configured &&
-           (mod->dev_obj != NULL && mod->dev_obj->refcnt.start == 0)) {
+           (mod->dev_obj != NULL && device_get_start_refcnt(mod->dev_obj) == 0)) {
             ret = mod->configure(mod, graph_obj);
             if (ret != 0)
                 goto done;

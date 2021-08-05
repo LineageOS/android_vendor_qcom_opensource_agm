@@ -66,7 +66,9 @@
 
 /* Global list to store supported devices */
 static struct listnode device_list;
+static struct listnode device_group_data_list;
 static uint32_t num_audio_intfs;
+static uint32_t num_group_devices;
 
 #ifdef DEVICE_USES_ALSALIB
 static snd_ctl_t *mixer;
@@ -158,6 +160,14 @@ int device_get_snd_card_id()
     return dev_obj->card_id;
 }
 
+static struct device_obj *device_get_pcm_obj(struct device_obj *dev_obj)
+{
+    if (dev_obj->parent_dev)
+        return dev_obj->parent_dev;
+    else
+        return dev_obj;
+}
+
 #ifdef DEVICE_USES_ALSALIB
 snd_pcm_format_t agm_to_alsa_format(enum agm_media_format format)
 {
@@ -186,30 +196,46 @@ int device_open(struct device_obj *dev_obj)
     snd_pcm_format_t format;
     snd_pcm_uframes_t period_size;
     unsigned int rate, channels, period_count;
+    struct device_group_data *grp_data = NULL;
+    struct agm_media_config *media_config = NULL;
+    struct device_obj *obj = NULL;
 
     if (dev_obj == NULL) {
         AGM_LOGE("%s: Invalid device object\n", __func__);
         return -EINVAL;
     }
 
-    snprintf(pcm_name, sizeof(pcm_name), "hw:%u,%u", dev_obj->card_id, dev_obj->pcm_id);
+    obj = device_get_pcm_obj(dev_obj);
 
-    stream = (dev_obj->hw_ep_info.dir == AUDIO_OUTPUT) ?
+    snprintf(pcm_name, sizeof(pcm_name), "hw:%u,%u", obj->card_id, obj->pcm_id);
+
+    stream = (obj->hw_ep_info.dir == AUDIO_OUTPUT) ?
              SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
 
-    pthread_mutex_lock(&dev_obj->lock);
-    if (dev_obj->refcnt.open) {
+    pthread_mutex_lock(&obj->lock);
+
+    if (obj->group_data)
+        grp_data = obj->group_data;
+
+    if (obj->refcnt.open) {
         AGM_LOGE("%s: PCM device %u already opened\n",
-                           __func__, dev_obj->pcm_id);
-        dev_obj->refcnt.open++;
+                           __func__, obj->pcm_id);
+        obj->refcnt.open++;
+        if (grp_data)
+            grp_data->refcnt.open++;
         goto done;
     }
 
-    channels = dev_obj->media_config.channels;
-    rate = dev_obj->media_config.rate;
-    format = agm_to_alsa_format(dev_obj->media_config.format);
+    if (grp_data && !grp_data->has_multiple_dai_link)
+        media_config = &grp_data->media_config.config;
+    else
+        media_config = &dev_obj->media_config;
+
+    channels = media_config->channels;
+    rate = media_config->rate;
+    format = agm_to_alsa_format(media_config->format);
     period_size = (MAX_PERIOD_BUFFER)/(channels *
-                              (get_pcm_bits_per_sample(dev_obj->media_config.format)/8));
+                          (get_pcm_bits_per_sample(media_config->format)/8));
     period_count = DEFAULT_PERIOD_COUNT;
 
     ret = snd_pcm_open(&pcm, pcm_name, stream, 0);
@@ -239,12 +265,14 @@ int device_open(struct device_obj *dev_obj)
         goto done;
     }
 
-    update_sysfs_fd(dev_obj->pcm_id, DEVICE_ENABLE);
-    dev_obj->pcm = pcm;
-    dev_obj->state = DEV_OPENED;
-    dev_obj->refcnt.open++;
+    update_sysfs_fd(obj->pcm_id, DEVICE_ENABLE);
+    obj->pcm = pcm;
+    obj->state = DEV_OPENED;
+    obj->refcnt.open++;
+    if (grp_data)
+        grp_data->refcnt.open++;
 done:
-    pthread_mutex_unlock(&dev_obj->lock);
+    pthread_mutex_unlock(&obj->lock);
     return ret;
 }
 #else
@@ -271,47 +299,65 @@ int device_open(struct device_obj *dev_obj)
     struct pcm *pcm = NULL;
     struct pcm_config config;
     uint32_t pcm_flags;
+    struct device_group_data *grp_data = NULL;
+    struct agm_media_config *media_config = NULL;
+    struct device_obj *obj = NULL;
 
     if (dev_obj == NULL) {
         AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
-    pthread_mutex_lock(&dev_obj->lock);
-    if (dev_obj->refcnt.open) {
+    obj = device_get_pcm_obj(dev_obj);
+    pthread_mutex_lock(&obj->lock);
+
+    if (obj->group_data)
+        grp_data = obj->group_data;
+
+    if (obj->refcnt.open) {
         AGM_LOGI("PCM device %u already opened\n",
-                 dev_obj->pcm_id);
-        dev_obj->refcnt.open++;
+                 obj->pcm_id);
+        obj->refcnt.open++;
+        if (grp_data)
+            grp_data->refcnt.open++;
         goto done;
     }
 
     memset(&config, 0, sizeof(struct pcm_config));
-    config.channels = dev_obj->media_config.channels;
-    config.rate = dev_obj->media_config.rate;
-    config.format = agm_to_pcm_format(dev_obj->media_config.format);
-    config.period_size = (MAX_PERIOD_BUFFER)/((config.channels) *
-                              (get_pcm_bits_per_sample(dev_obj->media_config.format)/8));
+    if (grp_data && !grp_data->has_multiple_dai_link)
+        media_config = &grp_data->media_config.config;
+    else
+        media_config = &dev_obj->media_config;
+
+    config.channels = media_config->channels;
+    config.rate = media_config->rate;
+    config.format = agm_to_pcm_format(media_config->format);
+    config.period_size = (MAX_PERIOD_BUFFER)/(config.channels *
+                          (get_pcm_bits_per_sample(media_config->format)/8));
+
     config.period_count = DEFAULT_PERIOD_COUNT;
     config.start_threshold = config.period_size / 4;
     config.stop_threshold = INT_MAX;
 
-    pcm_flags = (dev_obj->hw_ep_info.dir == AUDIO_OUTPUT) ? PCM_OUT : PCM_IN;
-    pcm = pcm_open(dev_obj->card_id, dev_obj->pcm_id, pcm_flags,
+    pcm_flags = (obj->hw_ep_info.dir == AUDIO_OUTPUT) ? PCM_OUT : PCM_IN;
+    pcm = pcm_open(obj->card_id, obj->pcm_id, pcm_flags,
                 &config);
     if (!pcm || !pcm_is_ready(pcm)) {
         AGM_LOGE("Unable to open PCM device %u (%s) rate %u ch %d fmt %u",
-                dev_obj->pcm_id, pcm_get_error(pcm), config.rate,
+                obj->pcm_id, pcm_get_error(pcm), config.rate,
                 config.channels, config.format);
         AGM_LOGE("Period Size %d \n", config.period_size);
         ret = -EIO;
         goto done;
     }
-    update_sysfs_fd(dev_obj->pcm_id, DEVICE_ENABLE);
-    dev_obj->pcm = pcm;
-    dev_obj->state = DEV_OPENED;
-    dev_obj->refcnt.open++;
+    update_sysfs_fd(obj->pcm_id, DEVICE_ENABLE);
+    obj->pcm = pcm;
+    obj->state = DEV_OPENED;
+    obj->refcnt.open++;
+    if (grp_data)
+        grp_data->refcnt.open++;
 done:
-    pthread_mutex_unlock(&dev_obj->lock);
+    pthread_mutex_unlock(&obj->lock);
     return ret;
 }
 #endif
@@ -319,140 +365,182 @@ done:
 int device_prepare(struct device_obj *dev_obj)
 {
     int ret = 0;
+    struct device_group_data *grp_data = NULL;
+    struct device_obj *obj = NULL;
 
     if (dev_obj == NULL) {
         AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
-    pthread_mutex_lock(&dev_obj->lock);
-    if (dev_obj->refcnt.prepare) {
+    obj = device_get_pcm_obj(dev_obj);
+
+    pthread_mutex_lock(&obj->lock);
+
+    if (obj->group_data)
+        grp_data = obj->group_data;
+
+    if (obj->refcnt.prepare) {
         AGM_LOGD("PCM device %u already in prepare state\n",
-              dev_obj->pcm_id);
-        dev_obj->refcnt.prepare++;
-        pthread_mutex_unlock(&dev_obj->lock);
+              obj->pcm_id);
+        obj->refcnt.prepare++;
+        if (grp_data)
+            grp_data->refcnt.prepare++;
+        pthread_mutex_unlock(&obj->lock);
         return ret;
     }
 #ifdef DEVICE_USES_ALSALIB
-    ret = snd_pcm_prepare(dev_obj->pcm);
+    ret = snd_pcm_prepare(obj->pcm);
 #else
-    ret = pcm_prepare(dev_obj->pcm);
+    ret = pcm_prepare(obj->pcm);
 #endif
     if (ret) {
         AGM_LOGE("PCM device %u prepare failed, ret = %d\n",
-              dev_obj->pcm_id, ret);
+              obj->pcm_id, ret);
         goto done;
     }
 
-    dev_obj->state = DEV_PREPARED;
-    dev_obj->refcnt.prepare++;
+    obj->state = DEV_PREPARED;
+    obj->refcnt.prepare++;
 
 done:
-    pthread_mutex_unlock(&dev_obj->lock);
+    pthread_mutex_unlock(&obj->lock);
     return ret;
 }
 
 int device_start(struct device_obj *dev_obj)
 {
     int ret = 0;
+    struct device_group_data *grp_data = NULL;
+    struct device_obj *obj = NULL;
 
     if (dev_obj == NULL) {
         AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
-    pthread_mutex_lock(&dev_obj->lock);
-    if (dev_obj->state < DEV_PREPARED) {
+    obj = device_get_pcm_obj(dev_obj);
+
+    pthread_mutex_lock(&obj->lock);
+    if (obj->state < DEV_PREPARED) {
             AGM_LOGE("PCM device %u not yet prepared, exiting\n",
-                  dev_obj->pcm_id);
+                  obj->pcm_id);
             ret =  -1;
             goto done;
     }
 
-    if (dev_obj->refcnt.start) {
+    if (obj->group_data)
+        grp_data = obj->group_data;
+
+    if (obj->refcnt.start) {
         AGM_LOGI("PCM device %u already in start state\n",
-              dev_obj->pcm_id);
-        dev_obj->refcnt.start++;
+              obj->pcm_id);
+        obj->refcnt.start++;
+        if (grp_data)
+            grp_data->refcnt.start++;
         goto done;
     }
 
-    dev_obj->state = DEV_STARTED;
-    dev_obj->refcnt.start++;
+    obj->state = DEV_STARTED;
+    obj->refcnt.start++;
+    if (grp_data)
+        grp_data->refcnt.start++;
 
 done:
-    pthread_mutex_unlock(&dev_obj->lock);
+    pthread_mutex_unlock(&obj->lock);
     return ret;
 }
 
 int device_stop(struct device_obj *dev_obj)
 {
     int ret = 0;
+    struct device_group_data *grp_data = NULL;
+    struct device_obj *obj = NULL;
 
     if(dev_obj == NULL) {
         AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
-    pthread_mutex_lock(&dev_obj->lock);
-    if (!dev_obj->refcnt.start) {
+    obj = device_get_pcm_obj(dev_obj);
+
+    pthread_mutex_lock(&obj->lock);
+    if (!obj->refcnt.start) {
         AGM_LOGE("PCM device %u already stopped\n",
-              dev_obj->pcm_id);
+              obj->pcm_id);
         goto done;
     }
 
-    dev_obj->refcnt.start--;
-    if (dev_obj->refcnt.start == 0) {
+    if (obj->group_data) {
+        grp_data = obj->group_data;
+        grp_data->refcnt.start--;
+    }
+
+    obj->refcnt.start--;
+    if (obj->refcnt.start == 0) {
 #ifdef DEVICE_USES_ALSALIB
-        ret = snd_pcm_drop(dev_obj->pcm);
+        ret = snd_pcm_drop(obj->pcm);
 #else
-        ret = pcm_stop(dev_obj->pcm);
+        ret = pcm_stop(obj->pcm);
 #endif
         if (ret) {
             AGM_LOGE("PCM device %u stop failed, ret = %d\n",
-                    dev_obj->pcm_id, ret);
+                    obj->pcm_id, ret);
         }
-        dev_obj->state = DEV_STOPPED;
+        obj->state = DEV_STOPPED;
     }
 
 done:
-    pthread_mutex_unlock(&dev_obj->lock);
+    pthread_mutex_unlock(&obj->lock);
     return ret;
 }
 
 int device_close(struct device_obj *dev_obj)
 {
     int ret = 0;
+    struct device_group_data *grp_data = NULL;
+    struct device_obj *obj = NULL;
 
     if (dev_obj == NULL) {
         AGM_LOGE("Invalid device object\n");
         return -EINVAL;
     }
 
-    pthread_mutex_lock(&dev_obj->lock);
-    if (!dev_obj->refcnt.open) {
+    obj = device_get_pcm_obj(dev_obj);
+
+    pthread_mutex_lock(&obj->lock);
+    if (!obj->refcnt.open) {
         AGM_LOGE("PCM device %u already closed\n",
-              dev_obj->pcm_id);
+              obj->pcm_id);
         goto done;
     }
 
-    if (--dev_obj->refcnt.open == 0) {
-        update_sysfs_fd(dev_obj->pcm_id, DEVICE_DISABLE);
+    if (obj->group_data) {
+        grp_data = obj->group_data;
+        if (--grp_data->refcnt.open == 0) {
+            grp_data->refcnt.prepare = 0;
+            grp_data->refcnt.start = 0;
+        }
+    }
+
+    if (--obj->refcnt.open == 0) {
+        update_sysfs_fd(obj->pcm_id, DEVICE_DISABLE);
 #ifdef DEVICE_USES_ALSALIB
-        ret = snd_pcm_close(dev_obj->pcm);
+        ret = snd_pcm_close(obj->pcm);
 #else
-        ret = pcm_close(dev_obj->pcm);
+        ret = pcm_close(obj->pcm);
 #endif
         if (ret) {
             AGM_LOGE("PCM device %u close failed, ret = %d\n",
-                     dev_obj->pcm_id, ret);
+                     obj->pcm_id, ret);
         }
-        dev_obj->state = DEV_CLOSED;
-        dev_obj->refcnt.prepare = 0;
-        dev_obj->refcnt.start = 0;
+        obj->state = DEV_CLOSED;
+        obj->refcnt.prepare = 0;
+        obj->refcnt.start = 0;
     }
 
 done:
-    pthread_mutex_unlock(&dev_obj->lock);
+    pthread_mutex_unlock(&obj->lock);
     return ret;
 }
 
@@ -485,6 +573,29 @@ int device_get_aif_info_list(struct aif_info *aif_list, size_t *audio_intfs)
     return 0;
 }
 
+int device_get_group_list(struct aif_info *aif_list, size_t *num_groups)
+{
+    struct device_group_data *grp_data;
+    uint32_t copied = 0;
+    uint32_t requested = *num_groups;
+    struct listnode *grp_node, *temp;
+
+    if (*num_groups == 0){
+        *num_groups = num_group_devices;
+    } else {
+        list_for_each_safe(grp_node, temp, &device_group_data_list) {
+            grp_data = node_to_item(grp_node, struct device_group_data, list_node);
+            strlcpy(aif_list[copied].aif_name, grp_data->name,
+                                          AIF_NAME_MAX_LEN);
+            copied++;
+            if (copied == requested)
+                break;
+        }
+        *num_groups = copied;
+    }
+    return 0;
+}
+
 int device_get_obj(uint32_t device_idx, struct device_obj **dev_obj)
 {
     int i = 0;
@@ -507,6 +618,28 @@ int device_get_obj(uint32_t device_idx, struct device_obj **dev_obj)
     return -EINVAL;
 }
 
+int device_get_group_data(uint32_t group_id , struct device_group_data **grp_data)
+{
+    int i = 0;
+    struct listnode *group_node, *temp;
+    struct device_group_data *data;
+
+    if (group_id >= num_group_devices) {
+        AGM_LOGE("Invalid group_id %u, max_supported device id: %d\n",
+                group_id, num_group_devices);
+        return -EINVAL;
+    }
+
+    list_for_each_safe(group_node, temp, &device_group_data_list) {
+        if (i++ == group_id) {
+            data = node_to_item(group_node, struct device_group_data, list_node);
+            *grp_data = data;
+            return 0;
+        }
+    }
+    return -EINVAL;
+}
+
 int device_set_media_config(struct device_obj *dev_obj,
           struct agm_media_config *device_media_config)
 {
@@ -521,6 +654,18 @@ int device_set_media_config(struct device_obj *dev_obj,
    dev_obj->media_config.format = device_media_config->format;
    dev_obj->media_config.data_format = device_media_config->data_format;
    pthread_mutex_unlock(&dev_obj->lock);
+
+   return 0;
+}
+
+int device_group_set_media_config(struct device_group_data *grp_data,
+          struct agm_group_media_config *media_config)
+{
+   if (grp_data == NULL || media_config == NULL) {
+       AGM_LOGE("Invalid input\n");
+       return -EINVAL;
+   }
+   memcpy(&grp_data->media_config, media_config, sizeof(*media_config));
 
    return 0;
 }
@@ -577,6 +722,7 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
     int i, ctl_len = 0, ret = 0, card_id;
     uint8_t *payload = NULL;
     char card[16];
+    char *dev_name = NULL;
 
     if (mixer == NULL) {
         card_id = device_get_snd_card_id();
@@ -593,7 +739,12 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
 
     }
 
-    ctl_len = strlen(dev_obj->name) + 1 + strlen("Channel Map") + 1;
+    if (dev_obj->parent_dev)
+        dev_name = dev_obj->parent_dev->name;
+    else
+        dev_name = dev_obj->name;
+
+    ctl_len = strlen(dev_name) + 1 + strlen("Channel Map") + 1;
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str) {
         AGM_LOGE("%s: Failed to allocate memory for mixer_str", __func__);
@@ -607,7 +758,7 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
         goto done;
     }
 
-    snprintf(mixer_str, ctl_len, "%s %s", dev_obj->name, "Channel Map");
+    snprintf(mixer_str, ctl_len, "%s %s", dev_name, "Channel Map");
 
     snd_ctl_elem_id_alloca(&id);
     snd_ctl_elem_info_alloca(&info);
@@ -649,6 +800,7 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
     char *mixer_str = NULL;
     int ctl_len = 0, ret = 0, card_id;
     void *payload = NULL;
+    char *dev_name = NULL;
 
     if (mixer == NULL) {
         card_id = device_get_snd_card_id();
@@ -664,7 +816,12 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
         }
     }
 
-    ctl_len = strlen(dev_obj->name) + 1 + strlen("Channel Map") + 1;
+    if (dev_obj->parent_dev)
+        dev_name = dev_obj->parent_dev->name;
+    else
+        dev_name = dev_obj->name;
+
+    ctl_len = strlen(dev_name) + 1 + strlen("Channel Map") + 1;
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str) {
         AGM_LOGE("Failed to allocate memory for mixer_str");
@@ -678,7 +835,7 @@ int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap)
         goto done;
     }
 
-    snprintf(mixer_str, ctl_len, "%s %s", dev_obj->name, "Channel Map");
+    snprintf(mixer_str, ctl_len, "%s %s", dev_name, "Channel Map");
 
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
@@ -703,6 +860,56 @@ done:
 }
 #endif
 
+int device_get_start_refcnt(struct device_obj *dev_obj)
+{
+   if (dev_obj == NULL) {
+       AGM_LOGE("Invalid device object\n");
+       return 0;
+   }
+
+   if (dev_obj->group_data)
+       return dev_obj->group_data->refcnt.start;
+   else
+       return dev_obj->refcnt.start;
+
+}
+
+static struct device_group_data* device_get_group_data_by_name(char *dev_name)
+{
+    struct device_group_data *grp_data = NULL;
+    char group_name[MAX_DEV_NAME_LEN];
+    char *ptr = NULL;
+    int pos = 0;
+    struct listnode *grp_node, *temp;
+
+    memset(group_name, 0, MAX_DEV_NAME_LEN);
+
+    ptr = strstr(dev_name, "-VIRT");
+    pos = ptr - dev_name + 1;
+    strlcpy(group_name, dev_name, pos);
+
+    list_for_each_safe(grp_node, temp, &device_group_data_list) {
+           grp_data = node_to_item(grp_node, struct device_group_data, list_node);
+           if (!strncmp(group_name, grp_data->name, MAX_DEV_NAME_LEN)) {
+               grp_data->has_multiple_dai_link = true;
+               goto done;
+           }
+    }
+
+    grp_data = calloc(1, sizeof(struct device_group_data));
+    if (grp_data == NULL) {
+        AGM_LOGE("memory allocation for group_data failed\n");
+        return NULL;
+    }
+
+    strlcpy(grp_data->name, group_name, pos);
+    list_add_tail(&device_group_data_list, &grp_data->list_node);
+    num_group_devices++;
+
+done:
+    return grp_data;
+}
+
 int parse_snd_card()
 {
     char buffer[MAX_BUF_SIZE];
@@ -720,6 +927,8 @@ int parse_snd_card()
     }
 
     list_init(&device_list);
+    list_init(&device_group_data_list);
+    num_group_devices = 0;
     while (fgets(buffer, MAX_BUF_SIZE - 1, fp) != NULL)
     {
         dev_obj = calloc(1, sizeof(struct device_obj));
@@ -741,7 +950,7 @@ int parse_snd_card()
                            &dev_obj->pcm_id, dev_obj->name);
         AGM_LOGD("%d:%d:%s\n", dev_obj->card_id, dev_obj->pcm_id, dev_obj->name);
 
-        /* populate the hw_ep_ifo for all the available pcm-id's*/
+        /* populate the hw_ep_info for all the available pcm-id's*/
         ret = populate_device_hw_ep_info(dev_obj);
         if (ret) {
            AGM_LOGE("hw_ep_info parsing failed %s\n",
@@ -754,6 +963,20 @@ int parse_snd_card()
         pthread_mutex_init(&dev_obj->lock, (const pthread_mutexattr_t *) NULL);
         list_add_tail(&device_list, &dev_obj->list_node);
         count++;
+        if (dev_obj->num_virtual_child) {
+            dev_obj->group_data = device_get_group_data_by_name(dev_obj->name);
+
+            /* Enumerate virtual backends */
+            for (int i = 0; i < dev_obj->num_virtual_child; i++) {
+                struct device_obj *child_dev_obj = populate_virtual_device_hw_ep_info(dev_obj, i);
+                if (child_dev_obj) {
+                    list_add_tail(&device_list, &child_dev_obj->list_node);
+                    count++;
+                }
+                child_dev_obj = NULL;
+            }
+        }
+
         dev_obj = NULL;
     }
     /*
@@ -776,6 +999,7 @@ free_device:
         dev_obj = NULL;
     }
 
+    list_remove(&device_group_data_list);
     list_remove(&device_list);
 close_file:
     fclose(fp);
@@ -804,7 +1028,8 @@ void device_deinit()
 {
     unsigned int list_count = 0;
     struct device_obj *dev_obj = NULL;
-    struct listnode *dev_node, *temp;
+    struct device_group_data *grp_data = NULL;
+    struct listnode *dev_node, *grp_node, *temp;
 
     AGM_LOGE("device deinit called\n");
     list_for_each_safe(dev_node, temp, &device_list) {
@@ -820,6 +1045,14 @@ void device_deinit()
         dev_obj = NULL;
     }
 
+    list_for_each_safe(grp_node, temp, &device_group_data_list) {
+            grp_data = node_to_item(grp_node, struct device_group_data, list_node);
+            list_remove(grp_node);
+            free(grp_data);
+            grp_data = NULL;
+    }
+
+    list_remove(&device_group_data_list);
     list_remove(&device_list);
     if (sysfs_fd >= 0)
         close(sysfs_fd);

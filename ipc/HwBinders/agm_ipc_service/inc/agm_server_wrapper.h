@@ -251,6 +251,10 @@ struct AGM : public IAGM {
     Return<void> ipc_agm_session_read_with_metadata(uint64_t hndl, const hidl_vec<AgmBuff>& buff,
                                                uint32_t captured_size,
                                                ipc_agm_session_read_with_metadata_cb) override;
+    Return<int32_t> ipc_agm_aif_group_set_media_config(uint32_t group_id,
+                        const hidl_vec<AgmGroupMediaConfig>& media_config) override;
+    Return<void> ipc_agm_get_group_aif_info_list(uint32_t num_groups,
+                               ipc_agm_get_aif_info_list_cb _hidl_cb) override;
 
     int is_agm_initialized() { return agm_initialized;}
 

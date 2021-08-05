@@ -119,6 +119,14 @@ typedef struct hw_ep_info
     union hw_ep_config ep_config;
 }hw_ep_info_t;
 
+struct device_group_data {
+    char name[MAX_DEV_NAME_LEN];
+    bool has_multiple_dai_link;
+    struct refcount refcnt;
+    struct agm_group_media_config media_config;
+    struct listnode list_node;
+};
+
 struct device_obj {
     /*
      * name of the device object populated from /proc/asound/pcm
@@ -147,6 +155,11 @@ struct device_obj {
     int state;
     void *params;
     size_t params_size;
+
+    bool is_virtual_device;
+    int num_virtual_child;
+    struct device_obj *parent_dev;
+    struct device_group_data *group_data;
 };
 
 /* Initializes device_obj, enumerate and fill device related information */
@@ -159,6 +172,7 @@ int device_get_obj(uint32_t device_idx, struct device_obj **dev_obj);
 int device_get_hw_ep_info(struct device_obj *dev_obj,
                                      struct hw_ep_info *hw_ep_info_);
 int populate_device_hw_ep_info(struct device_obj *dev_obj);
+struct device_obj* populate_virtual_device_hw_ep_info(struct device_obj *dev_obj, int num);
 int device_open(struct device_obj *dev_obj);
 int device_prepare(struct device_obj *dev_obj);
 int device_start(struct device_obj *dev_obj);
@@ -179,4 +193,11 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj);
 
 int device_get_snd_card_id();
 int device_get_channel_map(struct device_obj *dev_obj, uint32_t **chmap);
+
+int device_group_set_media_config(struct device_group_data *grp_data,
+          struct agm_group_media_config *device_media_config);
+int device_get_group_data(uint32_t group_id , struct device_group_data **grp_data);
+int device_get_group_list(struct aif_info *aif_list, size_t *num_groups);
+
+int device_get_start_refcnt(struct device_obj *dev_obj);
 #endif

@@ -302,6 +302,11 @@ struct agm_media_config {
     uint32_t data_format;          /**< data format */
 };
 
+struct agm_group_media_config {
+    struct agm_media_config config;
+    uint32_t slot_mask;            /**< slot_mask for TDM*/
+};
+
 /**
  * Session Direction
  */
@@ -1058,6 +1063,36 @@ int agm_session_set_non_tunnel_mode_config(uint64_t hndl,
                                        struct agm_media_config *out_media_config,
                                        struct agm_buffer_config *in_buffer_config,
                                        struct agm_buffer_config *out_buffer_config);
+
+
+/**
+  * \brief Get list of group AIF objects.
+  *
+  * \param [in] aif_list: list of group aif_info objects
+  * \param [in,out] num_groups: number of group aif items in the list.
+  *     if num_groups value is listed as zero, AGM will update num_groups with
+  *     the number of group aif items in AGM.
+  *     if num_groups is greater than zero,
+  *     AGM will copy client specified num_groups of items into aif_list.
+  *
+  * \return: 0 on success, error code otherwise
+  */
+int agm_get_group_aif_info_list(struct aif_info *aif_list, size_t *num_groups);
+
+ /**
+  * \brief Set media configuration for a group AIF.
+  *
+  * \param[in] aif_group_id - Valid group id
+  * \param[in] media_config - valid media configuration for the
+  *       audio interafce.
+  *
+  *  \return 0 on success, error code on failure.
+  *       If the audio interface is already in use and the
+  *       new media_config is different from previous, api will return
+  *       failure.
+  */
+int agm_aif_group_set_media_config(uint32_t aif_group_id,
+                          struct agm_group_media_config *media_config);
 
 #ifdef __cplusplus
 }  /* extern "C" */

@@ -944,3 +944,56 @@ int agm_session_read_with_metadata(uint64_t handle, struct agm_buff  *buf, uint3
 done:
     return ret;
 }
+
+int agm_aif_group_set_media_config(uint32_t group_id,
+                                struct agm_group_media_config *media_config)
+{
+    ALOGV("%s called, group_id = %d \n", __func__, group_id);
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+        hidl_vec<AgmGroupMediaConfig> media_config_hidl;
+        media_config_hidl.resize(sizeof(struct agm_group_media_config));
+        media_config_hidl.data()->rate = media_config->config.rate;
+        media_config_hidl.data()->channels = media_config->config.channels;
+        media_config_hidl.data()->format = (::vendor::qti::hardware::AGMIPC::V1_0::AgmMediaFormat) media_config->config.format;
+        media_config_hidl.data()->data_format = media_config->config.data_format;
+        media_config_hidl.data()->slot_mask = media_config->slot_mask;
+        return agm_client->ipc_agm_aif_group_set_media_config(group_id,
+                                                        media_config_hidl);
+    }
+    return -EINVAL;
+}
+
+int agm_get_group_aif_info_list(struct aif_info *aif_list, size_t *num_groups)
+{
+    ALOGV("%s called \n", __func__);
+    if (!agm_server_died) {
+        uint32_t num = (uint32_t) *num_groups;
+        int ret = -EINVAL;
+        android::sp<IAGM> agm_client = get_agm_server();
+        auto status = agm_client->ipc_agm_get_group_aif_info_list(num,[&](int32_t _ret,
+                                            hidl_vec<AifInfo> aif_list_ret_hidl,
+                                            uint32_t num_groups_hidl )
+        { ret = _ret;
+          if (ret != -ENOMEM) {
+              if (aif_list != NULL) {
+                  for (int i = 0 ; i < num_groups_hidl ; i++) {
+                      strlcpy(aif_list[i].aif_name,
+                              aif_list_ret_hidl.data()[i].aif_name.c_str(),
+                              AIF_NAME_MAX_LEN);
+                      ALOGV("%s : The retrived %d aif_name = %s \n", __func__, i,
+                                                              aif_list[i].aif_name);
+                      aif_list[i].dir = (enum direction)
+                                                    aif_list_ret_hidl.data()[i].dir;
+                  }
+              }
+          *num_groups = (size_t) num_groups_hidl;
+          }
+        });
+        if (!status.isOk()) {
+            ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
+        }
+        return ret;
+    }
+    return -EINVAL;
+}

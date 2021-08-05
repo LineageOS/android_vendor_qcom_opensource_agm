@@ -36,6 +36,7 @@
 
 
 using AgmMediaConfig = ::vendor::qti::hardware::AGMIPC::V1_0::AgmMediaConfig;
+using AgmGroupMediaConfig = ::vendor::qti::hardware::AGMIPC::V1_0::AgmGroupMediaConfig;
 using AgmSessionConfig = ::vendor::qti::hardware::AGMIPC::V1_0::AgmSessionConfig;
 using AgmBufferConfig = ::vendor::qti::hardware::AGMIPC::V1_0::AgmBufferConfig;
 using Direction = ::vendor::qti::hardware::AGMIPC::V1_0::Direction;

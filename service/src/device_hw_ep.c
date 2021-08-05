@@ -64,6 +64,8 @@
 #define SLIMBUS_DEVICE_1 0
 #define SLIMBUS_DEVICE_2 1
 
+#define MAX_VIRTUAL_CHILDS 8
+
 static int populate_hw_ep_intf_idx(hw_ep_info_t *hw_ep_info, char *intf_idx)
 {
     struct hw_ep_cdc_dma_i2s_tdm_config *cdc_dma_i2s_tdm_config;
@@ -240,7 +242,7 @@ static int populate_slim_dp_usb_ep_info(hw_ep_info_t *hw_ep_info, char *value)
     return populate_hw_ep_direction(hw_ep_info, dir);
 }
 
-static int populate_cdc_dma_i2s_tdm_pcm_ep_info(hw_ep_info_t *hw_ep_info, char *value)
+static int populate_cdc_dma_i2s_tdm_pcm_ep_info(hw_ep_info_t *hw_ep_info, char *value, int *num_virt_child)
 {
     char lpaif_type[DEV_ARG_SIZE];
     char intf_idx[DEV_ARG_SIZE], dir[DEV_ARG_SIZE];
@@ -258,7 +260,17 @@ static int populate_cdc_dma_i2s_tdm_pcm_ep_info(hw_ep_info_t *hw_ep_info, char *
     sscanf(value, "%20[^-]-%60s", arg, value);
     strlcpy(intf_idx, arg, strlen(arg)+1);
 
-   if (!strcmp(lpaif_type, "LPAIF"))
+    if(strstr(value, "VIRT-")) {
+        /* with below statement, arg = VIRT, value = "x-codec" */
+        sscanf(value, "%20[^-]-%60s", arg, value);
+        /* with below statement, arg = x, value = "codec" */
+        sscanf(value, "%20[^-]-%60s", arg, value);
+        *num_virt_child = atoi(arg);
+        if (*num_virt_child > MAX_VIRTUAL_CHILDS)
+            *num_virt_child = MAX_VIRTUAL_CHILDS;
+    }
+
+    if (!strcmp(lpaif_type, "LPAIF"))
         cdc_dma_i2s_tdm_config->lpaif_type = LPAIF;
     else if (!strcmp(lpaif_type, "LPAIF_RXTX"))
         cdc_dma_i2s_tdm_config->lpaif_type = LPAIF_RXTX;
@@ -280,6 +292,34 @@ static int populate_cdc_dma_i2s_tdm_pcm_ep_info(hw_ep_info_t *hw_ep_info, char *
         return ret;
 
     return populate_hw_ep_intf_idx(hw_ep_info, intf_idx);
+}
+
+static void update_virtual_device_name(struct device_obj *dev_obj, int num)
+{
+    char *ptr = NULL;
+    int pos = 0;
+
+    ptr = strstr(dev_obj->name, "VIRT-");
+    pos = ptr - dev_obj->name;
+    pos += strlen("VIRT-");
+    ptr += strlen("VIRT-") + 1;
+    snprintf(&dev_obj->name[pos], DEV_ARG_SIZE, "%d%s", num, ptr);
+}
+
+struct device_obj* populate_virtual_device_hw_ep_info(struct device_obj *parent_dev_obj, int num)
+{
+    struct device_obj *dev_obj = calloc(1, sizeof(struct device_obj));
+
+    if (!dev_obj)
+        return NULL;
+
+    memcpy(dev_obj, parent_dev_obj, sizeof(struct device_obj));
+    update_virtual_device_name(dev_obj, num);
+    dev_obj->num_virtual_child = 0;
+    dev_obj->is_virtual_device = true;
+    dev_obj->parent_dev = parent_dev_obj;
+
+    return dev_obj;
 }
 
 int populate_device_hw_ep_info(struct device_obj *dev_obj)
@@ -306,7 +346,8 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj)
     case MI2S:
     case TDM:
     case AUXPCM:
-        return populate_cdc_dma_i2s_tdm_pcm_ep_info(&dev_obj->hw_ep_info, value);
+        return populate_cdc_dma_i2s_tdm_pcm_ep_info(&dev_obj->hw_ep_info, value,
+                   &dev_obj->num_virtual_child);
     case SLIMBUS:
     case DISPLAY_PORT:
     case USB_AUDIO:

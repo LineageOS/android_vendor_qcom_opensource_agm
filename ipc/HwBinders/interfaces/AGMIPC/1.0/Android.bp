@@ -28,6 +28,7 @@ hidl_interface {
         "AgmEventRegCfg",
         "AgmKeyValue",
         "AgmMediaConfig",
+        "AgmGroupMediaConfig",
         "AgmMetaData",
         "AgmModuleIdIidMap",
         "AgmMediaFormat",
