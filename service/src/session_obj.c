@@ -176,6 +176,10 @@ static struct agm_meta_data_gsl* session_get_merged_metadata_without_aif(struct 
 
     list_for_each(node, &sess_obj->aif_pool) {
         aif_node = node_to_item(node, struct aif, node);
+        if (aif_node->state == AIF_CLOSED) {
+            AGM_LOGD("ignore closed AIF node");
+            continue;
+        }
         merged = metadata_merge(3, temp, &sess_obj->sess_meta,
                                     &aif_node->sess_aif_meta);
         if (temp) {
