@@ -157,6 +157,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
         return 0;
     }
 
+    AGM_LOGD("Enter");
     /*
      *In case of non-tunnel mode we configure
      *read and write buffer params together
@@ -269,7 +270,7 @@ done:
     } else
         gph_obj->is_config_buf_params_done = true;
 
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -528,7 +529,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     list_init(&node_hw);
 
 
-    AGM_LOGD("entry\n");
+    AGM_LOGD("entry");
     if (meta_data_kv == NULL || gph_obj == NULL) {
         AGM_LOGE("Invalid input\n");
         ret = -EINVAL;
@@ -699,6 +700,7 @@ free_graph_obj:
     pthread_mutex_destroy(&graph_obj->lock);
     free(graph_obj);
 done:
+    AGM_LOGD("exit, ret %d", ret);
     if (tag_module_info)
         free(tag_module_info);
     return ret;
@@ -715,7 +717,7 @@ int graph_close(struct graph_obj *graph_obj)
         return -EINVAL;
     }
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry handle %p\n", graph_obj->graph_handle);
+    AGM_LOGD("entry handle %p", graph_obj->graph_handle);
 
     ret = gsl_close(graph_obj->graph_handle);
     if (ret !=0) {
@@ -735,7 +737,7 @@ int graph_close(struct graph_obj *graph_obj)
     pthread_mutex_unlock(&graph_obj->lock);
     pthread_mutex_destroy(&graph_obj->lock);
     free(graph_obj);
-    AGM_LOGD("exit\n");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -759,7 +761,7 @@ int graph_prepare(struct graph_obj *graph_obj)
     }
     stream_config = sess_obj->stream_config;
 
-    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
     pthread_mutex_lock(&graph_obj->lock);
     if (graph_obj->state == PREPARED) {
         AGM_LOGD("Graph already prepared");
@@ -837,7 +839,7 @@ force_configure:
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit\n");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -851,7 +853,7 @@ int graph_start(struct graph_obj *graph_obj)
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
 
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_START, NULL, 0);
     if (ret !=0) {
@@ -863,7 +865,7 @@ int graph_start(struct graph_obj *graph_obj)
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit\n");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -921,7 +923,7 @@ int graph_stop(struct graph_obj *graph_obj,
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit\n");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -1009,7 +1011,7 @@ int graph_flush(struct graph_obj *graph_obj)
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit\n");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -1023,6 +1025,7 @@ int graph_suspend(struct graph_obj *graph_obj)
 {
     int ret = 0;
 
+    AGM_LOGD("Enter");
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object\n");
         return -EINVAL;
@@ -1040,7 +1043,7 @@ int graph_suspend(struct graph_obj *graph_obj)
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit\n");
+    AGM_LOGD("exit ret: %d", ret);
     return ret;
 }
 
@@ -1054,7 +1057,7 @@ int graph_set_config(struct graph_obj *graph_obj, void *payload,
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
     ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
     if (ret !=0) {
         ret = ar_err_get_lnx_err_code(ret);
@@ -1062,7 +1065,7 @@ int graph_set_config(struct graph_obj *graph_obj, void *payload,
     }
 
     pthread_mutex_unlock(&graph_obj->lock);
-
+    AGM_LOGD("exit, graph handle %p, ret %d", graph_obj->graph_handle, ret);
     return ret;
 }
 
@@ -1373,7 +1376,7 @@ int graph_add(struct graph_obj *graph_obj,
 
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit\n");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -1394,7 +1397,7 @@ int graph_change(struct graph_obj *graph_obj,
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
+    AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
 
     if (dev_obj != NULL) {
         mod = NULL;
@@ -1512,7 +1515,7 @@ int graph_change(struct graph_obj *graph_obj,
     }
 done:
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit\n");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -1547,7 +1550,7 @@ int graph_remove(struct graph_obj *graph_obj,
     }
 
     pthread_mutex_unlock(&graph_obj->lock);
-    AGM_LOGD("exit\n");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -1652,8 +1655,9 @@ int graph_eos(struct graph_obj *graph_obj)
         AGM_LOGE("invalid graph object\n");
         return -EINVAL;
     }
-    AGM_LOGE("enter\n");
+    AGM_LOGE("enter");
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_EOS, NULL, 0);
+    AGM_LOGE("exit, ret %d", ret);
     return ar_err_get_lnx_err_code(ret);
 }
 
@@ -1672,7 +1676,6 @@ int graph_get_session_time(struct graph_obj *graph_obj, uint64_t *tstamp)
     }
 
     pthread_mutex_lock(&graph_obj->lock);
-    AGM_LOGV("entry graph_handle %p\n", graph_obj->graph_handle);
     if (!(graph_obj->state & (STARTED))) {
        AGM_LOGV("graph object is not in correct state, current state %d\n",
                     graph_obj->state);
