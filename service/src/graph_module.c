@@ -920,15 +920,16 @@ int configure_pcm_encoder_params(struct module_info *mod,
         samples_per_msec = sess_obj->in_media_config.rate/1000;
         channels = sess_obj->in_media_config.channels;
         bits = get_pcm_bit_width(sess_obj->in_media_config.format);
+        bits = GET_BITS_PER_SAMPLE(sess_obj->in_media_config.format, bits);
         channels = (channels == 0) ? MONO : channels;
-        bits = (bits == 0) ? 16 : bits;
         frame_size = (sess_obj->in_buffer_config.size * 8) /
                         (channels * bits);
 
         if (samples_per_msec &&
-            (((frame_size/samples_per_msec) * samples_per_msec) != frame_size))
+            (((frame_size * 1000) % sess_obj->in_media_config.rate) != 0)) {
             AGM_LOGD("pcm encoder: frame_size %d\n", frame_size);
             ret = configure_pcm_encoder_frame_size(mod, graph_obj, frame_size);
+        }
     }
 
     return ret;

@@ -148,6 +148,10 @@ int configure_buffer_params(struct graph_obj *gph_obj,
     enum agm_data_mode mode = sess_obj->stream_config.data_mode;
     struct agm_buffer_config buffer_config = {0};
 
+    if (gph_obj == NULL){
+        AGM_LOGE("invalid graph object\n");
+        return -EINVAL;
+    }
     if (gph_obj->is_config_buf_params_done) {
         AGM_LOGD("configure buf params already done");
         return 0;
@@ -537,6 +541,9 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
         ret = -ENOMEM;
         goto done;
     }
+
+    metadata_print(meta_data_kv);
+
     list_init(&graph_obj->tagged_mod_list);
     pthread_mutex_init(&graph_obj->lock, (const pthread_mutexattr_t *)NULL);
     if (sess_obj->stream_config.sess_mode == AGM_SESSION_NO_CONFIG)
@@ -654,7 +661,6 @@ tag_list:
 no_config:
     graph_obj->sess_obj = sess_obj;
 
-    metadata_print(meta_data_kv);
     ret = gsl_open((struct gsl_key_vector *)&meta_data_kv->gkv,
                    (struct gsl_key_vector *)&meta_data_kv->ckv,
                    &graph_obj->graph_handle);
@@ -1013,6 +1019,31 @@ int graph_resume(struct graph_obj *graph_obj)
     return graph_pause_resume(graph_obj, false);
 }
 
+int graph_suspend(struct graph_obj *graph_obj)
+{
+    int ret = 0;
+
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object\n");
+        return -EINVAL;
+    }
+
+    pthread_mutex_lock(&graph_obj->lock);
+    AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
+
+    ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_SUSPEND, NULL, 0);
+    if (ret !=0) {
+        ret = ar_err_get_lnx_err_code(ret);
+        AGM_LOGE("graph_suspend failed %d\n", ret);
+        goto done;
+    }
+
+done:
+    pthread_mutex_unlock(&graph_obj->lock);
+    AGM_LOGD("exit\n");
+    return ret;
+}
+
 int graph_set_config(struct graph_obj *graph_obj, void *payload,
                      size_t payload_size)
 {
@@ -1142,7 +1173,7 @@ int graph_write(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *si
         AGM_LOGE("gsl_write for size %zu failed with error %d\n", *size, ret);
         goto done;
     }
-    *size = size_written;
+    *size = (size_t)size_written;
 done:
     return ret;
 }
@@ -1735,6 +1766,10 @@ static int graph_fill_buf_info(struct graph_obj *gph_obj,
     struct ar_shmem_handle *shmem_handle;
     int ret = -1;
 
+    if (gph_obj == NULL){
+        AGM_LOGE("invalid graph object\n");
+        return -EINVAL;
+    }
     shmem_buf_info = calloc(1, sizeof(struct gsl_cmd_get_shmem_buf_info));
     if (!shmem_buf_info) {
         AGM_LOGE("shmem_buf_info allocation failed\n");
@@ -1784,6 +1819,11 @@ int graph_get_buf_info(struct graph_obj *graph_obj, struct agm_buf_info *buf_inf
     enum gsl_cmd_id cmd_id;
     int ret = -EINVAL;
     struct agm_buffer_config buffer_config = {0};
+
+    if (graph_obj == NULL) {
+        AGM_LOGE("invalid graph object");
+        return -EINVAL;
+    }
 
     sess_obj = graph_obj->sess_obj;
     if (sess_obj == NULL) {
@@ -1836,6 +1876,10 @@ int graph_set_gapless_metadata(struct graph_obj *graph_obj,
     size_t payload_size = 0;
     uint32_t decoder_miid = 0;
 
+    if (graph_obj == NULL){
+        AGM_LOGE("invalid graph object\n");
+        return -EINVAL;
+    }
     pthread_mutex_lock(&graph_obj->lock);
 
     list_for_each(node, &graph_obj->tagged_mod_list) {

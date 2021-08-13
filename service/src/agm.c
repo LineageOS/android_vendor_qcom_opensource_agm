@@ -602,6 +602,16 @@ int agm_session_resume(uint64_t hndl)
     return session_obj_resume(handle);
 }
 
+int agm_session_suspend(uint64_t hndl)
+{
+    struct session_obj *handle = (struct session_obj *) hndl;
+    if (!handle) {
+        AGM_LOGE("Invalid handle\n");
+        return -EINVAL;
+    }
+    return session_obj_suspend(handle);
+}
+
 int agm_session_write(uint64_t hndl, void *buff, size_t *count)
 {
     struct session_obj *handle = (struct session_obj *) hndl;
@@ -763,7 +773,7 @@ int agm_set_gapless_session_metadata(uint64_t handle,
 }
 
 int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buff,
-                                    uint32_t *consumed_size)
+                                    size_t *consumed_size)
 {
     if (!handle) {
         AGM_LOGE("%s Invalid handle\n", __func__);

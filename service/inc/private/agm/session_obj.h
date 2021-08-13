@@ -123,6 +123,7 @@ int session_obj_close(struct session_obj *sess_obj);
 int session_obj_pause(struct session_obj *sess_obj);
 int session_obj_flush(struct session_obj *sess_obj);
 int session_obj_resume(struct session_obj *sess_obj);
+int session_obj_suspend(struct session_obj *sess_obj);
 int session_obj_read(struct session_obj *sess_obj, void *buff, size_t *count);
 int session_obj_write(struct session_obj *sess_obj, void *buff, size_t *count);
 int session_obj_sess_aif_connect(struct session_obj *sess_obj,
@@ -174,7 +175,7 @@ int session_obj_set_gapless_metadata(struct session_obj *sess_obj,
                                      uint32_t silence);
 int session_obj_write_with_metadata(struct session_obj *sess_obj,
                                     struct agm_buff *buff,
-                                    uint32_t *consumed_size);
+                                    size_t *consumed_size);
 int session_obj_read_with_metadata(struct session_obj *sess_obj,
                                    struct agm_buff *buff,
                                    uint32_t *captured_size);

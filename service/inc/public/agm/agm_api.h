@@ -839,6 +839,17 @@ int agm_session_flush(uint64_t hndl);
 int agm_session_resume(uint64_t hndl);
 
 /**
+  * \brief suspend the session. session must be in started state
+  *        before suspending.
+  *
+  * \param[in] handle - Valid session handle obtained
+  *       from agm_session_open
+  *
+  * \return 0 on success, error code otherwise
+  */
+int agm_session_suspend(uint64_t hndl);
+
+/**
   * \brief Read data buffers.from session
   *
   * \param[in] handle: session handle returned from
@@ -1008,7 +1019,7 @@ int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_t
  * \return 0 on success, error code otherwise
  */
 int agm_session_write_with_metadata(uint64_t hndl, struct agm_buff *buff,
-                                    uint32_t *consumed_size);
+                                    size_t *consumed_size);
 
 /**
  * \brief Read data buffers with metadata to session

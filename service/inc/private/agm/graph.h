@@ -209,6 +209,14 @@ int graph_flush(struct graph_obj *gph_obj);
 int graph_resume(struct graph_obj *gph_obj);
 
 /**
+ *\brief suspend an existing graph.
+ *\param [in] graph_obj: associated graph obj
+ *
+ * return AR_EOK on success or error code otherwise.
+ */
+int graph_suspend(struct graph_obj *gph_obj);
+
+/**
  *\brief add a new audio path (graph/subgraph) to an exisitng graph.
  * Assumption here is only the device leg would always be updated,
  * as a part of the passed GKV.

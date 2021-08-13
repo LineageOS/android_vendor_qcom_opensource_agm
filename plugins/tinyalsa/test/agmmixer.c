@@ -370,7 +370,7 @@ int agm_mixer_set_ecref_path(struct mixer *mixer, unsigned int device, enum stre
     return ret;
 }
 
-int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir d, int rate, int bitwidth, uint32_t val)
+int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum usecase_type usecase, int rate, int bitwidth, uint32_t val)
 {
     char *control = "metadata";
     struct mixer_ctl *ctl;
@@ -403,9 +403,12 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum dir d
         return -ENOMEM;
     }
 
-    if (d == PLAYBACK) {
+    if (usecase == PLAYBACK) {
         gkv[0].key = DEVICERX;
         gkv[0].value = SPEAKER;
+    } else if (usecase == HAPTICS) {
+        gkv[0].key = DEVICERX;
+        gkv[0].value = HAPTICS_DEVICE;
     } else if (val == VOICE_UI) {
         gkv[0].key = DEVICETX;
         gkv[0].value = HANDSETMIC_VA;
@@ -562,7 +565,7 @@ int configure_mfc(struct mixer *mixer, int device, char *intf_name, int tag,
 
 }
 
-int set_agm_capture_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum dir d,
+int set_agm_capture_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum usecase_type usecase,
      enum stream_type stype, unsigned int dev_channels)
 {
     char *stream = "PCM";
@@ -649,7 +652,7 @@ done:
     return ret;
 }
 
-int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum dir d, enum stream_type stype, char *intf_name)
+int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum usecase_type usecase, enum stream_type stype, char *intf_name)
 {
     char *stream = "PCM";
     char *control = "metadata";
@@ -675,6 +678,9 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
 
     if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK || val == PCM_RECORD)
         num_gkv += 1;
+
+    if (val == HAPTICS_PLAYBACK)
+        num_gkv = 1;
 
     if (val == VOICE_UI) {
         if (intf_name)
@@ -723,7 +729,7 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
             index++;
         }
     } else {
-        if (d == PLAYBACK)
+        if (usecase == PLAYBACK)
             gkv[index].key = STREAMRX;
         else
             gkv[index].key = STREAMTX;
@@ -733,15 +739,16 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
         index++;
         if (val == PCM_LL_PLAYBACK || val == COMPRESSED_OFFLOAD_PLAYBACK ||
             val == PCM_RECORD) {
+            printf("Instance key is added\n");
             gkv[index].key = INSTANCE;
             gkv[index].value = INSTANCE_1;
             index++;
         }
 
-        if (d == PLAYBACK) {
+        if (usecase == PLAYBACK  && val != HAPTICS_PLAYBACK) {
             gkv[index].key = DEVICEPP_RX;
             gkv[index].value = DEVICEPP_RX_AUDIO_MBDRC;
-        } else {
+        } else if (val != HAPTICS_PLAYBACK) {
             gkv[index].key = DEVICEPP_TX;
             gkv[index].value = DEVICEPP_TX_AUDIO_FLUENCE_SMECNS;
         }
