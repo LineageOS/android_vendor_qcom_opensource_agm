@@ -60,6 +60,9 @@ struct session_obj;
 /**< true if buffer is marked as EOF */
 #define AGM_BUFF_FLAG_EOF 0x4
 
+/**< true if buffer contains media format */
+#define AGM_BUFF_FLAG_MEDIA_FORMAT 0x8
+
 /*Enables SRCM event in metadata on the read path*/
 #define AGM_SESSION_FLAG_INBAND_SRCM 0x1
 
