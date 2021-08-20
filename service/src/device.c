@@ -48,6 +48,7 @@
 #include <tinyalsa/asoundlib.h>
 #endif
 
+#define SNDCARD_PATH "/sys/kernel/snd_card/card_state"
 #define PCM_DEVICE_FILE "/proc/asound/pcm"
 #define MAX_RETRY 100 /*Device will try these many times before return an error*/
 #define RETRY_INTERVAL 1 /*Retry interval in seconds*/
@@ -97,6 +98,13 @@ static int sysfs_fd = -1;
 #define DEFAULT_PERIOD_COUNT         2
 
 #define MAX_USR_INPUT 9
+
+/** Sound card state */
+typedef enum snd_card_status_t {
+    SND_CARD_STATUS_OFFLINE = 0,
+    SND_CARD_STATUS_ONLINE,
+    SND_CARD_STATUS_NONE,
+} snd_card_status_t;
 
 int get_pcm_bits_per_sample(enum agm_media_format fmt_id)
 {
@@ -1011,20 +1019,59 @@ close_file:
     return ret;
 }
 
-int device_init()
+static int wait_for_snd_card_to_online()
 {
     int ret = 0;
     uint32_t retries = MAX_RETRY;
+    int fd = -1;
+    char buf[10];
+    snd_card_status_t card_status = SND_CARD_STATUS_NONE;
 
+    /* wait here till snd card is registered                               */
+    /* maximum wait period = (MAX_RETRY * RETRY_INTERVAL_US) micro-seconds */
     do {
-       ret = parse_snd_card();
-       if (ret == -EAGAIN) {
-           AGM_LOGE("no valid snd device found retry %d times\n", retries);
-           retries--;
-           sleep(RETRY_INTERVAL);
-       } else
-           break;
+        if ((fd = open(SNDCARD_PATH, O_RDWR)) < 0) {
+            AGM_LOGE(LOG_TAG, "Failed to open snd sysfs node, will retry for %d times ...", (retries - 1));
+        } else {
+            memset(buf , 0 ,sizeof(buf));
+            lseek(fd,0L,SEEK_SET);
+            read(fd, buf, 1);
+            close(fd);
+            fd = -1;
+
+            card_status = SND_CARD_STATUS_NONE;
+            sscanf(buf , "%d", &card_status);
+
+            if (card_status == SND_CARD_STATUS_ONLINE) {
+                AGM_LOGV(LOG_TAG, "snd sysfs node open successful");
+                break;
+            }
+        }
+        retries--;
+        sleep(RETRY_INTERVAL);
     } while ( retries > 0);
+
+    if (0 == retries) {
+        AGM_LOGE(LOG_TAG, "Failed to open snd sysfs node, exiting ... ");
+        ret = -EIO;
+    }
+
+    return ret;
+}
+
+int device_init()
+{
+    int ret = 0;
+
+    ret = wait_for_snd_card_to_online();
+    if (ret) {
+        AGM_LOGE("Not found any SND card online\n");
+        return ret;
+    }
+
+    ret = parse_snd_card();
+    if (ret)
+        AGM_LOGE("no valid snd device found\n");
 
     return ret;
 }
