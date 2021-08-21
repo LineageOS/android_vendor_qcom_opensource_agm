@@ -602,6 +602,37 @@ static void graph_event_cb(struct agm_event_cb_params *event_params,
     pthread_mutex_unlock(&sess_obj->cb_pool_lock);
 }
 
+static int session_apply_aif_tag_params(struct session_obj *sess_obj,
+        struct agm_meta_data_gsl *merged_metadata, struct aif *aif_obj)
+{
+    int ret = 0;
+    struct agm_tag_config_gsl tag_config_gsl;
+    struct agm_tag_config *tag_config = NULL;
+
+    if (aif_obj->tag_config == NULL)
+        return ret;
+
+    tag_config = aif_obj->tag_config;
+
+    tag_config_gsl.tag_id = tag_config->tag;
+    tag_config_gsl.tkv.num_kvs = tag_config->num_tkvs;
+    tag_config_gsl.tkv.kv = tag_config->kv;
+
+    ret = graph_set_config_with_tag(sess_obj->graph, &merged_metadata->gkv,
+                                                &tag_config_gsl);
+    if (ret)
+        AGM_LOGE("Error:%d setting for sess_aif params with tags \
+                  on sess_id:%d, aif_id:%d\n",
+                  ret, sess_obj->sess_id, aif_obj->aif_id);
+
+    // free aif tag param after setting.
+    // Client need to resend for configuring on next usecase
+    free(aif_obj->tag_config);
+    aif_obj->tag_config = NULL;
+
+    return ret;
+}
+
 static int session_apply_aif_device_params(struct session_obj *sess_obj,
         struct device_obj *dev_obj)
 {
@@ -721,6 +752,11 @@ static int session_connect_aif(struct session_obj *sess_obj,
 
     //step 2.e set cached device params
     ret = session_apply_aif_device_params(sess_obj, aif_obj->dev_obj);
+    if (ret)
+        goto graph_cleanup;
+
+    //step 2.f set cached streamdevice tagparams
+    ret = session_apply_aif_tag_params(sess_obj, merged_metadata, aif_obj);
     if (ret)
         goto graph_cleanup;
 
@@ -1333,6 +1369,7 @@ int session_obj_set_sess_aif_params_with_tag(struct session_obj *sess_obj,
     struct aif *aif_obj = NULL;
     struct agm_meta_data_gsl *merged_metadata = NULL;
     struct agm_tag_config_gsl tag_config_gsl;
+    size_t tkv_payload_size = 0;
 
     pthread_mutex_lock(&sess_obj->lock);
     if (aif_id < UINT_MAX) {
@@ -1340,6 +1377,28 @@ int session_obj_set_sess_aif_params_with_tag(struct session_obj *sess_obj,
         if (ret) {
             AGM_LOGE("Error obtaining aif object with sess_id:%d,  aif id:%d\n",
                 sess_obj->sess_id, aif_id);
+            goto done;
+        }
+
+        if (sess_obj->state == SESSION_STARTED && aif_obj->state < AIF_OPENED) {
+            AGM_LOGE("AIF not opened on sess_id:%d, aif_id:%d, caching tkv\n",
+                     sess_obj->sess_id, aif_obj->aif_id);
+
+            if (aif_obj->tag_config) {
+                free(aif_obj->tag_config);
+                aif_obj->tag_config = NULL;
+            }
+
+            tkv_payload_size = sizeof(struct agm_tag_config) +
+                               (tag_config->num_tkvs * sizeof(struct agm_key_value));
+            aif_obj->tag_config = (struct agm_tag_config *)calloc(1, tkv_payload_size);
+            if (!aif_obj->tag_config) {
+                AGM_LOGE("Tag_config memory allocation failed for sess_id:%d, aif_id:%d",
+                          sess_obj->sess_id, aif_obj->aif_id);
+                ret = -ENOMEM;
+                goto done;
+            }
+            memcpy(aif_obj->tag_config, tag_config, tkv_payload_size);
             goto done;
         }
 
