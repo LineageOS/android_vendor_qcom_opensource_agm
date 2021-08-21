@@ -41,7 +41,7 @@
 #include <vendor/qti/hardware/AGMIPC/1.0/IAGM.h>
 
 #include <agm/agm_api.h>
-#include "inc/AGMCallback.h"
+#include "AGMCallback.h"
 #include <mutex>
 
 using android::hardware::Return;
