@@ -1080,8 +1080,8 @@ static int session_stop(struct session_obj *sess_obj)
     }
 
     if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
+        pthread_mutex_lock(&hwep_lock);
         if (dir == RX) {
-            pthread_mutex_lock(&hwep_lock);
             ret = graph_stop(sess_obj->graph, NULL);
             if (ret) {
                 AGM_LOGE("Error:%d stopping graph\n", ret);
