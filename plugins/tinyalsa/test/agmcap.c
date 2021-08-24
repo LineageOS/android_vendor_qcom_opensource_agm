@@ -64,7 +64,7 @@ struct wav_header {
 int capturing = 1;
 
 static unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
-                            unsigned int channels, unsigned int rate,
+                            unsigned int dkv, unsigned int channels, unsigned int rate,
                             enum pcm_format format, unsigned int period_size,
                             unsigned int period_count, unsigned int cap_time,
                             struct device_config *dev_config);
@@ -88,6 +88,7 @@ int main(int argc, char **argv)
     unsigned int period_count = 4;
     unsigned int cap_time = 0;
     char *intf_name = NULL;
+    unsigned int device_kv = 0;
     struct device_config config;
     enum pcm_format format;
     int ret = 0;
@@ -95,7 +96,7 @@ int main(int argc, char **argv)
     if (argc < 2) {
         printf("Usage: %s file.wav [-D card] [-d device]"
                 " [-c channels] [-r rate] [-b bits] [-p period_size]"
-                " [-n n_periods] [-T capture time] [-i intf_name]\n", argv[0]);
+                " [-n n_periods] [-T capture time] [-i intf_name] [-dkv device_kv]\n", argv[0]);
         return 1;
     }
 
@@ -145,6 +146,12 @@ int main(int argc, char **argv)
             if (*argv)
                 intf_name = *argv;
         }
+        if (strcmp(*argv, "-dkv") == 0) {
+            argv++;
+            if (*argv)
+                device_kv = convert_char_to_hex(*argv);
+        }
+
         if (*argv)
             argv++;
     }
@@ -196,7 +203,7 @@ int main(int argc, char **argv)
     signal(SIGINT, sigint_handler);
     signal(SIGHUP, sigint_handler);
     signal(SIGTERM, sigint_handler);
-    frames = capture_sample(file, card, device, header.num_channels,
+    frames = capture_sample(file, card, device, device_kv, header.num_channels,
                             header.sample_rate, format,
                             period_size, period_count, cap_time, &config);
     printf("Captured %u frames\n", frames);
@@ -213,7 +220,7 @@ int main(int argc, char **argv)
 }
 
 unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
-                            unsigned int channels, unsigned int rate,
+                            unsigned int dkv, unsigned int channels, unsigned int rate,
                             enum pcm_format format, unsigned int period_size,
                             unsigned int period_count, unsigned int cap_time,
                             struct device_config *dev_config)
@@ -253,7 +260,7 @@ unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
     }
 
     /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, intf_name, CAPTURE, dev_config->rate, dev_config->bits, PCM_RECORD)) {
+    if (set_agm_audio_intf_metadata(mixer, intf_name, dkv, CAPTURE, dev_config->rate, dev_config->bits, PCM_RECORD)) {
         printf("Failed to set device metadata\n");
         goto err_close_mixer;
     }
