@@ -7,7 +7,8 @@ h_sources = ./inc/agm_api.h \
             ./inc/agm_list.h \
             ./inc/utils.h
 
-AM_CFLAGS = -I ./inc
+AM_CFLAGS = -I ./inc \
+            -I $(top_builddir)/src/system/core/include/log/
 
 library_include_HEADERS = $(h_sources)
 library_includedir = $(includedir)/agm
@@ -22,11 +23,18 @@ agm_sources = ./src/graph.c \
               ./src/agm.c
 
 else
-h_sources = ${top_srcdir}/inc/agm_api.h \
-            ${top_srcdir}/inc/agm_list.h \
-            ${top_srcdir}/inc/utils.h
+h_sources = ${top_srcdir}/inc/public/agm/agm_api.h \
+            ${top_srcdir}/inc/public/agm/agm_list.h \
+            ${top_srcdir}/inc/public/agm/utils.h \
+            ${top_srcdir}/inc/private/agm/metadata.h \
+            ${top_srcdir}/inc/private/agm/graph.h \
+            ${top_srcdir}/inc/private/agm/session_obj.h \
+            ${top_srcdir}/inc/private/agm/device.h
 
-AM_CFLAGS = -I ${top_srcdir}/inc  -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/spf
+AM_CFLAGS = -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/spf
+AM_CFLAGS += -I ${top_srcdir}/inc/public
+AM_CFLAGS += -I ${top_srcdir}/inc/private
+AM_CFLAGS += -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/acdbdata
 AM_CFLAGS += -DDYNAMIC_LOG_ENABLED
 
 library_include_HEADERS = $(h_sources)
@@ -38,13 +46,14 @@ agm_sources = ${top_srcdir}/src/graph.c \
               ${top_srcdir}/src/device_hw_ep.c \
               ${top_srcdir}/src/metadata.c \
               ${top_srcdir}/src/session_obj.c \
-              ${top_srcdir}/src/agm.c
+              ${top_srcdir}/src/agm.c \
+              ${top_srcdir}/src/utils.c
 
 endif
 
 lib_LTLIBRARIES = libagm.la
 libagm_la_SOURCES = $(agm_sources)
-libagm_la_LIBADD = -ltinyalsa -lar_osal -lgsl -lats
+libagm_la_LIBADD = -ltinyalsa -lar_osal -lar_gsl -lats -laudio_log_utils
 
 if !BUILDSYSTEM_OPENWRT
 libagm_la_LIBADD += -laudio_log_utils
