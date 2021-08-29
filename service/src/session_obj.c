@@ -1481,17 +1481,15 @@ int session_obj_rw_acdb_params_with_tag(
         goto error;
     }
 
-    if (aif_id < UINT_MAX) {
-        ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
-        if (ret) {
-            AGM_LOGE("Error obtaining aif object with sess_id:%d,  aif id:%d\n",
-                sess_obj->sess_id, aif_id);
-            goto error;
-        }
-
-        merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
-                          &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
+    ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
+    if (ret) {
+        AGM_LOGE("Error obtaining aif object with sess_id:%d,  aif id:%d\n",
+            sess_obj->sess_id, aif_id);
+        goto error;
     }
+
+    merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
+                        &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
 
     if (!merged_metadata) {
         AGM_LOGE("Error merging metadata session_id:%d aif_id:%d\n",
