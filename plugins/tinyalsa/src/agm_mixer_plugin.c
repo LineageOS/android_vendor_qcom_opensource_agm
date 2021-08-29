@@ -924,18 +924,22 @@ static int amp_be_metadata_put(struct mixer_plugin *plugin __unused,
                 struct snd_control *ctl, struct snd_ctl_tlv *tlv)
 {
     uint32_t audio_intf_id = ctl->private_value;
-    void *payload;
+    void *payload = NULL;
     uint32_t tlv_size;
     int ret;
 
     AGM_LOGV("%s: enter\n", __func__);
-    payload = &tlv->tlv[0];
+    if (!tlv) {
+        return -EINVAL;
+    }
+
     tlv_size = tlv->length;
     if (tlv_size == 0) {
         AGM_LOGE("%s: invalid array size %d\n", __func__, tlv_size);
         return -EINVAL;
     }
 
+    payload = &tlv->tlv[0];
     ret = agm_aif_set_metadata(audio_intf_id, tlv_size, payload);
 
     if (ret == -EALREADY)
