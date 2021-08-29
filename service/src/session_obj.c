@@ -1169,9 +1169,11 @@ static int session_close(struct session_obj *sess_obj)
     enum agm_session_mode sess_mode = sess_obj->stream_config.sess_mode;
     struct listnode *node = NULL;
 
+    AGM_LOGD("enter");
     if (sess_obj->state == SESSION_CLOSED) {
         AGM_LOGE("session already in CLOSED state\n");
-        return -EALREADY;
+        ret = -EALREADY;
+        goto done;
     }
 
     pthread_mutex_lock(&hwep_lock);
@@ -1209,7 +1211,8 @@ static int session_close(struct session_obj *sess_obj)
     }
     pthread_mutex_unlock(&hwep_lock);
     sess_obj->state = SESSION_CLOSED;
-    AGM_LOGE("exit");
+done:
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 

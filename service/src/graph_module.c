@@ -258,7 +258,7 @@ done:
     if (payload)
         free(payload);
 
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -347,7 +347,7 @@ free_kvp:
 free_payload:
     free(payload);
 done:
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -442,7 +442,7 @@ free_kvp:
 free_payload:
     free(payload);
 done:
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -530,7 +530,7 @@ free_kvp:
 free_payload:
     free(payload);
 done:
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -610,7 +610,7 @@ done:
     if (chmap)
         free(chmap);
 
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -654,7 +654,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
     hw_ep_media_conf->num_channels = media_config.channels;
     hw_ep_media_conf->data_format = media_config.data_format;
 
-    AGM_LOGE("rate %d bw %d ch %d, data_fmt %d", media_config.rate,
+    AGM_LOGD("rate %d bw %d ch %d, data_fmt %d", media_config.rate,
                     hw_ep_media_conf->bit_width, media_config.channels,
                     media_config.data_format);
 
@@ -666,7 +666,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
     }
     free(payload);
 done:
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -764,7 +764,7 @@ int configure_output_media_format(struct module_info *mod,
     if (!payload) {
         AGM_LOGE("Not enough memory for payload");
         ret = -ENOMEM;
-        return ret;
+        goto done;
     }
 
 
@@ -870,8 +870,10 @@ int configure_output_media_format(struct module_info *mod,
                       mod->tag, ret);
     }
 done:
-    free(payload);
-    AGM_LOGD("exit");
+    if (payload) {
+        free(payload);
+    }
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -1168,7 +1170,7 @@ int configure_placeholder_dec(struct module_info *mod,
     AGM_LOGE("enter");
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object");
-        return -EINVAL;
+        goto done;
     }
     sess_obj = graph_obj->sess_obj;
 
@@ -1181,14 +1183,16 @@ int configure_placeholder_dec(struct module_info *mod,
         /* If ret is non-zero then placeholder module would be
          * configured by client so return from here.
          */
-        return 0;
+        ret = 0;
+        goto done;
     }
 
     tkv.num_kvps = 1;
     tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
     if (!tkv.kvp) {
         AGM_LOGE("Not enough memory for tkv.kvp\n");
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto done;
     }
     tkv.kvp->key = MEDIA_FMT_ID;
     tkv.kvp->value = real_fmt_id;
@@ -1198,13 +1202,10 @@ int configure_placeholder_dec(struct module_info *mod,
     ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)mod->gkv,
                          TAG_STREAM_PLACEHOLDER_DECODER, &tkv);
 
-    if (tkv.kvp)
-        free(tkv.kvp);
-
     if (ret != 0) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("set_config command failed with error: %d", ret);
-        return ret;
+        goto done;
     }
 
     /* 2. Set output media format cfg for placeholder decoder */
@@ -1212,6 +1213,10 @@ int configure_placeholder_dec(struct module_info *mod,
     if (ret != 0)
         AGM_LOGE("output_media_format cfg failed: %d", ret);
 
+done:
+    if (tkv.kvp)
+        free(tkv.kvp);
+    AGM_LOGE("exit, ret %d", ret);
     return ret;
 }
 
@@ -1377,7 +1382,7 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     if (!payload) {
         AGM_LOGE("Not enough memory for payload");
         ret = -ENOMEM;
-        return ret;
+        goto done;
     }
 
     header = (struct apm_module_param_data_t*)payload;
@@ -1434,8 +1439,11 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
         AGM_LOGE("custom_config command for module %d failed with error %d",
                       mod->tag, ret);
     }
-    free(payload);
-    AGM_LOGD("exit");
+done:
+    if (payload) {
+        free(payload);
+    }
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -1528,8 +1536,8 @@ int configure_rd_shared_mem_ep(struct module_info *mod,
                       mod->tag, ret);
     }
     free(payload);
-    AGM_LOGD("exit");
 done:
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
