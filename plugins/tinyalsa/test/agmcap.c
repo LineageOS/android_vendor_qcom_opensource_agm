@@ -326,6 +326,7 @@ unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
     frames = pcm_bytes_to_frames(pcm, bytes_read);
     free(buffer);
 
+    pcm_stop(pcm);
 err_close_pcm:
     connect_agm_audio_intf_to_stream(mixer, device, intf_name, STREAM_PCM, false);
     pcm_close(pcm);

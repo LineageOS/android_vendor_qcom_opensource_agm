@@ -288,6 +288,7 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
         }
     } while (!close && num_read > 0);
 
+    pcm_stop(pcm);
     /* connect pcm stream to audio intf */
     connect_agm_audio_intf_to_stream(mixer, device, name, STREAM_PCM, false);
 
