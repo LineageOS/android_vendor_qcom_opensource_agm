@@ -1,0 +1,4 @@
+# Hash for vendor.qti.hardware.AGMIPC@1.0 package
+14e9644e8ff286a5d00825c97d46056b12af94c103f81976a4c3b71fc681909d vendor.qti.hardware.AGMIPC@1.0::types
+7c4ef018df8bcf680fc3ba4c740b9d34873ca0495955e412a4312ea6f6715e76 vendor.qti.hardware.AGMIPC@1.0::IAGM
+e8d1ca223a57cfacc7373f6418555330bb545c43a1e9d2c3a1fdd984fcec4a14 vendor.qti.hardware.AGMIPC@1.0::IAGMCallback
