@@ -1024,7 +1024,7 @@ static int wait_for_snd_card_to_online()
     int ret = 0;
     uint32_t retries = MAX_RETRY;
     int fd = -1;
-    char buf[10];
+    char buf[2];
     snd_card_status_t card_status = SND_CARD_STATUS_NONE;
 
     /* wait here till snd card is registered                               */
@@ -1039,6 +1039,7 @@ static int wait_for_snd_card_to_online()
             close(fd);
             fd = -1;
 
+            buf[sizeof(buf) - 1] = '\0';
             card_status = SND_CARD_STATUS_NONE;
             sscanf(buf , "%d", &card_status);
 
@@ -1219,13 +1220,13 @@ static bool update_snd_card_info(char snd_card_name[])
         if (!fgets(line1, BUF_SIZE - 1, file)) {
             break;
         }
-        len = strlen(line1);
+        len = strnlen(line1, BUF_SIZE);
         line1[len - 1] = '\0';
 
         if (!fgets(line2, BUF_SIZE - 1, file)) {
             break;
         }
-        len = strlen(line2);
+        len = strnlen(line2, BUF_SIZE);
         line2[len - 1] = '\0';
 
         if (check_and_update_snd_card(line1)) {
