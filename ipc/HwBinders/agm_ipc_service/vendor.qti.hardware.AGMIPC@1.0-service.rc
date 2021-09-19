@@ -31,6 +31,7 @@ service vendor.agm-1-0 /vendor/bin/hw/vendor.qti.hardware.AGMIPC@1.0-service
   interface vendor.qti.hardware.AGMIPC@1.0::IAGM default
   # media gid needed for /dev/fm (radio) and for /data/misc/media (tee)
   group system audio media mediadrm oem_2901 wakelock
-  capabilities BLOCK_SUSPEND
+  capabilities BLOCK_SUSPEND SYS_NICE
   ioprio rt 4
+  task_profiles ProcessCapacityHigh HighPerformance
   writepid /dev/cpuset/foreground/tasks /dev/stune/foreground/tasks
