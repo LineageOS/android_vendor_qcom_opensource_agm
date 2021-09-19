@@ -1996,7 +1996,7 @@ int session_obj_set_config(struct session_obj *sess_obj,
                  struct agm_media_config *media_config,
                  struct agm_buffer_config *buffer_config)
 {
-
+    int ret = 0;
     pthread_mutex_lock(&sess_obj->lock);
 
     sess_obj->stream_config = *stream_config;
@@ -2009,10 +2009,15 @@ int session_obj_set_config(struct session_obj *sess_obj,
         /*Playback session config*/
         sess_obj->out_media_config = *media_config;
         sess_obj->out_buffer_config = *buffer_config;
+        if (sess_obj->state == SESSION_STARTED) {
+            ret = graph_set_media_config_datapath(sess_obj->graph);
+            if (ret < 0)
+                AGM_LOGE("Failed to set media config on datapath ret %d", ret);
+        }
     }
 
     pthread_mutex_unlock(&sess_obj->lock);
-    return 0;
+    return ret;
 }
 
 int session_obj_prepare(struct session_obj *sess_obj)

@@ -1312,6 +1312,40 @@ Return<void> AGM::ipc_agm_get_group_aif_info_list(uint32_t num_groups,
     return Void();
 }
 
+Return<int32_t> AGM::ipc_agm_session_write_datapath_params(uint32_t session_id,
+                                                const hidl_vec<AgmBuff>& buff_hidl)
+{
+    int32_t ret = -EINVAL;
+    struct agm_buff buf;
+    uint32_t bufSize;
+    buf.addr = nullptr;
+    buf.metadata = nullptr;
+
+    bufSize = buff_hidl.data()->size;
+    buf.addr = (uint8_t *)calloc(1, bufSize);
+    if (!buf.addr) {
+        ALOGE("%s: failed to calloc", __func__);
+        goto exit;
+    }
+    buf.size = (size_t)bufSize;
+    buf.timestamp = buff_hidl.data()->timestamp;
+    buf.flags = buff_hidl.data()->flags;
+
+    if (bufSize)
+        memcpy(buf.addr, buff_hidl.data()->buffer.data(), bufSize);
+    else {
+        ALOGE("%s: buf size is null", __func__);
+        goto exit;
+    }
+    ALOGV("%s: sz %d", __func__, bufSize);
+    ret = agm_session_write_datapath_params(session_id, &buf);
+
+exit:
+    if (buf.addr != nullptr)
+        free(buf.addr);
+    return ret;
+}
+
 }  // namespace implementation
 }  // namespace V1_0
 }  // namespace AGMIPC
