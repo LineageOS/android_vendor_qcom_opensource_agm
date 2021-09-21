@@ -122,4 +122,9 @@ interface IAGM
                     vec<AgmMediaConfig> out_media_config,
                     vec<AgmBufferConfig> in_buffer_config,
                     vec<AgmBufferConfig> out_buffer_config) generates (int32_t ret);
+    ipc_agm_aif_group_set_media_config(uint32_t aif_group_id,
+                    vec<AgmGroupMediaConfig> media_config) generates (int32_t ret);
+    ipc_agm_get_group_aif_info_list(uint32_t num_groups)
+                    generates (int32_t ret, vec<AifInfo> aif_group_list_ret,
+                               uint32_t num_groups_ret);
 };

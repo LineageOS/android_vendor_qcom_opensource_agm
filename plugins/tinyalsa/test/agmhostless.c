@@ -248,12 +248,12 @@ void play_loopback(unsigned int card, unsigned int p_device, unsigned int c_devi
     }
 
     /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, c_intf_name, CAPTURE, rate, pcm_format_to_bits(format), PCM_RX_LOOPBACK)) {
+    if (set_agm_audio_intf_metadata(mixer, c_intf_name, 0, CAPTURE, rate, pcm_format_to_bits(format), PCM_RX_LOOPBACK)) {
         printf("Failed to set capture device metadata\n");
         goto err_close_mixer;
     }
 
-    if (set_agm_audio_intf_metadata(mixer, p_intf_name, PLAYBACK, rate, pcm_format_to_bits(format), PCM_RX_LOOPBACK)) {
+    if (set_agm_audio_intf_metadata(mixer, p_intf_name, 0, PLAYBACK, rate, pcm_format_to_bits(format), PCM_RX_LOOPBACK)) {
         printf("Failed to set playback device metadata\n");
         goto err_close_mixer;
     }

@@ -82,6 +82,14 @@ static char *amp_be_ctl_name_extn[] = {
 };
 
 enum {
+    BE_GROUP_CTL_NAME_MEDIA_CONFIG = 0,
+};
+
+static char *amp_group_be_ctl_name_extn[] = {
+    "grp config",
+};
+
+enum {
     PCM_CTL_NAME_CONNECT = 0,
     PCM_CTL_NAME_DISCONNECT,
     PCM_CTL_NAME_MTD_CONTROL,
@@ -159,6 +167,12 @@ struct amp_dev_info {
     int get_param_payload_size;
 };
 
+struct amp_be_group_info {
+    char **names;
+    int *idx_arr;
+    int count;
+};
+
 struct amp_priv {
     unsigned int card;
     void *card_node;
@@ -171,6 +185,8 @@ struct amp_priv {
     struct amp_dev_info tx_be_devs;
     struct amp_dev_info rx_pcm_devs;
     struct amp_dev_info tx_pcm_devs;
+
+    struct amp_be_group_info group_be_devs;
 
     struct snd_control *ctls;
     char (*ctl_names)[AIF_NAME_MAX_LEN + 16];
@@ -263,6 +279,26 @@ static void amp_free_be_dev_info(struct amp_priv *amp_priv)
     if (amp_priv->aif_list) {
         free(amp_priv->aif_list);
         amp_priv->aif_list = NULL;
+    }
+}
+
+static void amp_free_group_be_dev_info(struct amp_priv *amp_priv)
+{
+    struct amp_be_group_info *grp_info = &amp_priv->group_be_devs;
+    int i;
+
+    if (grp_info->names) {
+        for (i = 0; i < grp_info->count; i++) {
+            if (grp_info->names[i])
+                free(grp_info->names[i]);
+        }
+        free(grp_info->names);
+        grp_info->names = NULL;
+    }
+
+    if (grp_info->idx_arr) {
+        free(grp_info->idx_arr);
+        grp_info->idx_arr = NULL;
     }
 }
 
@@ -404,6 +440,21 @@ static void amp_copy_be_names_from_aif_list(struct aif_info *aif_list,
     adi->dev_enum.texts = adi->names;
 }
 
+static void amp_copy_group_be_names_from_aif_list(struct aif_info *aif_list,
+                size_t grp_cnt, struct amp_be_group_info *grp_info)
+{
+    struct aif_info *aif_info;
+    int i, grp_idx = 0;
+
+    for (i = 0; i < grp_cnt; i++) {
+        aif_info = aif_list + i;
+
+        grp_info->names[grp_idx] = strdup(aif_info->aif_name);
+        grp_info->idx_arr[grp_idx] = i;
+        grp_idx++;
+    }
+}
+
 static int amp_get_be_info(struct amp_priv *amp_priv)
 {
     struct amp_dev_info *rx_adi = &amp_priv->rx_be_devs;
@@ -456,6 +507,46 @@ static int amp_get_be_info(struct amp_priv *amp_priv)
 
 err_backends_get:
     amp_free_be_dev_info(amp_priv);
+    return ret;
+}
+
+static int amp_get_group_be_info(struct amp_priv *amp_priv)
+{
+    struct amp_be_group_info *grp_info = &amp_priv->group_be_devs;
+    struct aif_info *aif_list = NULL;
+    size_t group_be_count = 0;
+    int ret = 0, i;
+
+    ret = agm_get_group_aif_info_list(NULL, &group_be_count);
+    if (ret)
+        return -EINVAL;
+
+    if (group_be_count == 0)
+        return 0;
+
+    aif_list = calloc(group_be_count, sizeof(struct aif_info));
+    if (!aif_list)
+        return -ENOMEM;
+
+    ret = agm_get_group_aif_info_list(aif_list, &group_be_count);
+    if (ret)
+        goto err_backends_get;
+
+    grp_info->count = group_be_count;
+
+    grp_info->names = calloc(group_be_count, sizeof(*grp_info->names));
+    grp_info->idx_arr = calloc(group_be_count, sizeof(*grp_info->idx_arr));
+
+    if (!grp_info->names || !grp_info->idx_arr) {
+        ret = -ENOMEM;
+        goto err_backends_get;
+    }
+    amp_copy_group_be_names_from_aif_list(aif_list, group_be_count, grp_info);
+    free(aif_list);
+    return 0;
+
+err_backends_get:
+    amp_free_group_be_dev_info(amp_priv);
     return ret;
 }
 
@@ -652,6 +743,18 @@ static int amp_get_be_ctl_count(struct amp_priv *amp_priv)
     return count;
 }
 
+static int amp_get_group_be_ctl_count(struct amp_priv *amp_priv)
+{
+    struct amp_be_group_info *grp_info = &amp_priv->group_be_devs;
+    int count = 0, ctl_per_be_group;
+
+    ctl_per_be_group = (int)ARRAY_SIZE(amp_group_be_ctl_name_extn);
+
+    count += grp_info->count * ctl_per_be_group;
+
+    return count;
+}
+
 static int amp_get_pcm_ctl_count(struct amp_priv *amp_priv)
 {
     struct amp_dev_info *rx_adi = &amp_priv->rx_pcm_devs;
@@ -729,6 +832,40 @@ static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
     return ret;
 }
 
+static int amp_group_be_media_fmt_get(struct mixer_plugin *plugin __unused,
+                struct snd_control *ctl __unused, struct snd_ctl_elem_value *ev __unused)
+{
+    AGM_LOGV("%s: enter\n", __func__);
+    return 0;
+}
+
+static int amp_group_be_media_fmt_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+{
+    struct amp_priv *amp_priv = plugin->priv;
+    uint32_t audio_intf_id = ctl->private_value;
+    struct agm_group_media_config media_fmt;
+    int ret = 0;
+
+    AGM_LOGV("%s: enter\n", __func__);
+    media_fmt.config.rate = (uint32_t)ev->value.integer.value[0];
+    media_fmt.config.channels = (uint32_t)ev->value.integer.value[1];
+    media_fmt.config.format = alsa_to_agm_fmt(ev->value.integer.value[2]);
+    media_fmt.config.data_format = (uint32_t)ev->value.integer.value[3];
+    media_fmt.slot_mask = (uint32_t)ev->value.integer.value[4];
+
+    ret = agm_aif_group_set_media_config(audio_intf_id,
+                                   &media_fmt);
+
+    if (ret)
+        AGM_LOGE("%s: set_media_config failed, err %d, aif_id %u rate %u \
+                 channels %u fmt %u, data_fmt %u, slot_mask %u\n",
+                 __func__, ret, audio_intf_id, media_fmt.config.rate,
+                 media_fmt.config.channels, media_fmt.config.format,
+                 media_fmt.config.data_format, media_fmt.slot_mask);
+    return ret;
+}
+
 static int amp_pcm_buf_info_get(struct mixer_plugin *plugin __unused,
     struct snd_control *ctl, struct snd_ctl_elem_value *ev)
 {
@@ -787,18 +924,22 @@ static int amp_be_metadata_put(struct mixer_plugin *plugin __unused,
                 struct snd_control *ctl, struct snd_ctl_tlv *tlv)
 {
     uint32_t audio_intf_id = ctl->private_value;
-    void *payload;
+    void *payload = NULL;
     uint32_t tlv_size;
     int ret;
 
     AGM_LOGV("%s: enter\n", __func__);
-    payload = &tlv->tlv[0];
+    if (!tlv) {
+        return -EINVAL;
+    }
+
     tlv_size = tlv->length;
     if (tlv_size == 0) {
         AGM_LOGE("%s: invalid array size %d\n", __func__, tlv_size);
         return -EINVAL;
     }
 
+    payload = &tlv->tlv[0];
     ret = agm_aif_set_metadata(audio_intf_id, tlv_size, payload);
 
     if (ret == -EALREADY)
@@ -1343,6 +1484,9 @@ static struct snd_value_bytes pcm_buf_info_bytes =
 static struct snd_value_int media_fmt_int =
     SND_VALUE_INTEGER(4, 0, 384000, 1);
 
+static struct snd_value_int group_media_fmt_int =
+    SND_VALUE_INTEGER(5, 0, 384000, 1);
+
 static struct snd_value_tlv_bytes be_setparam_bytes =
     SND_VALUE_TLV_BYTES(64 * 1024, amp_be_set_param_get, amp_be_set_param_put);
 
@@ -1623,6 +1767,31 @@ static int amp_form_be_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt 
     return 0;
 }
 
+static void amp_create_group_be_media_fmt_ctl(struct amp_priv *amp_priv,
+                char *group_be_name, int ctl_idx, int pval, void *pdata)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+             group_be_name, amp_group_be_ctl_name_extn[BE_GROUP_CTL_NAME_MEDIA_CONFIG]);
+    INIT_SND_CONTROL_INTEGER(ctl, ctl_name, amp_group_be_media_fmt_get,
+                    amp_group_be_media_fmt_put, group_media_fmt_int, pval, pdata);
+}
+
+static int amp_form_group_be_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt __unused)
+{
+    struct amp_be_group_info *grp_info = &amp_priv->group_be_devs;
+    int i;
+
+    for (i = 0; i < grp_info->count; i++) {
+        amp_create_group_be_media_fmt_ctl(amp_priv, grp_info->names[i], ctl_idx,
+                                 grp_info->idx_arr[i], grp_info);
+        ctl_idx++;
+    }
+    return 0;
+}
+
 static int amp_form_common_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx,
                 struct amp_dev_info *pcm_adi, struct amp_dev_info *be_adi)
 {
@@ -1804,6 +1973,7 @@ static void amp_close(struct mixer_plugin **plugin)
     amp_subscribe_events(amp, NULL);
     snd_card_def_put_card(amp_priv->card_node);
     amp_free_pcm_dev_info(amp_priv);
+    amp_free_group_be_dev_info(amp_priv);
     amp_free_be_dev_info(amp_priv);
     amp_free_ctls(amp_priv);
     free(amp_priv);
@@ -1824,6 +1994,7 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     struct pcm_adi;
     int ret = 0;
     int be_ctl_cnt, pcm_ctl_cnt, total_ctl_cnt = 0;
+    int be_grp_ctl_cnt = 0;
 
     AGM_LOGI("%s: enter, card %u\n", __func__, card);
 
@@ -1857,6 +2028,11 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     ret = amp_get_be_info(amp_priv);
     if (ret)
         goto err_get_be_info;
+
+    ret = amp_get_group_be_info(amp_priv);
+    if (ret)
+        goto err_get_be_group_info;
+
     ret = amp_get_pcm_info(amp_priv);
     if (ret)
         goto err_get_pcm_info;
@@ -1864,6 +2040,8 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     /* Get total count of controls to be registered */
     be_ctl_cnt = amp_get_be_ctl_count(amp_priv);
     total_ctl_cnt += be_ctl_cnt;
+    be_grp_ctl_cnt = amp_get_group_be_ctl_count(amp_priv);
+    total_ctl_cnt += be_grp_ctl_cnt;
     pcm_ctl_cnt = amp_get_pcm_ctl_count(amp_priv);
     total_ctl_cnt += pcm_ctl_cnt;
 
@@ -1880,7 +2058,14 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     ret = amp_form_be_ctls(amp_priv, 0, be_ctl_cnt);
     if (ret)
         goto err_ctls_alloc;
-    ret = amp_form_pcm_ctls(amp_priv, be_ctl_cnt, pcm_ctl_cnt);
+
+    if (be_grp_ctl_cnt) {
+        ret = amp_form_group_be_ctls(amp_priv, be_ctl_cnt, be_grp_ctl_cnt);
+        if (ret)
+            goto err_ctls_alloc;
+    }
+
+    ret = amp_form_pcm_ctls(amp_priv, be_ctl_cnt + be_grp_ctl_cnt, pcm_ctl_cnt);
     if (ret)
         goto err_ctls_alloc;
 
@@ -1907,6 +2092,10 @@ err_ctls_alloc:
     amp_free_pcm_dev_info(amp_priv);
 
 err_get_pcm_info:
+    if (be_grp_ctl_cnt)
+        amp_free_group_be_dev_info(amp_priv);
+
+err_get_be_group_info:
     amp_free_be_dev_info(amp_priv);
 
 err_get_be_info:

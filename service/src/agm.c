@@ -125,6 +125,16 @@ int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info)
     return device_get_aif_info_list(aif_list, num_aif_info);
 }
 
+int agm_get_group_aif_info_list(struct aif_info *aif_list, size_t *num_groups)
+{
+    if (!num_groups || ((*num_groups != 0) && !aif_list)) {
+        AGM_LOGE("Error Invalid params\n");
+        return -EINVAL;
+    }
+
+    return device_get_group_list(aif_list, num_groups);
+}
+
 int agm_aif_set_metadata(uint32_t aif_id, uint32_t size, uint8_t *metadata)
 {
     struct device_obj *obj = NULL;
@@ -165,6 +175,30 @@ int agm_aif_set_media_config(uint32_t aif_id,
     if (ret) {
         AGM_LOGE("Error:%d setting mediaconfig device obj \
                               with audio_intf id=%d\n", ret, aif_id);
+        goto done;
+    }
+
+done:
+    return ret;
+}
+
+int agm_aif_group_set_media_config(uint32_t aif_group_id,
+                  struct agm_group_media_config *media_config)
+{
+    struct device_group_data *grp_data = NULL;
+    int ret = 0;
+
+    ret = device_get_group_data(aif_group_id, &grp_data);
+    if (ret) {
+        AGM_LOGE("Error:%d, retrieving device obj with audio_intf id=%d\n",
+                                                        ret, aif_group_id);
+        goto done;
+    }
+
+    ret = device_group_set_media_config(grp_data, media_config);
+    if (ret) {
+        AGM_LOGE("Error:%d setting mediaconfig for device group \
+                              with group id=%d\n", ret, aif_group_id);
         goto done;
     }
 

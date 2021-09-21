@@ -154,6 +154,26 @@ void start_tag(void *userdata, const XML_Char *tag_name, const XML_Char **attr)
     config->bits = atoi(attr[7]);
 }
 
+int convert_char_to_hex(char *char_num)
+{
+    uint64_t hex_num = 0;
+    uint32_t base = 1;
+    int32_t len = strlen(char_num);
+    for (int i = len-1; i>=2; i--) {
+        if (char_num[i] >= '0' && char_num[i] <= '9') {
+            hex_num += (char_num[i] - 48) * base;
+            base = base << 4;
+        } else if (char_num[i] >= 'A' && char_num[i] <= 'F') {
+            hex_num += (char_num[i] - 55) * base;
+            base = base << 4;
+        } else if (char_num[i] >= 'a' && char_num[i] <= 'f') {
+            hex_num += (char_num[i] - 87) * base;
+            base = base << 4;
+        }
+    }
+    return (int32_t) hex_num;
+}
+
 int get_device_media_config(char* filename, char *intf_name, struct device_config *config)
 {
     FILE *file = NULL;
@@ -370,7 +390,8 @@ int agm_mixer_set_ecref_path(struct mixer *mixer, unsigned int device, enum stre
     return ret;
 }
 
-int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum usecase_type usecase, int rate, int bitwidth, uint32_t val)
+int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, unsigned int dkv,
+                                enum usecase_type usecase, int rate, int bitwidth, uint32_t val)
 {
     char *control = "metadata";
     struct mixer_ctl *ctl;
@@ -405,7 +426,7 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum useca
 
     if (usecase == PLAYBACK) {
         gkv[0].key = DEVICERX;
-        gkv[0].value = SPEAKER;
+        gkv[0].value = dkv ? dkv : SPEAKER;
     } else if (usecase == HAPTICS) {
         gkv[0].key = DEVICERX;
         gkv[0].value = HAPTICS_DEVICE;
@@ -414,7 +435,7 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, enum useca
         gkv[0].value = HANDSETMIC_VA;
     } else {
         gkv[0].key = DEVICETX;
-        gkv[0].value = HANDSETMIC;
+        gkv[0].value = dkv ? dkv : HANDSETMIC;
     }
     ckv[ckv_index].key = SAMPLINGRATE;
     ckv[ckv_index].value = rate;

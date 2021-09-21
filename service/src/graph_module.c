@@ -198,6 +198,8 @@ static int configure_codec_dma_ep(struct module_info *mod,
     size_t payload_sz;
     uint8_t *payload = NULL;
     uint32_t *chmap = NULL;
+    struct agm_media_config media_config = (dev_obj->group_data) ?
+                          dev_obj->group_data->media_config.config :dev_obj->media_config;
 
     AGM_LOGV("entry mod tag %x miid %x mid %x\n", mod->tag, mod->miid, mod->mid);
 
@@ -222,9 +224,9 @@ static int configure_codec_dma_ep(struct module_info *mod,
         goto done;
     }
 
-    if (chmap[0] < dev_obj->media_config.channels) {
+    if (chmap[0] < media_config.channels) {
         AGM_LOGE("Mismatch in num channels, expected %d, received %d",
-                 dev_obj->media_config.channels, chmap[0]);
+                  media_config.channels, chmap[0]);
         ret = -EINVAL;
         goto done;
     }
@@ -256,7 +258,7 @@ done:
     if (payload)
         free(payload);
 
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -271,6 +273,8 @@ static int configure_i2s_ep(struct module_info *mod,
     struct  param_id_i2s_intf_cfg_t* i2s_config;
     size_t payload_sz, ret_payload_sz = 0;
     uint8_t *payload = NULL;
+    struct agm_media_config media_config = (dev_obj->group_data) ?
+                          dev_obj->group_data->media_config.config :dev_obj->media_config;
 
     AGM_LOGV("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
 
@@ -305,7 +309,7 @@ static int configure_i2s_ep(struct module_info *mod,
     }
 
     tag_key_vect.kvp[0].key = CHANNELS;
-    tag_key_vect.kvp[0].value = dev_obj->media_config.channels;
+    tag_key_vect.kvp[0].value = media_config.channels;
 
     ret = gsl_get_tagged_data((struct gsl_key_vector *)mod->gkv,
                                mod->tag, &tag_key_vect, (uint8_t *)payload,
@@ -343,7 +347,7 @@ free_kvp:
 free_payload:
     free(payload);
 done:
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -359,6 +363,8 @@ static int configure_tdm_ep(struct module_info *mod,
     struct param_id_tdm_intf_cfg_t* tdm_config;
     size_t payload_sz, ret_payload_sz = 0;
     uint8_t *payload = NULL;
+    struct agm_media_config media_config = (dev_obj->group_data) ?
+                          dev_obj->group_data->media_config.config :dev_obj->media_config;
 
     AGM_LOGV("entry mod tag %x miid %x mid %x", mod->tag, mod->miid, mod->mid);
 
@@ -393,7 +399,7 @@ static int configure_tdm_ep(struct module_info *mod,
     }
 
     tag_key_vect.kvp[0].key = CHANNELS;
-    tag_key_vect.kvp[0].value = dev_obj->media_config.channels;
+    tag_key_vect.kvp[0].value = media_config.channels;
 
     ret = gsl_get_tagged_data((struct gsl_key_vector *)mod->gkv,
                                mod->tag, &tag_key_vect, (uint8_t *)payload,
@@ -411,6 +417,10 @@ static int configure_tdm_ep(struct module_info *mod,
 
     tdm_config->lpaif_type = hw_ep_info.ep_config.cdc_dma_i2s_tdm_config.lpaif_type;
     tdm_config->intf_idx = hw_ep_info.ep_config.cdc_dma_i2s_tdm_config.intf_idx;
+
+    /* Update slot_mask from AGM only in case of group TDM */
+    if (dev_obj->group_data)
+        tdm_config->slot_mask = dev_obj->group_data->media_config.slot_mask;
 
     AGM_LOGV("tdm intf cfg lpaif %d idx %d sync_src %d ctrl_dt_ot_enb %d",
              tdm_config->lpaif_type, tdm_config->intf_idx, tdm_config->sync_src,
@@ -432,7 +442,7 @@ free_kvp:
 free_payload:
     free(payload);
 done:
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -520,7 +530,7 @@ free_kvp:
 free_payload:
     free(payload);
 done:
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -600,7 +610,7 @@ done:
     if (chmap)
         free(chmap);
 
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -613,7 +623,8 @@ int configure_hw_ep_media_config(struct module_info *mod,
     struct device_obj *dev_obj = mod->dev_obj;
     struct apm_module_param_data_t* header;
     struct param_id_hw_ep_mf_t* hw_ep_media_conf;
-    struct agm_media_config media_config = dev_obj->media_config;
+    struct agm_media_config media_config = (dev_obj->group_data) ?
+                          dev_obj->group_data->media_config.config :dev_obj->media_config;
 
     AGM_LOGD("entry mod tag %x miid %x mid %x",mod->tag, mod->miid, mod->mid);
     payload_size = sizeof(struct apm_module_param_data_t) +
@@ -643,7 +654,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
     hw_ep_media_conf->num_channels = media_config.channels;
     hw_ep_media_conf->data_format = media_config.data_format;
 
-    AGM_LOGE("rate %d bw %d ch %d, data_fmt %d", media_config.rate,
+    AGM_LOGD("rate %d bw %d ch %d, data_fmt %d", media_config.rate,
                     hw_ep_media_conf->bit_width, media_config.channels,
                     media_config.data_format);
 
@@ -655,7 +666,7 @@ int configure_hw_ep_media_config(struct module_info *mod,
     }
     free(payload);
 done:
-    AGM_LOGD("exit");
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -753,7 +764,7 @@ int configure_output_media_format(struct module_info *mod,
     if (!payload) {
         AGM_LOGE("Not enough memory for payload");
         ret = -ENOMEM;
-        return ret;
+        goto done;
     }
 
 
@@ -859,8 +870,10 @@ int configure_output_media_format(struct module_info *mod,
                       mod->tag, ret);
     }
 done:
-    free(payload);
-    AGM_LOGD("exit");
+    if (payload) {
+        free(payload);
+    }
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -1157,7 +1170,7 @@ int configure_placeholder_dec(struct module_info *mod,
     AGM_LOGE("enter");
     if (graph_obj == NULL) {
         AGM_LOGE("invalid graph object");
-        return -EINVAL;
+        goto done;
     }
     sess_obj = graph_obj->sess_obj;
 
@@ -1170,14 +1183,16 @@ int configure_placeholder_dec(struct module_info *mod,
         /* If ret is non-zero then placeholder module would be
          * configured by client so return from here.
          */
-        return 0;
+        ret = 0;
+        goto done;
     }
 
     tkv.num_kvps = 1;
     tkv.kvp = calloc(tkv.num_kvps, sizeof(struct gsl_key_value_pair));
     if (!tkv.kvp) {
         AGM_LOGE("Not enough memory for tkv.kvp\n");
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto done;
     }
     tkv.kvp->key = MEDIA_FMT_ID;
     tkv.kvp->value = real_fmt_id;
@@ -1187,13 +1202,10 @@ int configure_placeholder_dec(struct module_info *mod,
     ret = gsl_set_config(graph_obj->graph_handle, (struct gsl_key_vector *)mod->gkv,
                          TAG_STREAM_PLACEHOLDER_DECODER, &tkv);
 
-    if (tkv.kvp)
-        free(tkv.kvp);
-
     if (ret != 0) {
         ret = ar_err_get_lnx_err_code(ret);
         AGM_LOGE("set_config command failed with error: %d", ret);
-        return ret;
+        goto done;
     }
 
     /* 2. Set output media format cfg for placeholder decoder */
@@ -1201,6 +1213,10 @@ int configure_placeholder_dec(struct module_info *mod,
     if (ret != 0)
         AGM_LOGE("output_media_format cfg failed: %d", ret);
 
+done:
+    if (tkv.kvp)
+        free(tkv.kvp);
+    AGM_LOGE("exit, ret %d", ret);
     return ret;
 }
 
@@ -1366,7 +1382,7 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     if (!payload) {
         AGM_LOGE("Not enough memory for payload");
         ret = -ENOMEM;
-        return ret;
+        goto done;
     }
 
     header = (struct apm_module_param_data_t*)payload;
@@ -1423,8 +1439,11 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
         AGM_LOGE("custom_config command for module %d failed with error %d",
                       mod->tag, ret);
     }
-    free(payload);
-    AGM_LOGD("exit");
+done:
+    if (payload) {
+        free(payload);
+    }
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 
@@ -1517,8 +1536,8 @@ int configure_rd_shared_mem_ep(struct module_info *mod,
                       mod->tag, ret);
     }
     free(payload);
-    AGM_LOGD("exit");
 done:
+    AGM_LOGD("exit, ret %d", ret);
     return ret;
 }
 

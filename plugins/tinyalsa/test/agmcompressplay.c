@@ -387,7 +387,7 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 	}
 
 	/* set audio interface metadata mixer control */
-	if (set_agm_audio_intf_metadata(mixer, intf_name, PLAYBACK,
+	if (set_agm_audio_intf_metadata(mixer, intf_name, 0, PLAYBACK,
                                     dev_config->rate, dev_config->bits, COMPRESSED_OFFLOAD_PLAYBACK)) {
 		printf("Failed to set device metadata\n");
 		goto MIXER_EXIT;

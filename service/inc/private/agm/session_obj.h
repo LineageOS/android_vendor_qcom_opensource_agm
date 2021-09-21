@@ -57,6 +57,7 @@ struct aif {
     struct agm_meta_data_gsl sess_aif_meta;
     void *params;
     size_t params_size;
+    struct agm_tag_config *tag_config;
 };
 
 enum session_state {

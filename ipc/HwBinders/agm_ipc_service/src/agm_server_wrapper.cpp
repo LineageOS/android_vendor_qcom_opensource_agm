@@ -1261,6 +1261,57 @@ exit:
     return Void();
 }
 
+Return<int32_t> AGM::ipc_agm_aif_group_set_media_config(uint32_t group_id,
+                                 const hidl_vec<AgmGroupMediaConfig>& media_config) {
+    ALOGV("%s called with aif_id = %d \n", __func__, group_id);
+    struct agm_group_media_config *med_config_l = NULL;
+    med_config_l =
+          (struct agm_group_media_config*)calloc(1, sizeof(struct agm_group_media_config));
+    if (med_config_l == NULL) {
+        ALOGE("%s: Cannot allocate memory for med_config_l\n", __func__);
+        return -ENOMEM;
+    }
+    med_config_l->config.rate = media_config.data()->rate;
+    med_config_l->config.channels = media_config.data()->channels;
+    med_config_l->config.format = (enum agm_media_format) media_config.data()->format;
+    med_config_l->config.data_format = media_config.data()->data_format;
+    med_config_l->slot_mask = media_config.data()->slot_mask;
+    int32_t ret = agm_aif_group_set_media_config (group_id, med_config_l);
+    free(med_config_l);
+    return ret;
+}
+
+Return<void> AGM::ipc_agm_get_group_aif_info_list(uint32_t num_groups,
+                                       ipc_agm_get_aif_info_list_cb _hidl_cb) {
+    ALOGV("%s called with num_aif_groups = %d\n", __func__, num_groups);
+    int32_t ret;
+    hidl_vec<AifInfo> aif_list_ret;
+    struct aif_info * aif_list = NULL;
+    if (num_groups != 0) {
+        aif_list = (struct aif_info*)
+                            calloc(1,(sizeof(struct aif_info) * num_groups));
+        if (aif_list == NULL) {
+            ALOGE("%s: Cannot allocate memory for aif_list\n", __func__);
+            _hidl_cb(-ENOMEM, aif_list_ret, num_groups);
+            return Void();
+        }
+    }
+    size_t num_aif_groups_ret = (size_t) num_groups;
+    ret = agm_get_group_aif_info_list(aif_list, &num_aif_groups_ret);
+    aif_list_ret.resize(sizeof(struct aif_info) * num_groups);
+    if (aif_list != NULL) {
+        for (int i = 0; i < num_groups ; i++) {
+            aif_list_ret.data()[i].aif_name = aif_list[i].aif_name;
+            aif_list_ret.data()[i].dir = (Direction) aif_list[i].dir;
+        }
+    }
+    num_groups = (uint32_t) num_aif_groups_ret;
+    ret = 0;
+    _hidl_cb(ret, aif_list_ret, num_groups);
+    free(aif_list);
+    return Void();
+}
+
 }  // namespace implementation
 }  // namespace V1_0
 }  // namespace AGMIPC

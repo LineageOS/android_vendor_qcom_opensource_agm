@@ -267,6 +267,11 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size __unused,
 
     int ret = 0;
 
+    if (!metadata) {
+        AGM_LOGE("Invalid metadata passed\n");
+        ret = -EINVAL;
+        return ret;
+    }
     dest->gkv.num_kvs = NUM_GKV(metadata);
     dest->gkv.kv =  calloc(dest->gkv.num_kvs, sizeof(struct agm_key_value));
     if (!dest->gkv.kv) {
