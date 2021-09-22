@@ -52,9 +52,18 @@ struct device_config {
     unsigned int bits;
 };
 
+struct group_config {
+    char name[80];
+    unsigned int rate;
+    unsigned int ch;
+    unsigned int bits;
+    unsigned int slot_mask;
+};
+
 int convert_char_to_hex(char *char_num);
 int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
                                 unsigned int rate, unsigned int bits, char *intf_name);
+int set_agm_group_device_config(struct mixer *mixer, unsigned int device, struct group_config *config, char *intf_name);
 int connect_play_pcm_to_cap_pcm(struct mixer *mixer, unsigned int p_device, unsigned int c_device);
 int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, unsigned int dkv, enum usecase_type, int rate, int bitwidth, uint32_t val);
 int set_agm_stream_metadata_type(struct mixer *mixer, int device, char *val, enum stream_type stype);
@@ -72,6 +81,7 @@ int agm_mixer_set_ecref_path(struct mixer *mixer, unsigned int device, enum stre
 int agm_mixer_get_event_param(struct mixer *mixer, int device, enum stream_type stype,uint32_t miid);
 int agm_mixer_get_buf_tstamp(struct mixer *mixer, int device, enum stream_type stype, uint64_t *tstamp);
 int get_device_media_config(char* filename, char *intf_name, struct device_config *config);
+int get_group_device_info(char* filename, char *intf_name, struct group_config *config);
 int configure_mfc(struct mixer *mixer, int device, char *intf_name, int tag, enum stream_type stype, unsigned int rate,
                        unsigned int channels, unsigned int bits);
 #endif
