@@ -2009,7 +2009,13 @@ int session_obj_set_config(struct session_obj *sess_obj,
         /*Playback session config*/
         sess_obj->out_media_config = *media_config;
         sess_obj->out_buffer_config = *buffer_config;
-        if (sess_obj->state == SESSION_STARTED) {
+
+        /* During gapless playback, when clips are switched from
+         * in between, pause, flush and resume gets called from client,
+         * flush makes session state as SESSION_STOPPED, so codec param
+         * needs to be sent to ADSP in this state as well.
+         */
+        if (sess_obj->state == SESSION_STARTED || sess_obj->state == SESSION_STOPPED) {
             ret = graph_set_media_config_datapath(sess_obj->graph);
             if (ret < 0)
                 AGM_LOGE("Failed to set media config on datapath ret %d", ret);
