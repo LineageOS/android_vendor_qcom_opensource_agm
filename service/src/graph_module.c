@@ -823,6 +823,13 @@ int configure_output_media_format(struct module_info *mod,
         pcm_output_fmt_payload->q_factor =
                              GET_Q_FACTOR(media_config.format,
                                           pcm_output_fmt_payload->bit_width);
+         if (sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL)
+            /*
+             * Setting num channels to native mode for PCM convetter
+             * so that channels always match upstream decoder module
+             * channel configuration
+             */
+             pcm_output_fmt_payload->num_channels = PARAM_VAL_NATIVE;
     } else {
         switch (pcm_output_fmt_payload->bit_width) {
         case 16:
