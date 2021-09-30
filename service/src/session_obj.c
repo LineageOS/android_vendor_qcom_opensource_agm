@@ -2472,10 +2472,13 @@ int session_obj_read_with_metadata(struct session_obj *sess_obj,
     }
     pthread_mutex_unlock(&sess_obj->lock);
 
-    ret = graph_read(sess_obj->graph, buffer, captured_size);
+    size_t read_size;
+    ret = graph_read(sess_obj->graph, buffer, &read_size);
     if (ret) {
         AGM_LOGE("Error:%d reading from graph\n", ret);
     }
+
+    *captured_size = (uint32_t)read_size;
 
 done:
     return ret;
