@@ -493,8 +493,8 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     list_init(&node_hw);
 
 
-    AGM_LOGD("entry");
-    if (meta_data_kv == NULL || gph_obj == NULL) {
+    AGM_LOGD("entry\n");
+    if (meta_data_kv == NULL || gph_obj == NULL || sess_obj == NULL) {
         AGM_LOGE("Invalid input\n");
         ret = -EINVAL;
         goto done;
