@@ -1109,7 +1109,7 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
         struct payload_media_fmt_ape_t *fmt_pl;
         fmt_size = sizeof(struct payload_media_fmt_ape_t);
         media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED ;
-        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_ALAC;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_APE;
         media_fmt_hdr->payload_size = fmt_size;
 
         fmt_pl = (struct payload_media_fmt_ape_t*)(((uint8_t*)media_fmt_hdr) +
