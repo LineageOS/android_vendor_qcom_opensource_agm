@@ -278,9 +278,9 @@ void ipc_callback (uint32_t session_id,
                                hndle->shared_mem_fd_list.size());
                          if (hndle->shared_mem_fd_list[i].second == rw_done_payload->buff.alloc_info.alloc_handle) {
                              input_fd = hndle->shared_mem_fd_list[i].first;
-                          /*   it = (hndle->shared_mem_fd_list.begin() + i);
+                             it = (hndle->shared_mem_fd_list.begin() + i);
                              if (it != hndle->shared_mem_fd_list.end())
-                                 hndle->shared_mem_fd_list.erase(it);*/
+                                 hndle->shared_mem_fd_list.erase(it);
                              ALOGV("input fd %d  payload fd %d\n", input_fd,
                                    rw_done_payload->buff.alloc_info.alloc_handle);
                              break;
@@ -336,7 +336,7 @@ void ipc_callback (uint32_t session_id,
         // allocated during read_with_metadata()
         if (rw_done_payload->buff.metadata)
             free(rw_done_payload->buff.metadata);
-        //close(rw_done_payload->buff.alloc_info.alloc_handle);
+        close(rw_done_payload->buff.alloc_info.alloc_handle);
     } else {
         evt_param_l.resize(sizeof(struct agm_event_cb_params) +
                                 evt_param->event_payload_size);
