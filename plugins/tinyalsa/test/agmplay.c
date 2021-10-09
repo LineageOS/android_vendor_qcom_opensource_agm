@@ -187,6 +187,7 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     int size;
     int num_read;
     char *name = dev_config->name;
+    struct group_config grp_config;
 
     memset(&config, 0, sizeof(config));
     config.channels = fmt.num_channels;
@@ -217,6 +218,7 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
         printf("Failed to set device media config\n");
         goto err_close_mixer;
     }
+
     if (haptics) {
         playback_path = HAPTICS;
         playback_value = HAPTICS_PLAYBACK;
@@ -256,6 +258,16 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
         printf("Unable to open PCM device %u (%s)\n",
                 device, pcm_get_error(pcm));
         goto err_close_mixer;
+    }
+
+    if (strstr(name, "VIRT-")) {
+        if (get_group_device_info(BACKEND_CONF_FILE, name, &grp_config))
+            goto err_close_mixer;
+
+        if (set_agm_group_device_config(mixer, device, &grp_config, name)) {
+            printf("Failed to set grp device config\n");
+            goto err_close_mixer;
+        }
     }
 
     size = pcm_frames_to_bytes(pcm, pcm_get_buffer_size(pcm));

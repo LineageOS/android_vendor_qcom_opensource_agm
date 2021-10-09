@@ -46,6 +46,11 @@
 #define PARAM_ID_DETECTION_ENGINE_GENERIC_EVENT_CFG 0x0800104E
 #define PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT            0x08001024
 
+enum {
+    DEVICE = 1,
+    GROUP,
+};
+
 enum pcm_channel_map
 {
    PCM_CHANNEL_L = 1,
@@ -154,6 +159,47 @@ void start_tag(void *userdata, const XML_Char *tag_name, const XML_Char **attr)
     config->bits = atoi(attr[7]);
 }
 
+void start_group_tag(void *userdata, const XML_Char *tag_name, const XML_Char **attr)
+{
+    struct group_config *config = (struct group_config *)userdata;
+
+    if (strncmp(tag_name, "group_device", strlen("group_device")) != 0)
+        return;
+
+    if (strcmp(attr[0], "name") != 0) {
+        printf("name not found\n");
+        return;
+    }
+
+    if (strcmp(attr[2], "rate") != 0) {
+        printf("rate not found\n");
+        return;
+    }
+
+    if (strcmp(attr[4], "ch") != 0) {
+        printf("channels not found\n");
+        return;
+    }
+
+    if (strcmp(attr[6], "bits") != 0) {
+        printf("bits not found");
+        return;
+    }
+
+    if (strcmp(attr[8], "slot_mask") != 0) {
+        printf("slot_mask not found");
+        return;
+    }
+
+    if (strncmp(config->name, attr[1], sizeof(config->name)))
+        return;
+
+    config->rate = atoi(attr[3]);
+    config->ch = atoi(attr[5]);
+    config->bits = atoi(attr[7]);
+    config->slot_mask = atoi(attr[9]);
+}
+
 int convert_char_to_hex(char *char_num)
 {
     uint64_t hex_num = 0;
@@ -174,13 +220,15 @@ int convert_char_to_hex(char *char_num)
     return (int32_t) hex_num;
 }
 
-int get_device_media_config(char* filename, char *intf_name, struct device_config *config)
+static int get_backend_info(char* filename, char *intf_name, void *config, int type)
 {
     FILE *file = NULL;
     XML_Parser parser;
     int ret = 0;
     int bytes_read;
     void *buf = NULL;
+    struct device_config *dev_cfg;
+    struct group_config *grp_cfg;
 
     file = fopen(filename, "r");
     if (!file) {
@@ -195,11 +243,17 @@ int get_device_media_config(char* filename, char *intf_name, struct device_confi
         printf("Failed to create XML ret %d", ret);
         goto closeFile;
     }
-    memset(config, 0, sizeof(*config));
-    strlcpy(config->name, intf_name, sizeof(config->name));
+    if (type == DEVICE) {
+        dev_cfg = (struct device_config *)config;
+        strlcpy(dev_cfg->name, intf_name, sizeof(dev_cfg->name));
+        XML_SetElementHandler(parser, start_tag, NULL);
+    } else {
+        grp_cfg = (struct group_config *)config;
+        strlcpy(grp_cfg->name, intf_name, sizeof(grp_cfg->name));
+        XML_SetElementHandler(parser, start_group_tag, NULL);
+    }
 
     XML_SetUserData(parser, config);
-    XML_SetElementHandler(parser, start_tag, NULL);
 
     while (1) {
         buf = XML_GetBuffer(parser, 1024);
@@ -221,11 +275,11 @@ int get_device_media_config(char* filename, char *intf_name, struct device_confi
             printf("XML ParseBuffer failed for %s file ret %d", filename, ret);
             goto freeParser;
         }
-        if (bytes_read == 0 || config->rate != 0)
+        if (bytes_read == 0 || ((struct device_config *)config)->rate != 0)
             break;
     }
 
-    if (config->rate == 0) {
+    if (((struct device_config *)config)->rate == 0) {
         ret = -EINVAL;
         printf("Entry not found\n");
     }
@@ -234,6 +288,103 @@ freeParser:
 closeFile:
     fclose(file);
 done:
+    return ret;
+}
+
+int get_device_media_config(char* filename, char *intf_name, struct device_config *config)
+{
+    return get_backend_info(filename, intf_name, (void *)config, DEVICE);
+}
+
+int get_group_device_info(char* filename, char *intf_name, struct group_config *config)
+{
+    char *be_name = strdup(intf_name);
+    int be_len = strlen(intf_name) - 7;
+
+    be_name[be_len] = '\0';
+    return get_backend_info(filename, be_name, (void *)config, GROUP);
+}
+
+int set_agm_group_device_config(struct mixer *mixer, unsigned int device, struct group_config *config, char *intf_name)
+{
+    char *stream = "PCM";
+    char *grp_ctl = "grp config";
+    char *control = "setParamTag";
+    char *mixer_str = NULL;
+    struct mixer_ctl *ctl;
+    long grp_config[5];
+    int ctl_len = 0, be_len, val_len;
+    int ret = 0;
+    struct agm_tag_config* tag_config = NULL;
+    char *be_name = strdup(intf_name);
+
+    be_len = strlen(intf_name) - 7;
+    be_name[be_len] = '\0';
+
+    ctl_len = strlen(be_name) + 1 + strlen(grp_ctl) + 1;
+    mixer_str = calloc(1, ctl_len);
+    if (!mixer_str) {
+        printf("mixer_str calloc failed\n");
+        ret = -ENOMEM;
+        goto done;
+    }
+    snprintf(mixer_str, ctl_len, "%s %s", be_name, grp_ctl);
+    ctl = mixer_get_ctl_by_name(mixer, mixer_str);
+    if (!ctl) {
+        printf("Invalid mixer control: %s\n", mixer_str);
+        ret = ENOENT;
+        goto done;
+    }
+
+    grp_config[0] = config->rate;
+    grp_config[1] = config->ch;
+    grp_config[2] = bits_to_alsa_format(config->bits);
+    grp_config[3] = AGM_DATA_FORMAT_FIXED_POINT;
+    grp_config[4] = config->slot_mask;
+
+    ret = mixer_ctl_set_array(ctl, &grp_config, sizeof(grp_config)/sizeof(grp_config[0]));
+    if (ret) {
+        printf("Failed to set grp config mixer ctl\n");
+        goto done;
+    }
+
+    /* Configure MUX MODULE TKV */
+    ret = set_agm_stream_metadata_type(mixer, device, intf_name, STREAM_PCM);
+    if (ret) {
+        ret = 0;
+        goto done;
+    }
+    ctl_len = strlen(stream) + 4 + strlen(control) + 1;
+    mixer_str = realloc(mixer_str, ctl_len);
+    if (!mixer_str) {
+        printf("mixer_str realloc failed\n");
+        goto done;
+    }
+
+    val_len = sizeof(struct agm_tag_config) + sizeof(struct agm_key_value);
+
+    tag_config = (struct agm_tag_config*)calloc(1, val_len);
+    if (!tag_config)
+        goto done;
+
+    snprintf(mixer_str, ctl_len, "%s%d %s", stream, device, control);
+    ctl = mixer_get_ctl_by_name(mixer, mixer_str);
+    if (!ctl) {
+        printf("Invalid mixer control: %s\n", mixer_str);
+        goto done;
+    }
+    tag_config->tag = TAG_DEVICE_MUX;
+    tag_config->num_tkvs = 1;
+    tag_config->kv[0].key = TAG_KEY_SLOT_MASK;
+    tag_config->kv[0].value = config->slot_mask;
+
+    mixer_ctl_set_array(ctl, tag_config, val_len);
+done:
+    if (be_name)
+        free(be_name);
+
+    if (mixer_str)
+        free(mixer_str);
     return ret;
 }
 
