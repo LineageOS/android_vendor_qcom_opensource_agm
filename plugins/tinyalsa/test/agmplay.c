@@ -84,7 +84,7 @@ int main(int argc, char **argv)
     struct chunk_fmt chunk_fmt;
     unsigned int card = 100, device = 100;
     unsigned int device_kv = 0;
-    bool haptics;
+    bool haptics = false;
     char *intf_name = NULL;
     struct device_config config;
     char *filename;

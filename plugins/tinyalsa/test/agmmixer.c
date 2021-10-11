@@ -299,6 +299,10 @@ int get_device_media_config(char* filename, char *intf_name, struct device_confi
 int get_group_device_info(char* filename, char *intf_name, struct group_config *config)
 {
     char *be_name = strdup(intf_name);
+    if (be_name == NULL) {
+        printf("%s(): Insufficient memory to create be_name \n", __func__);
+        return -ENOMEM;
+    }
     int be_len = strlen(intf_name) - 7;
 
     be_name[be_len] = '\0';
@@ -317,6 +321,11 @@ int set_agm_group_device_config(struct mixer *mixer, unsigned int device, struct
     int ret = 0;
     struct agm_tag_config* tag_config = NULL;
     char *be_name = strdup(intf_name);
+    if (be_name == NULL) {
+        printf("%s(): Insufficient memory to create be_name \n", __func__);
+        ret = -ENOMEM;
+        goto done;
+    }
 
     be_len = strlen(intf_name) - 7;
     be_name[be_len] = '\0';
