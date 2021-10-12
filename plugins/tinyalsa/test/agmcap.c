@@ -145,8 +145,7 @@ int main(int argc, char **argv)
             argv++;
             if (*argv)
                 intf_name = *argv;
-        }
-        if (strcmp(*argv, "-dkv") == 0) {
+        } else if (strcmp(*argv, "-dkv") == 0) {
             argv++;
             if (*argv)
                 device_kv = convert_char_to_hex(*argv);

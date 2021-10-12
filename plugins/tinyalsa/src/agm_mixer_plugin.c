@@ -118,7 +118,7 @@ static char *amp_pcm_ctl_name_extn[] = {
     "event",
     "setCalibration",
     "getParam",
-    "getBufInfo"
+    "getBufInfo",
     /* Add new ones below, be sure to update enum as well */
 };
 
@@ -138,10 +138,12 @@ static char *amp_pcm_tx_ctl_names[] = {
 
 enum {
     PCM_RX_CTL_NAME_SIDETONE = 0,
+    PCM_RX_CTL_NAME_DATAPATH_PARAMS,
 };
 /* strings should be at the index as per the enum */
 static char *amp_pcm_rx_ctl_names[] = {
     "sidetone",
+    "datapathParams",
 };
 
 struct amp_dev_info {
@@ -940,6 +942,9 @@ static int amp_be_metadata_put(struct mixer_plugin *plugin __unused,
     }
 
     payload = &tlv->tlv[0];
+    if (!payload)
+        return -EINVAL;
+
     ret = agm_aif_set_metadata(audio_intf_id, tlv_size, payload);
 
     if (ret == -EALREADY)
@@ -1101,6 +1106,9 @@ static int amp_pcm_metadata_put(struct mixer_plugin *plugin,
         return pcm_control;
 
     payload = &tlv->tlv[0];
+    if (!payload)
+        return -EINVAL;
+
     tlv_size = tlv->length;
     if (tlv_size == 0) {
         AGM_LOGE("%s: invalid array size %d\n", __func__, tlv_size);
@@ -1457,6 +1465,29 @@ static int amp_pcm_sidetone_put(struct mixer_plugin *plugin __unused,
     return 0;
 }
 
+static int amp_pcm_write_datapath_params_get(struct mixer_plugin *plugin __unused,
+                struct snd_control *ctl __unused, struct snd_ctl_elem_value *ev __unused)
+{
+    return 0;
+}
+
+static int amp_pcm_write_datapath_params_put(struct mixer_plugin *plugin,
+                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+{
+    struct agm_buff *buffer;
+    int pcm_idx = ctl->private_value;
+    int ret;
+
+    AGM_LOGV("%s: enter sesid:%d ev pointer %p\n", __func__, pcm_idx, ev->value.bytes.data);
+    buffer = (struct agm_buff *)ev->value.bytes.data;
+
+    ret = agm_session_write_datapath_params(pcm_idx, buffer);
+    if (ret)
+        AGM_LOGE("%s: write_with_metadata failed, err %d\n",
+               __func__, ret);
+    return ret;
+}
+
 /* 512 max bytes for non-tlv controls, reserving 16 for future use */
 static struct snd_value_bytes pcm_event_bytes =
     SND_VALUE_BYTES(512 - 16);
@@ -1479,6 +1510,8 @@ static struct snd_value_tlv_bytes pcm_setparam_bytes =
 static struct snd_value_tlv_bytes pcm_getparam_bytes =
     SND_VALUE_TLV_BYTES(128 * 1024, amp_pcm_get_param_get, amp_pcm_get_param_put);
 static struct snd_value_bytes pcm_buf_info_bytes =
+    SND_VALUE_BYTES(512 - 16);
+static struct snd_value_bytes pcm_write_datapath_params_bytes =
     SND_VALUE_BYTES(512 - 16);
 
 static struct snd_value_int media_fmt_int =
@@ -1696,6 +1729,20 @@ static void amp_create_pcm_bufinfo_ctl(struct amp_priv *amp_priv,
             pval, pdata);
 }
 
+static void amp_create_pcm_write_with_metadata_ctl(struct amp_priv *amp_priv,
+    char *name, int ctl_idx, int pval, void *pdata)
+{
+    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
+    char *ctl_name = AMP_PRIV_GET_CTL_NAME_PTR(amp_priv, ctl_idx);
+
+    snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
+            name, amp_pcm_rx_ctl_names[PCM_RX_CTL_NAME_DATAPATH_PARAMS]);
+
+    INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_pcm_write_datapath_params_get,
+            amp_pcm_write_datapath_params_put, pcm_write_datapath_params_bytes,
+            pval, pdata);
+}
+
 /* BE related mixer control creations here */
 static void amp_create_metadata_ctl(struct amp_priv *amp_priv,
                 char *be_name, int ctl_idx, int pval, void *pdata)
@@ -1870,6 +1917,8 @@ static int amp_form_rx_pcm_ctls(struct amp_priv *amp_priv, int *ctl_idx)
         /* Create sidetone control, enum values are TX backends */
         amp_create_pcm_sidetone_ctl(amp_priv, name, (*ctl_idx)++,
                         &be_tx_adi->dev_enum, idx, rx_adi);
+        amp_create_pcm_write_with_metadata_ctl(amp_priv, name, (*ctl_idx)++,
+                        idx, rx_adi);
     }
 
     return 0;

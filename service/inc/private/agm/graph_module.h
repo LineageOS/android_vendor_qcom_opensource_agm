@@ -64,6 +64,7 @@
 
 #define TAG_STREAM_SPR       0xC0000013
 #define ALIGN_PAYLOAD(x,a)   x = (((x) + (size_t)(a-1)) & ~(size_t)(a-1))
+#define PARAM_VAL_NATIVE     -1
 
 typedef enum module
 {

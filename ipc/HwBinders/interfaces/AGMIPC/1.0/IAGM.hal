@@ -127,4 +127,7 @@ interface IAGM
     ipc_agm_get_group_aif_info_list(uint32_t num_groups)
                     generates (int32_t ret, vec<AifInfo> aif_group_list_ret,
                                uint32_t num_groups_ret);
+    ipc_agm_session_write_datapath_params(uint32_t session_id, vec<AgmBuff> buff)
+                    generates (int32_t ret);
+
 };

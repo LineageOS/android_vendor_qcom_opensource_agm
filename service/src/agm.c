@@ -848,3 +848,19 @@ int agm_session_set_non_tunnel_mode_config(uint64_t handle,
                                             in_buffer_config,
                                             out_buffer_config);
 }
+
+int agm_session_write_datapath_params(uint32_t session_id, struct agm_buff *buff)
+{
+    struct session_obj *obj = NULL;
+    int ret = 0;
+    size_t consumed_size = 0;
+
+    ret = session_obj_get(session_id, &obj);
+    if (ret) {
+        AGM_LOGE("Error:%d retrieving session obj with session id=%d\n",
+                                                 ret, session_id);
+        return ret;
+    }
+
+    return session_obj_write_with_metadata(obj, buff, &consumed_size);
+}

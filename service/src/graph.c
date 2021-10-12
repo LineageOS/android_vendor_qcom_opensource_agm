@@ -493,8 +493,8 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     list_init(&node_hw);
 
 
-    AGM_LOGD("entry");
-    if (meta_data_kv == NULL || gph_obj == NULL) {
+    AGM_LOGD("entry\n");
+    if (meta_data_kv == NULL || gph_obj == NULL || sess_obj == NULL) {
         AGM_LOGE("Invalid input\n");
         ret = -EINVAL;
         goto done;
@@ -1933,4 +1933,50 @@ int graph_get_tagged_data(
 int graph_enable_acdb_persistence(uint8_t enable_flag)
 {
     return gsl_enable_acdb_persistence(enable_flag);
+}
+
+static bool is_media_config_needed_on_datapath(enum agm_media_format format)
+{
+    bool ret = false;
+
+    switch (format) {
+    case AGM_FORMAT_MP3:
+    case AGM_FORMAT_AAC:
+    case AGM_FORMAT_FLAC:
+    case AGM_FORMAT_ALAC:
+    case AGM_FORMAT_APE:
+    case AGM_FORMAT_WMASTD:
+    case AGM_FORMAT_WMAPRO:
+        ret = true;
+        break;
+    default:
+        AGM_LOGE("Entered default, format %d", format);
+        break;
+    }
+    return ret;
+}
+
+int graph_set_media_config_datapath(struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct listnode *node = NULL;
+    module_info_t *mod = NULL;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+
+    if (is_media_config_needed_on_datapath(sess_obj->out_media_config.format)) {
+        list_for_each(node, &graph_obj->tagged_mod_list) {
+            mod = node_to_item(node, module_info_t, list);
+            if (mod->tag == STREAM_INPUT_MEDIA_FORMAT) {
+                ret = mod->configure(mod, graph_obj);
+                if (ret != 0) {
+                    AGM_LOGE("Module configuration for miid %x, mid %x, tag %x, failed:%d\n",
+                              mod->miid, mod->mid, mod->tag, ret);
+                }
+            }
+        }
+    } else {
+        AGM_LOGD("Media configuration on dataptah is not needed for format %d",
+                 sess_obj->out_media_config.format);
+    }
+    return ret;
 }

@@ -823,6 +823,13 @@ int configure_output_media_format(struct module_info *mod,
         pcm_output_fmt_payload->q_factor =
                              GET_Q_FACTOR(media_config.format,
                                           pcm_output_fmt_payload->bit_width);
+         if (sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL)
+            /*
+             * Setting num channels to native mode for PCM convetter
+             * so that channels always match upstream decoder module
+             * channel configuration
+             */
+             pcm_output_fmt_payload->num_channels = PARAM_VAL_NATIVE;
     } else {
         switch (pcm_output_fmt_payload->bit_width) {
         case 16:
@@ -1102,7 +1109,7 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
         struct payload_media_fmt_ape_t *fmt_pl;
         fmt_size = sizeof(struct payload_media_fmt_ape_t);
         media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED ;
-        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_ALAC;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_APE;
         media_fmt_hdr->payload_size = fmt_size;
 
         fmt_pl = (struct payload_media_fmt_ape_t*)(((uint8_t*)media_fmt_hdr) +
@@ -1354,6 +1361,71 @@ free_payload:
     return ret;
 }
 
+static int configure_compress_shared_mem_ep_datapath(struct module_info *mod,
+                            struct graph_obj *graph_obj)
+{
+    int ret = 0;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+    struct media_format_t *media_fmt_hdr;
+    uint8_t *payload = NULL;
+    size_t payload_size = 0, real_fmt_id = 0;
+    struct agm_buff buffer = {0};
+    size_t consumed_size = 0;
+
+    if (is_format_bypassed(sess_obj->out_media_config.format) ||
+        sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) {
+        AGM_LOGI("bypass shared mem ep config for format %x or sess_mode %d",
+                 sess_obj->out_media_config.format, sess_obj->stream_config.sess_mode);
+        return 0;
+    }
+
+    ret = get_media_fmt_id_and_size(sess_obj->out_media_config.format,
+                                    &payload_size, &real_fmt_id);
+    if (ret) {
+        AGM_LOGD("module is not configured for format: %d\n",
+                 sess_obj->out_media_config.format);
+        /* If ret is non-zero then shared memory module would be
+         * configured by client so return from here.
+         */
+        return 0;
+    }
+
+    payload_size = payload_size - sizeof(struct apm_module_param_data_t);
+    media_fmt_hdr = (struct media_format_t *) calloc(1, (size_t)payload_size);
+    if (!media_fmt_hdr) {
+        AGM_LOGE("Not enough memory for payload\n");
+        return -ENOMEM;
+    }
+
+
+    buffer.timestamp = 0x0;
+    buffer.flags = AGM_BUFF_FLAG_MEDIA_FORMAT;
+    buffer.size = payload_size;
+    buffer.addr = (uint8_t *)media_fmt_hdr;
+
+    ret =  set_compressed_media_format(sess_obj->out_media_config.format,
+                             media_fmt_hdr, sess_obj);
+    if (ret) {
+        AGM_LOGD("Shared mem EP is not configured for format: %d\n",
+                 sess_obj->out_media_config.format);
+        /* If ret is non-zero then shared memory module would be
+         * configured by client so return from here.
+         */
+        goto free_payload;
+    }
+
+    ret = graph_write(graph_obj, &buffer, &consumed_size);
+    if (ret != 0) {
+        ret = ar_err_get_lnx_err_code(ret);
+        AGM_LOGE("custom_config command for module %d failed with error %d",
+                      mod->tag, ret);
+    }
+
+free_payload:
+    free(media_fmt_hdr);
+    return ret;
+}
+
 int configure_pcm_shared_mem_ep(struct module_info *mod,
                             struct graph_obj *graph_obj)
 {
@@ -1459,8 +1531,12 @@ int configure_wr_shared_mem_ep(struct module_info *mod,
      */
     if (is_format_pcm(sess_obj->out_media_config.format))
         ret = configure_pcm_shared_mem_ep(mod, graph_obj);
-    else
-        ret = configure_compress_shared_mem_ep(mod, graph_obj);
+    else {
+        if (graph_obj->state != STARTED)
+            ret = configure_compress_shared_mem_ep(mod, graph_obj);
+        else
+            ret = configure_compress_shared_mem_ep_datapath(mod, graph_obj);
+    }
 
     if (ret)
         return ret;

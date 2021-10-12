@@ -997,3 +997,29 @@ int agm_get_group_aif_info_list(struct aif_info *aif_list, size_t *num_groups)
     }
     return -EINVAL;
 }
+
+int agm_session_write_datapath_params(uint32_t session_id, struct agm_buff *buf)
+{
+    ALOGV("%s called with session id = %d \n", __func__, session_id);
+
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+        hidl_vec<AgmBuff> buf_hidl;
+        buf_hidl.resize(sizeof(struct agm_buff));
+        AgmBuff *agmBuff = buf_hidl.data();
+        agmBuff->size = buf->size;
+        agmBuff->buffer.resize(buf->size);
+        agmBuff->flags = buf->flags;
+        agmBuff->timestamp = buf->timestamp;
+        if (buf->size && buf->addr)
+            memcpy(agmBuff->buffer.data(), buf->addr, buf->size);
+        else {
+            ALOGE("%s: buf size or addr is null", __func__);
+            return -EINVAL;
+        }
+
+        return agm_client->ipc_agm_session_write_datapath_params(
+                                            session_id, buf_hidl);
+    }
+    return -EINVAL;
+}

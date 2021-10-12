@@ -60,6 +60,9 @@ struct session_obj;
 /**< true if buffer is marked as EOF */
 #define AGM_BUFF_FLAG_EOF 0x4
 
+/**< true if buffer contains media format */
+#define AGM_BUFF_FLAG_MEDIA_FORMAT 0x8
+
 /*Enables SRCM event in metadata on the read path*/
 #define AGM_SESSION_FLAG_INBAND_SRCM 0x1
 
@@ -1093,6 +1096,16 @@ int agm_get_group_aif_info_list(struct aif_info *aif_list, size_t *num_groups);
   */
 int agm_aif_group_set_media_config(uint32_t aif_group_id,
                           struct agm_group_media_config *media_config);
+
+/**
+ * \brief Write buffers containing codec params to session on datapath
+ *
+ * \param[in] session_id - Valid audio session id
+ * \param[in] buff: agm_buffer where data will be copied from
+ *
+ * \return 0 on success, error code otherwise
+ */
+int agm_session_write_datapath_params(uint32_t session_id, struct agm_buff *buff);
 
 #ifdef __cplusplus
 }  /* extern "C" */

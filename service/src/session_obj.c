@@ -1996,7 +1996,7 @@ int session_obj_set_config(struct session_obj *sess_obj,
                  struct agm_media_config *media_config,
                  struct agm_buffer_config *buffer_config)
 {
-
+    int ret = 0;
     pthread_mutex_lock(&sess_obj->lock);
 
     sess_obj->stream_config = *stream_config;
@@ -2009,10 +2009,21 @@ int session_obj_set_config(struct session_obj *sess_obj,
         /*Playback session config*/
         sess_obj->out_media_config = *media_config;
         sess_obj->out_buffer_config = *buffer_config;
+
+        /* During gapless playback, when clips are switched from
+         * in between, pause, flush and resume gets called from client,
+         * flush makes session state as SESSION_STOPPED, so codec param
+         * needs to be sent to ADSP in this state as well.
+         */
+        if (sess_obj->state == SESSION_STARTED || sess_obj->state == SESSION_STOPPED) {
+            ret = graph_set_media_config_datapath(sess_obj->graph);
+            if (ret < 0)
+                AGM_LOGE("Failed to set media config on datapath ret %d", ret);
+        }
     }
 
     pthread_mutex_unlock(&sess_obj->lock);
-    return 0;
+    return ret;
 }
 
 int session_obj_prepare(struct session_obj *sess_obj)
@@ -2461,10 +2472,13 @@ int session_obj_read_with_metadata(struct session_obj *sess_obj,
     }
     pthread_mutex_unlock(&sess_obj->lock);
 
-    ret = graph_read(sess_obj->graph, buffer, captured_size);
+    size_t read_size;
+    ret = graph_read(sess_obj->graph, buffer, &read_size);
     if (ret) {
         AGM_LOGE("Error:%d reading from graph\n", ret);
     }
+
+    *captured_size = (uint32_t)read_size;
 
 done:
     return ret;

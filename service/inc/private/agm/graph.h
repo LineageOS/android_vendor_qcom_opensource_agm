@@ -416,4 +416,6 @@ int graph_get_tagged_data(const struct agm_key_vector_gsl *graph_key_vect,
  */
 
 int32_t graph_enable_acdb_persistence(uint8_t enable_flag);
+
+int graph_set_media_config_datapath(struct graph_obj *gph_obj);
 #endif /*GPH_OBJ_H*/
