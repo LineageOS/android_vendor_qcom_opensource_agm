@@ -253,6 +253,16 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
         goto err_close_mixer;
     }
 
+    if (strstr(name, "VIRT-")) {
+        if (get_group_device_info(BACKEND_CONF_FILE, name, &grp_config))
+            goto err_close_mixer;
+
+        if (set_agm_group_device_config(mixer, name, &grp_config)) {
+            printf("Failed to set grp device config\n");
+            goto err_close_mixer;
+        }
+    }
+
     pcm = pcm_open(card, device, PCM_OUT, &config);
     if (!pcm || !pcm_is_ready(pcm)) {
         printf("Unable to open PCM device %u (%s)\n",
@@ -261,12 +271,9 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     }
 
     if (strstr(name, "VIRT-")) {
-        if (get_group_device_info(BACKEND_CONF_FILE, name, &grp_config))
-            goto err_close_mixer;
-
-        if (set_agm_group_device_config(mixer, device, &grp_config, name)) {
+        if (set_agm_group_mux_config(mixer, device, &grp_config, name)) {
             printf("Failed to set grp device config\n");
-            goto err_close_mixer;
+            goto err_close_pcm;
         }
     }
 

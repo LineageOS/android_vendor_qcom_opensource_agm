@@ -309,7 +309,7 @@ int get_group_device_info(char* filename, char *intf_name, struct group_config *
     return get_backend_info(filename, be_name, (void *)config, GROUP);
 }
 
-int set_agm_group_device_config(struct mixer *mixer, unsigned int device, struct group_config *config, char *intf_name)
+int set_agm_group_device_config(struct mixer *mixer, char *intf_name, struct group_config *config)
 {
     char *stream = "PCM";
     char *grp_ctl = "grp config";
@@ -317,9 +317,8 @@ int set_agm_group_device_config(struct mixer *mixer, unsigned int device, struct
     char *mixer_str = NULL;
     struct mixer_ctl *ctl;
     long grp_config[5];
-    int ctl_len = 0, be_len, val_len;
+    int ctl_len = 0, be_len;
     int ret = 0;
-    struct agm_tag_config* tag_config = NULL;
     char *be_name = strdup(intf_name);
     if (be_name == NULL) {
         printf("%s(): Insufficient memory to create be_name \n", __func__);
@@ -353,18 +352,35 @@ int set_agm_group_device_config(struct mixer *mixer, unsigned int device, struct
 
     ret = mixer_ctl_set_array(ctl, &grp_config, sizeof(grp_config)/sizeof(grp_config[0]));
     if (ret) {
-        printf("Failed to set grp config mixer ctl\n");
+        printf("Failed to set grp media config mixer ctl\n");
         goto done;
     }
 
-    /* Configure MUX MODULE TKV */
+done:
+    if (be_name)
+        free(be_name);
+
+    if (mixer_str)
+        free(mixer_str);
+    return ret;
+}
+
+int set_agm_group_mux_config(struct mixer *mixer, unsigned int device, struct group_config *config, char *intf_name)
+{
+    char *stream = "PCM";
+    char *control = "setParamTag";
+    char *mixer_str = NULL;
+    struct mixer_ctl *ctl;
+    int ctl_len = 0, val_len;
+    int ret = 0;
+    struct agm_tag_config* tag_config = NULL;
+
     ret = set_agm_stream_metadata_type(mixer, device, intf_name, STREAM_PCM);
-    if (ret) {
-        ret = 0;
-        goto done;
-    }
+    if (ret)
+        return 0;
+
     ctl_len = strlen(stream) + 4 + strlen(control) + 1;
-    mixer_str = realloc(mixer_str, ctl_len);
+    mixer_str = calloc(1, ctl_len);
     if (!mixer_str) {
         printf("mixer_str realloc failed\n");
         goto done;
@@ -389,9 +405,6 @@ int set_agm_group_device_config(struct mixer *mixer, unsigned int device, struct
 
     mixer_ctl_set_array(ctl, tag_config, val_len);
 done:
-    if (be_name)
-        free(be_name);
-
     if (mixer_str)
         free(mixer_str);
     return ret;
