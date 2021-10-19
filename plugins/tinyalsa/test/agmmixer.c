@@ -791,7 +791,7 @@ int set_agm_capture_stream_metadata(struct mixer *mixer, int device, uint32_t va
 
     index = 0;
     ckv[index].key = VOLUME;
-    ckv[index].value = LEVEL_2;
+    ckv[index].value = LEVEL_0;
 
     prop->prop_id = 0;  //Update prop_id here
     prop->num_values = num_props;
@@ -937,7 +937,7 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
 
     index = 0;
     ckv[index].key = VOLUME;
-    ckv[index].value = LEVEL_2;
+    ckv[index].value = LEVEL_0;
 
     prop->prop_id = 0;  //Update prop_id here
     prop->num_values = num_props;
