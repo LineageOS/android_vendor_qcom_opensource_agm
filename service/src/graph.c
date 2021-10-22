@@ -319,7 +319,7 @@ int graph_init()
     init_data.acdb_delta_file = &delta_file;
     init_data.acdb_addr = 0x0;
     init_data.max_num_ready_checks = 1;
-    init_data.ready_check_interval_ms = 100;
+    init_data.ready_check_interval_ms = 1000;
     ret = gsl_init(&init_data);
     if (ret != 0) {
         ret = ar_err_get_lnx_err_code(ret);
