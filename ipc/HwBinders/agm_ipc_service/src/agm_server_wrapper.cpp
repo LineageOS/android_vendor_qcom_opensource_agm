@@ -336,7 +336,6 @@ void ipc_callback (uint32_t session_id,
         // allocated during read_with_metadata()
         if (rw_done_payload->buff.metadata)
             free(rw_done_payload->buff.metadata);
-        close(rw_done_payload->buff.alloc_info.alloc_handle);
     } else {
         evt_param_l.resize(sizeof(struct agm_event_cb_params) +
                                 evt_param->event_payload_size);
