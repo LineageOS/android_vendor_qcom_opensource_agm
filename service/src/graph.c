@@ -1406,23 +1406,23 @@ int graph_change(struct graph_obj *graph_obj,
                 break;
             }
         }
-        if (!mod_present) {
-            /*This is a new device object, add this module to the list and
-             *delete the current hw_ep(Device module) from the list.
-             */
-            list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
-                temp_mod = node_to_item(node, module_info_t, list);
-                if ((temp_mod->tag == DEVICE_HW_ENDPOINT_TX) ||
-                    (temp_mod->tag == DEVICE_HW_ENDPOINT_RX)) {
-                    list_remove(node);
-                    if (temp_mod->gkv) {
-                        free(temp_mod->gkv->kv);
-                        free(temp_mod->gkv);
-                    }
-                    free(temp_mod);
-                    temp_mod = NULL;
+        /* Delete the current hw_ep(Device module) from the list */
+        list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
+            temp_mod = node_to_item(node, module_info_t, list);
+            if (((temp_mod->tag == DEVICE_HW_ENDPOINT_TX) ||
+                (temp_mod->tag == DEVICE_HW_ENDPOINT_RX)) &&
+                (temp_mod->miid != module_info->module_entry[0].module_iid)) {
+                list_remove(node);
+                if (temp_mod->gkv) {
+                    free(temp_mod->gkv->kv);
+                    free(temp_mod->gkv);
                 }
+                free(temp_mod);
+                temp_mod = NULL;
             }
+        }
+        if (!mod_present) {
+            /*This is a new device object, add this module to the list */
             add_module = ADD_MODULE(*mod, dev_obj);
             if (!add_module) {
                 AGM_LOGE("No memory to allocate for add_module\n");
