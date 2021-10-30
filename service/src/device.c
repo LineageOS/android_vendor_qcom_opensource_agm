@@ -688,9 +688,11 @@ int device_set_metadata(struct device_obj *dev_obj, uint32_t size,
 {
    int ret = 0;
 
+   AGM_LOGI("Setting device metadata for %s\n", dev_obj->name);
    pthread_mutex_lock(&dev_obj->lock);
    metadata_free(&dev_obj->metadata);
    ret = metadata_copy(&(dev_obj->metadata), size, metadata);
+   metadata_print(&(dev_obj->metadata));
    pthread_mutex_unlock(&dev_obj->lock);
 
    return ret;
