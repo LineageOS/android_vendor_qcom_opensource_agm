@@ -770,6 +770,11 @@ graph_cleanup:
         graph_remove(sess_obj->graph, merged_metadata);
 
 close_device:
+    if (aif_obj->params) {
+        free(aif_obj->params);
+        aif_obj->params = NULL;
+        aif_obj->params_size = 0;
+    }
     device_close(aif_obj->dev_obj);
 
 done:
