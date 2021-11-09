@@ -1180,7 +1180,7 @@ int configure_placeholder_dec(struct module_info *mod,
         goto done;
     }
     sess_obj = graph_obj->sess_obj;
-
+    memset(&tkv, 0, sizeof(struct gsl_key_vector));
     /* 1. Configure placeholder decoder with Real ID */
     ret = get_media_fmt_id_and_size(sess_obj->out_media_config.format,
                                     &payload_size, &real_fmt_id);

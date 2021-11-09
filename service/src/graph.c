@@ -846,11 +846,7 @@ int graph_stop(struct graph_obj *graph_obj,
 
     pthread_mutex_lock(&graph_obj->lock);
     AGM_LOGD("entry graph_handle %p\n", graph_obj->graph_handle);
-    if (graph_obj->state & (STOPPED)) {
-       AGM_LOGE("graph object is already in STOP state\n");
-       goto done;
-    }
-    if (!(graph_obj->state & (STARTED))) {
+    if ((graph_obj->state & (CLOSED))) {
        AGM_LOGE("graph object is not in correct state, current state %d\n",
                     graph_obj->state);
        ret = -EINVAL;
@@ -864,11 +860,13 @@ int graph_stop(struct graph_obj *graph_obj,
         gsl_cmd_prop.num_property_values = meta_data->sg_props.num_values;
         gsl_cmd_prop.property_values = meta_data->sg_props.values;
 
-        ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP,
-                        &gsl_cmd_prop, sizeof(struct gsl_cmd_properties));
-        /* Continue to close graph even stop fails */
-        if (ret !=0)
-            AGM_LOGE("graph stop with prop failed %d\n", ret);
+        if (graph_obj->state & (STARTED)) {
+            ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP,
+                            &gsl_cmd_prop, sizeof(struct gsl_cmd_properties));
+            /* Continue to close graph even stop fails */
+            if (ret !=0)
+                AGM_LOGE("graph stop with prop failed %d\n", ret);
+        }
 
         ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_CLOSE_WITH_PROPS,
                         &gsl_cmd_prop, sizeof(struct gsl_cmd_properties));
@@ -877,6 +875,10 @@ int graph_stop(struct graph_obj *graph_obj,
             AGM_LOGE("graph close with prop failed %d\n", ret);
         }
     } else {
+        if (graph_obj->state & (STOPPED)) {
+           AGM_LOGE("graph object is already in STOP state\n");
+           goto done;
+        }
         ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_STOP, NULL, 0);
         graph_obj->state = STOPPED;
         if (ret !=0) {
@@ -1404,23 +1406,23 @@ int graph_change(struct graph_obj *graph_obj,
                 break;
             }
         }
-        if (!mod_present) {
-            /*This is a new device object, add this module to the list and
-             *delete the current hw_ep(Device module) from the list.
-             */
-            list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
-                temp_mod = node_to_item(node, module_info_t, list);
-                if ((temp_mod->tag == DEVICE_HW_ENDPOINT_TX) ||
-                    (temp_mod->tag == DEVICE_HW_ENDPOINT_RX)) {
-                    list_remove(node);
-                    if (temp_mod->gkv) {
-                        free(temp_mod->gkv->kv);
-                        free(temp_mod->gkv);
-                    }
-                    free(temp_mod);
-                    temp_mod = NULL;
+        /* Delete the current hw_ep(Device module) from the list */
+        list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
+            temp_mod = node_to_item(node, module_info_t, list);
+            if (((temp_mod->tag == DEVICE_HW_ENDPOINT_TX) ||
+                (temp_mod->tag == DEVICE_HW_ENDPOINT_RX)) &&
+                (temp_mod->miid != module_info->module_entry[0].module_iid)) {
+                list_remove(node);
+                if (temp_mod->gkv) {
+                    free(temp_mod->gkv->kv);
+                    free(temp_mod->gkv);
                 }
+                free(temp_mod);
+                temp_mod = NULL;
             }
+        }
+        if (!mod_present) {
+            /*This is a new device object, add this module to the list */
             add_module = ADD_MODULE(*mod, dev_obj);
             if (!add_module) {
                 AGM_LOGE("No memory to allocate for add_module\n");

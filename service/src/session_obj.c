@@ -945,6 +945,8 @@ static int session_prepare(struct session_obj *sess_obj)
             if (ret) {
                 AGM_LOGE("Error:%d preparing graph\n", ret);
                 goto done;
+            } else {
+                sess_obj->state = SESSION_PREPARED;
             }
         }
     } else if(sess_obj->state != SESSION_STARTED) {
@@ -952,10 +954,10 @@ static int session_prepare(struct session_obj *sess_obj)
         if (ret) {
              AGM_LOGE("Error:%d preparing graph\n", ret);
              goto done;
+        } else {
+             sess_obj->state = SESSION_PREPARED;
         }
     }
-    sess_obj->state = SESSION_PREPARED;
-    return ret;
 
 done:
     return ret;
