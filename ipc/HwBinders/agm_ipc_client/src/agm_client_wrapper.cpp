@@ -876,6 +876,8 @@ int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, size_
         if (!status.isOk()) {
             ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
         }
+        if (allocHidlHandle)
+            native_handle_delete(allocHidlHandle);
     }
 done:
     return ret;
@@ -940,6 +942,8 @@ int agm_session_read_with_metadata(uint64_t handle, struct agm_buff  *buf, uint3
         if (!status.isOk()) {
             ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
         }
+        if (allocHidlHandle)
+            native_handle_delete(allocHidlHandle);
     }
 done:
     return ret;

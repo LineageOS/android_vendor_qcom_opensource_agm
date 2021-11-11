@@ -95,38 +95,6 @@ void client_death_notifier::serviceDied(uint64_t cookie,
     ALOGV("%s: exit\n", __func__);
 }
 
-int check_and_find_input_fd(uint64_t sess_handle, int input_fd, int *dup_fd)
-{
-    struct listnode *node = NULL;
-    struct listnode *tempnode = NULL;
-    agm_client_session_handle *hndle = NULL;
-    client_info *handle = NULL;
-    struct listnode *sess_node = NULL;
-    struct listnode *sess_tempnode = NULL;
-    pthread_mutex_lock(&client_list_lock);
-    list_for_each_safe(node, tempnode, &client_list) {
-        handle = node_to_item(node, client_info, list);
-        list_for_each_safe(sess_node, sess_tempnode,
-                                     &handle->agm_client_hndl_list) {
-            hndle = node_to_item(sess_node,
-                                     agm_client_session_handle,
-                                     list);
-            if (hndle->handle == sess_handle) {
-                for (int i = 0; i < hndle->shared_mem_fd_list.size(); i++) {
-                     if (hndle->shared_mem_fd_list[i].first == input_fd) {
-                        *dup_fd = hndle->shared_mem_fd_list[i].second;
-                        ALOGV("input fd %d found, return already dupped fd %d", input_fd, *dup_fd);
-                        pthread_mutex_unlock(&client_list_lock);
-                        return 0;
-                     }
-                }
-            }
-        }
-    }
-    pthread_mutex_unlock(&client_list_lock);
-    return -1;
-}
-
 void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
 {
     struct listnode *node = NULL;
@@ -147,9 +115,8 @@ void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
                                      list);
             if (hndle->handle == sess_handle) {
                 if (hndle->shared_mem_fd_list.size() > MAX_CACHE_SIZE) {
-                    close(hndle->shared_mem_fd_list.front().second);
-                    it = hndle->shared_mem_fd_list.begin();
-                    hndle->shared_mem_fd_list.erase(it);
+                    ALOGE("%s cache limit exceeded handle %p [input %d - dup %d] ",
+                            __func__ , sess_handle, input_fd, dup_fd );
                 }
                 hndle->shared_mem_fd_list.push_back(std::make_pair(input_fd, dup_fd));
                 ALOGV("sess_handle %x, session_id:%d input_fd %d, dup fd %d", hndle->handle,
@@ -336,6 +303,8 @@ void ipc_callback (uint32_t session_id,
         // allocated during read_with_metadata()
         if (rw_done_payload->buff.metadata)
             free(rw_done_payload->buff.metadata);
+        if (allocHidlHandle)
+            native_handle_delete(allocHidlHandle);
     } else {
         evt_param_l.resize(sizeof(struct agm_event_cb_params) +
                                 evt_param->event_payload_size);
