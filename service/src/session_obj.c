@@ -1915,6 +1915,8 @@ int session_obj_open(uint32_t session_id,
 
     struct session_obj *sess_obj = NULL;
     int ret = 0;
+    struct listnode *node;
+    struct aif *aif_obj = NULL;
 
     ret = session_obj_get(session_id, &sess_obj);
     if (ret) {
@@ -1972,7 +1974,9 @@ int session_obj_open(uint32_t session_id,
             ret = session_set_ec_ref(sess_obj, sess_obj->ec_ref_aif_id,
                                                sess_obj->ec_ref_state);
             if (ret) {
-                goto done;
+                sess_obj->ec_ref_state = false;
+                sess_obj->ec_ref_aif_id = 0;
+                goto unwind;
             }
         }
     }
@@ -1987,6 +1991,26 @@ int session_obj_open(uint32_t session_id,
 
     sess_obj->state = SESSION_OPENED;
     *session = sess_obj;
+    goto done;
+
+unwind:
+    list_for_each(node, &sess_obj->aif_pool) {
+        aif_obj = node_to_item(node, struct aif, node);
+        if (aif_obj && aif_obj->state == AIF_OPENED) {
+            /*TODO: fix the 3rd argument to provide correct count*/
+            ret = session_disconnect_aif(sess_obj, aif_obj, 1);
+            if (ret) {
+                AGM_LOGE("Error:%d Failed to disconnect device\n",
+                                                     ret);
+            }
+            aif_obj->state = AIF_OPEN;
+        }
+    }
+    ret = graph_close(sess_obj->graph);
+    if (ret) {
+        AGM_LOGE("Error:%d Failed to close graph\n", ret);
+    }
+    sess_obj->graph = NULL;
 
 done:
     pthread_mutex_unlock(&sess_obj->lock);
