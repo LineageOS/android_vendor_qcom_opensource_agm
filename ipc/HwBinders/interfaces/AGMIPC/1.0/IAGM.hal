@@ -100,7 +100,9 @@ interface IAGM
                     generates (int32_t ret);
     ipc_agm_session_set_ec_ref(uint32_t capture_session_id, uint32_t aif_id,
                     bool state) generates (int32_t ret);
-    ipc_agm_session_register_callback(uint32_t session_id, IAGMCallback cb,
+    ipc_agm_client_register_callback(IAGMCallback cb)
+                    generates (int32_t ret);
+    ipc_agm_session_register_callback(uint32_t session_id,
                     uint32_t evt_type, uint64_t ipc_clt_data, uint64_t clt_data)
                     generates (int32_t ret);
     ipc_agm_session_eos(uint64_t hndl) generates (int32_t ret);

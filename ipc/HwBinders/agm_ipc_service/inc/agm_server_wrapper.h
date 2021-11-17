@@ -37,44 +37,6 @@
 #include <agm/agm_api.h>
 #include "inc/AGMCallback.h"
 
-/*
- * clbk_data_list is used to store all the
- * data associated while registering a
- * callback, which can later be freed in
- * case of sudden death of client.
- */
-struct listnode clbk_data_list;
-pthread_mutex_t clbk_data_list_lock;
-bool clbk_data_list_init = false;
-
-/*
- * client_list stores all the session
- * handles for the sessions opened by
- * a particular client, which is uniquely
- * identified by it's pid. In case of
- * death of client, we clear this list
- * and call agm_session_close for all
- * opened sessions.
- */
-struct listnode client_list;
-pthread_mutex_t client_list_lock;
-bool client_list_init = false;
-
-typedef struct {
-   struct listnode list;
-   uint32_t session_id;
-   uint64_t handle;
-   std::vector<std::pair<int, int>> shared_mem_fd_list;
-} agm_client_session_handle;
-
-typedef struct {
-    struct listnode list;
-    uint32_t pid;
-    struct listnode agm_client_hndl_list;
-} client_info;
-
-void add_handle_to_list(uint64_t handle);
-
 namespace vendor {
 namespace qti {
 namespace hardware {
@@ -96,7 +58,6 @@ class SrvrClbk
     public :
 
     uint32_t session_id;
-    sp<IAGMCallback> clbk_binder;
     uint32_t event;
     uint64_t clnt_data;
     int pid;
@@ -104,24 +65,16 @@ class SrvrClbk
     SrvrClbk()
     {
         session_id = 0;
-        clbk_binder = NULL;
         event = 0;
         clnt_data = 0;
         pid = 0;
     }
-    SrvrClbk(uint32_t sess_id, sp<IAGMCallback> binder,
-             uint32_t evnt, uint64_t cd, int p_id)
+    SrvrClbk(uint32_t sess_id, uint32_t evnt, uint64_t cd, int p_id)
     {
         session_id = sess_id;
-        clbk_binder = binder;
         event = evnt;
         clnt_data = cd;
         pid = p_id;
-    }
-
-    sp<IAGMCallback> get_clbk_binder()
-    {
-        return clbk_binder;
     }
 
     uint64_t get_clnt_data()
@@ -224,8 +177,8 @@ struct AGM : public IAGM {
     Return<int32_t> ipc_agm_session_set_ec_ref(uint32_t capture_session_id,
                                                uint32_t aif_id,
                                                bool state) override;
+    Return<int32_t> ipc_agm_client_register_callback(const sp<IAGMCallback>& cb) override;
     Return<int32_t> ipc_agm_session_register_callback(uint32_t session_id,
-                                                  const sp<IAGMCallback>& cb,
                                                   uint32_t evt_type,
                                                   uint64_t client_data,
                                                   uint64_t clnt_data) override;
