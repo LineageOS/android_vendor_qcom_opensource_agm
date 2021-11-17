@@ -28,6 +28,7 @@
  */
 #define LOG_TAG "agm_client_wrapper"
 
+#include <cutils/list.h>
 #include <vendor/qti/hardware/AGMIPC/1.0/IAGMCallback.h>
 #include <hidl/LegacySupport.h>
 #include <log/log.h>
@@ -48,10 +49,18 @@ using android::hardware::configureRpcThreadpool;
 using android::hardware::joinRpcThreadpool;
 using android::sp;
 
-bool agm_server_died = false;
+static bool agm_server_died = false;
 static pthread_mutex_t agmclient_init_lock = PTHREAD_MUTEX_INITIALIZER;
-android::sp<IAGM> agm_client = NULL;
-sp<server_death_notifier> Server_death_notifier = NULL;
+static android::sp<IAGM> agm_client = NULL;
+static sp<server_death_notifier> Server_death_notifier = NULL;
+static bool is_cb_registered = false;
+static list_declare(client_clbk_data_list);
+static pthread_mutex_t clbk_data_list_lock = PTHREAD_MUTEX_INITIALIZER;
+
+struct client_cb_data {
+   struct listnode node;
+   uint64_t data;
+};
 
 void server_death_notifier::serviceDied(uint64_t cookie,
                    const android::wp<::android::hidl::base::V1_0::IBase>& who __unused)
@@ -660,18 +669,54 @@ int agm_session_register_cb(uint32_t session_id, agm_event_cb cb,
 {
     ALOGV("%s : sess_id = %d, evt_type = %d, client_data = %p \n", __func__,
            session_id, evt_type, client_data);
+    int32_t ret = 0;
     if (!agm_server_died) {
         sp<IAGMCallback> ClbkBinder = NULL;
         ClntClbk *cl_clbk_data = NULL;
+        uint64_t cl_clbk_data_add = 0;
         android::sp<IAGM> agm_client = get_agm_server();
+        if (!is_cb_registered) {
+            ClbkBinder = new AGMCallback();
+            ret = agm_client->ipc_agm_client_register_callback(ClbkBinder);
+            if (ret) {
+                ALOGE("Client callback registration failed");
+                return ret;
+            }
+            is_cb_registered = true;
+        }
         if (cb != NULL) {
             cl_clbk_data = new ClntClbk(session_id, cb, evt_type, client_data);
-            ClbkBinder = new AGMCallback();
+            struct client_cb_data *cb_data = (struct client_cb_data *)calloc(1, sizeof(struct client_cb_data));
+            if (!cb_data) {
+                delete cl_clbk_data;
+                return -ENOMEM;
+            }
+            cl_clbk_data_add = (uint64_t) cl_clbk_data;
+            pthread_mutex_lock(&clbk_data_list_lock);
+            cb_data->data = cl_clbk_data_add;
+            list_add_tail(&client_clbk_data_list, &cb_data->node);
+            pthread_mutex_unlock(&clbk_data_list_lock);
+        } else {
+            struct listnode *node = NULL, *tempnode = NULL;
+            struct client_cb_data *cb_data = NULL;
+            pthread_mutex_lock(&clbk_data_list_lock);
+            list_for_each_safe(node, tempnode, &client_clbk_data_list) {
+                cb_data = node_to_item(node, struct client_cb_data, node);
+                cl_clbk_data = (ClntClbk *) cb_data->data;
+                if ((cl_clbk_data->session_id == session_id) &&
+                    (cl_clbk_data->event == evt_type) &&
+                    (cl_clbk_data->clnt_data == client_data)) {
+                    list_remove(node);
+                    delete cl_clbk_data;
+                    cl_clbk_data = NULL;
+                    free(cb_data);
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&clbk_data_list_lock);
         }
-        uint64_t cl_clbk_data_add = (uint64_t) cl_clbk_data;
         int ret = agm_client->ipc_agm_session_register_callback(
                                                         session_id,
-                                                        ClbkBinder,
                                                         evt_type,
                                                         cl_clbk_data_add,
                                                         (uint64_t )client_data);
@@ -888,7 +933,7 @@ int agm_session_read_with_metadata(uint64_t handle, struct agm_buff  *buf, uint3
     int ret = -EINVAL;
     ALOGV("%s:%d size %d", __func__, __LINE__, buf->size);
 
-    if (handle == NULL)
+    if (!handle)
         goto done;
 
     if (!agm_server_died) {

@@ -73,13 +73,14 @@ Return<int32_t> AGMCallback::event_callback_rw_done(uint32_t session_id,
     ClntClbk *cl_clbk_data;
     cl_clbk_data = (ClntClbk *) clbk_data;
     struct agm_event_cb_params *event_params_l = NULL;
-    struct agm_event_read_write_done_payload rw_payload = {0};
+    struct agm_event_read_write_done_payload rw_payload;
     const native_handle *allochandle = nullptr;
 
     struct agm_buff *buffer = &rw_payload.buff;
 
     const AgmEventReadWriteDonePayload *rw_payload_hidl = NULL;
 
+    memset(&rw_payload,0, sizeof(struct agm_event_read_write_done_payload));
     event_params_l = (struct agm_event_cb_params*) calloc(1,
                      (sizeof(struct agm_event_cb_params) +
                       sizeof(struct agm_event_read_write_done_payload)));
