@@ -774,10 +774,12 @@ static int session_connect_aif(struct session_obj *sess_obj,
     goto done;
 
 graph_cleanup:
-    if (opened_count == 0)
+    if (opened_count == 0) {
         graph_close(sess_obj->graph);
-    else
+        sess_obj->graph = NULL;
+    } else {
         graph_remove(sess_obj->graph, merged_metadata);
+    }
 
 close_device:
     if (aif_obj->params) {
@@ -921,6 +923,7 @@ static int session_open_without_device(struct session_obj *sess_obj)
 
 graph_cleanup:
         graph_close(sess_obj->graph);
+        sess_obj->graph = NULL;
 done:
     return ret;
 }
