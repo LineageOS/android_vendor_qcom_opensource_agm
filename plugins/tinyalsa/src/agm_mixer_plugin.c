@@ -1036,20 +1036,36 @@ static int amp_pcm_mtd_control_put(struct mixer_plugin *plugin __unused,
 }
 
 static int amp_pcm_event_get(struct mixer_plugin *plugin,
-                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
 {
     struct amp_priv *amp_priv = plugin->priv;
     struct listnode *eparams_node, *temp;
     struct event_params_node *event_node;
     struct agm_event_cb_params *eparams;
     int session_id = ctl->private_value;
+    uint32_t tlv_size, event_payload_size;
+    void *payload;
 
     AGM_LOGV("%s: enter\n", __func__);
+    payload = &tlv->tlv[0];
+    if (!payload)
+        return -EINVAL;
+
+    tlv_size = tlv->length;
+    if (tlv_size == 0) {
+        AGM_LOGE("%s: invalid array size %d\n", __func__, tlv_size);
+        return -EINVAL;
+    }
     list_for_each_safe(eparams_node, temp, &amp_priv->events_paramlist) {
         event_node = node_to_item(eparams_node, struct event_params_node, node);
         if (event_node->session_id == session_id) {
             eparams = &event_node->event_params;
-            memcpy(&ev->value.bytes.data[0], eparams,
+            event_payload_size = sizeof(struct agm_event_cb_params) + eparams->event_payload_size;
+            if (tlv_size < event_payload_size) {
+                AGM_LOGE("Expected %d size, received %d\n", event_payload_size, tlv_size);
+                return -EINVAL;
+            }
+            memcpy(payload, eparams,
                    sizeof(struct agm_event_cb_params)
                    + eparams->event_payload_size);
             list_remove(&event_node->node);
@@ -1062,14 +1078,26 @@ static int amp_pcm_event_get(struct mixer_plugin *plugin,
 }
 
 static int amp_pcm_event_put(struct mixer_plugin *plugin __unused,
-                struct snd_control *ctl, struct snd_ctl_elem_value *ev)
+                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
 {
     struct agm_event_reg_cfg *evt_reg_cfg;
     int session_id = ctl->private_value;
+    uint32_t tlv_size;
+    void *payload;
     int ret;
 
-    evt_reg_cfg = (struct agm_event_reg_cfg *) (struct agm_meta_data *)
-                                          &ev->value.bytes.data[0];
+    payload = &tlv->tlv[0];
+    if (!payload)
+        return -EINVAL;
+
+    tlv_size = tlv->length;
+    if (tlv_size == 0) {
+        AGM_LOGE("%s: invalid array size %d\n", __func__, tlv_size);
+        ret = -EINVAL;
+        return ret;
+    }
+
+    evt_reg_cfg = (struct agm_event_reg_cfg *) payload;
     ret = agm_session_register_for_events(session_id, evt_reg_cfg);
     if (ret == -EALREADY)
         ret = 0;
@@ -1489,8 +1517,6 @@ static int amp_pcm_write_datapath_params_put(struct mixer_plugin *plugin,
 }
 
 /* 512 max bytes for non-tlv controls, reserving 16 for future use */
-static struct snd_value_bytes pcm_event_bytes =
-    SND_VALUE_BYTES(512 - 16);
 static struct snd_value_bytes pcm_calibration_bytes =
     SND_VALUE_BYTES(512 - 16);
 static struct snd_value_bytes pcm_buf_tstamp_bytes =
@@ -1509,6 +1535,8 @@ static struct snd_value_tlv_bytes pcm_setparam_bytes =
     SND_VALUE_TLV_BYTES(256 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_getparam_bytes =
     SND_VALUE_TLV_BYTES(128 * 1024, amp_pcm_get_param_get, amp_pcm_get_param_put);
+static struct snd_value_tlv_bytes pcm_event_bytes =
+    SND_VALUE_TLV_BYTES(128 * 1024, amp_pcm_event_get, amp_pcm_event_put);
 static struct snd_value_bytes pcm_buf_info_bytes =
     SND_VALUE_BYTES(512 - 16);
 static struct snd_value_bytes pcm_write_datapath_params_bytes =
@@ -1573,8 +1601,7 @@ static void amp_create_pcm_event_ctl(struct amp_priv *amp_priv,
     snprintf(ctl_name, AIF_NAME_MAX_LEN + 16, "%s %s",
              name, amp_pcm_ctl_name_extn[PCM_CTL_NAME_EVENT]);
 
-    INIT_SND_CONTROL_BYTES(ctl, ctl_name, amp_pcm_event_get,
-                    amp_pcm_event_put, pcm_event_bytes,
+    INIT_SND_CONTROL_TLV_BYTES(ctl, ctl_name, pcm_event_bytes,
                     pval, pdata);
 }
 
