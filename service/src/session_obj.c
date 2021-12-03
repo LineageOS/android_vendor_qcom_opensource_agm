@@ -552,6 +552,8 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
                       ret, sess_obj->sess_id, aif_obj->aif_id);
         }
     }
+    if (sess_obj->state == SESSION_STARTED)
+        device_stop(aif_obj->dev_obj);
 
     ret = device_close(aif_obj->dev_obj);
     if (ret) {
