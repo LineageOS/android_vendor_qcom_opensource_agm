@@ -39,6 +39,26 @@
 using AgmCallbackData = ::vendor::qti::hardware::AGMIPC::V1_0::implementation::clbk_data;
 using AgmServerCallback = ::vendor::qti::hardware::AGMIPC::V1_0::implementation::SrvrClbk;
 
+static list_declare(client_list);
+static pthread_mutex_t client_list_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static list_declare(clbk_data_list);
+static pthread_mutex_t clbk_data_list_lock = PTHREAD_MUTEX_INITIALIZER;
+
+typedef struct {
+   struct listnode list;
+   uint32_t session_id;
+   uint64_t handle;
+   std::vector<std::pair<int, int>> shared_mem_fd_list;
+} agm_client_session_handle;
+
+typedef struct {
+    struct listnode list;
+    uint32_t pid;
+    android::sp<IAGMCallback> clbk_binder;
+    struct listnode agm_client_hndl_list;
+} client_info;
+
 void client_death_notifier::serviceDied(uint64_t cookie,
                    const android::wp<::android::hidl::base::V1_0::IBase>& who __unused)
 {
@@ -51,80 +71,45 @@ void client_death_notifier::serviceDied(uint64_t cookie,
     struct listnode *sess_tempnode = NULL;
 
     AgmCallbackData* clbk_data_hndl = NULL;
-    if (clbk_data_list_init) {
-        pthread_mutex_lock(&clbk_data_list_lock);
-        list_for_each_safe(node, tempnode, &clbk_data_list) {
-            clbk_data_hndl = node_to_item(node, AgmCallbackData, list);
-            if (clbk_data_hndl->srv_clt_data->pid == cookie) {
-                ALOGV("%s pid matched %d ", __func__, clbk_data_hndl->srv_clt_data->pid);
-                AgmServerCallback* tmp_sr_clbk_data = clbk_data_hndl->srv_clt_data;
-                /*Unregister this callback from session_obj*/
-                agm_session_register_cb(tmp_sr_clbk_data->session_id,
-                                        NULL,
-                                        (enum event_type)tmp_sr_clbk_data->event,
-                                        tmp_sr_clbk_data),
-                list_remove(node);
-                free(clbk_data_hndl);
-            }
+    pthread_mutex_lock(&clbk_data_list_lock);
+    list_for_each_safe(node, tempnode, &clbk_data_list) {
+        clbk_data_hndl = node_to_item(node, AgmCallbackData, list);
+        if (clbk_data_hndl->srv_clt_data->pid == cookie) {
+            ALOGV("%s pid matched %d ", __func__, clbk_data_hndl->srv_clt_data->pid);
+            AgmServerCallback* tmp_sr_clbk_data = clbk_data_hndl->srv_clt_data;
+            /*Unregister this callback from session_obj*/
+            agm_session_register_cb(tmp_sr_clbk_data->session_id,
+                                    NULL,
+                                    (enum event_type)tmp_sr_clbk_data->event,
+                                    tmp_sr_clbk_data),
+            list_remove(node);
+            delete tmp_sr_clbk_data;
+            free(clbk_data_hndl);
         }
-        pthread_mutex_unlock(&clbk_data_list_lock);
     }
+    pthread_mutex_unlock(&clbk_data_list_lock);
 
     pthread_mutex_lock(&client_list_lock);
-    if (client_list_init) {
-        list_for_each_safe(node, tempnode, &client_list) {
-            handle = node_to_item(node, client_info, list);
-            if (handle->pid == cookie) {
-                ALOGV("%s: MATCHED pid = %llu\n", __func__, (unsigned long long) cookie);
-                list_for_each_safe(sess_node, sess_tempnode,
-                                          &handle->agm_client_hndl_list) {
-                    hndl = node_to_item(sess_node, agm_client_session_handle, list);
-                    if (hndl->handle) {
-                        agm_session_close(hndl->handle);
-                        list_remove(sess_node);
-                        hndl->shared_mem_fd_list.clear();
-                        free(hndl);
-                    }
+    list_for_each_safe(node, tempnode, &client_list) {
+        handle = node_to_item(node, client_info, list);
+        if (handle->pid == cookie) {
+            ALOGV("%s: MATCHED pid = %llu\n", __func__, (unsigned long long) cookie);
+            list_for_each_safe(sess_node, sess_tempnode,
+                                      &handle->agm_client_hndl_list) {
+                hndl = node_to_item(sess_node, agm_client_session_handle, list);
+                if (hndl->handle) {
+                    agm_session_close(hndl->handle);
+                    list_remove(sess_node);
+                    hndl->shared_mem_fd_list.clear();
+                    free(hndl);
                 }
-                list_remove(node);
-                free(handle);
             }
+            list_remove(node);
+            free(handle);
         }
     }
     pthread_mutex_unlock(&client_list_lock);
     ALOGV("%s: exit\n", __func__);
-}
-
-int check_and_find_input_fd(uint64_t sess_handle, int input_fd, int *dup_fd)
-{
-    struct listnode *node = NULL;
-    struct listnode *tempnode = NULL;
-    agm_client_session_handle *hndle = NULL;
-    client_info *handle = NULL;
-    struct listnode *sess_node = NULL;
-    struct listnode *sess_tempnode = NULL;
-    pthread_mutex_lock(&client_list_lock);
-    list_for_each_safe(node, tempnode, &client_list) {
-        handle = node_to_item(node, client_info, list);
-        list_for_each_safe(sess_node, sess_tempnode,
-                                     &handle->agm_client_hndl_list) {
-            hndle = node_to_item(sess_node,
-                                     agm_client_session_handle,
-                                     list);
-            if (hndle->handle == sess_handle) {
-                for (int i = 0; i < hndle->shared_mem_fd_list.size(); i++) {
-                     if (hndle->shared_mem_fd_list[i].first == input_fd) {
-                        *dup_fd = hndle->shared_mem_fd_list[i].second;
-                        ALOGV("input fd %d found, return already dupped fd %d", input_fd, *dup_fd);
-                        pthread_mutex_unlock(&client_list_lock);
-                        return 0;
-                     }
-                }
-            }
-        }
-    }
-    pthread_mutex_unlock(&client_list_lock);
-    return -1;
 }
 
 void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
@@ -147,9 +132,8 @@ void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
                                      list);
             if (hndle->handle == sess_handle) {
                 if (hndle->shared_mem_fd_list.size() > MAX_CACHE_SIZE) {
-                    close(hndle->shared_mem_fd_list.front().second);
-                    it = hndle->shared_mem_fd_list.begin();
-                    hndle->shared_mem_fd_list.erase(it);
+                    ALOGE("%s cache limit exceeded handle %p [input %d - dup %d] ",
+                            __func__ , sess_handle, input_fd, dup_fd );
                 }
                 hndle->shared_mem_fd_list.push_back(std::make_pair(input_fd, dup_fd));
                 ALOGV("sess_handle %x, session_id:%d input_fd %d, dup fd %d", hndle->handle,
@@ -160,59 +144,51 @@ void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
     pthread_mutex_unlock(&client_list_lock);
 }
 
-void add_handle_to_list(uint32_t session_id, uint64_t handle)
+static void add_handle_to_list(uint32_t session_id, uint64_t handle)
 {
     struct listnode *node = NULL;
     client_info *client_handle = NULL;
     client_info *client_handle_temp = NULL;
     agm_client_session_handle *hndl = NULL;
-    if (client_list_init == false) {
-        pthread_mutex_init(&client_list_lock,
-                          (const pthread_mutexattr_t *) NULL);
-        list_init(&client_list);
-        client_list_init = true;
-    }
     int pid = ::android::hardware::IPCThreadState::self()->getCallingPid();
-    client_handle = (client_info *)calloc(1, sizeof(client_info));
-    if (client_handle == NULL) {
-        ALOGE("%s: Cannot allocate memory for client handle\n", __func__);
-        return;
-    }
     int flag = 0;
-    if(client_list_init) {
-        pthread_mutex_lock(&client_list_lock);
-        list_for_each(node, &client_list) {
-            client_handle_temp = node_to_item(node, client_info, list);
-            if(client_handle_temp->pid == pid) {
-                hndl = (agm_client_session_handle *)
-                                   calloc(1, sizeof(agm_client_session_handle));
-                if (hndl == NULL) {
-                    ALOGE("%s: Cannot allocate memory for agm handle\n", __func__);
-                    goto exit;
-                }
-                hndl->handle = handle;
-                hndl->session_id = session_id;
-                ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
-                list_add_tail(&client_handle_temp->agm_client_hndl_list, &hndl->list);
-                flag = 1;
-                break;
-            }
-        }
-        if (flag == 0) {
-            client_handle->pid = pid;
-            list_init(&client_handle->list);
-            list_add_tail(&client_list, &client_handle->list);
-            list_init(&client_handle->agm_client_hndl_list);
-            hndl = (agm_client_session_handle *)calloc(1, sizeof(agm_client_session_handle));
+
+    pthread_mutex_lock(&client_list_lock);
+    list_for_each(node, &client_list) {
+        client_handle_temp = node_to_item(node, client_info, list);
+        if (client_handle_temp->pid == pid) {
+            hndl = (agm_client_session_handle *)
+                               calloc(1, sizeof(agm_client_session_handle));
             if (hndl == NULL) {
-                ALOGE("%s: Cannot allocate memory to store agm session handle\n", __func__);
+                ALOGE("%s: Cannot allocate memory for agm handle\n", __func__);
                 goto exit;
             }
             hndl->handle = handle;
             hndl->session_id = session_id;
             ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
-            list_add_tail(&client_handle->agm_client_hndl_list, &hndl->list);
+            list_add_tail(&client_handle_temp->agm_client_hndl_list, &hndl->list);
+            flag = 1;
+            break;
         }
+    }
+    if (flag == 0) {
+        client_handle = (client_info *)calloc(1, sizeof(client_info));
+        if (client_handle == NULL) {
+            ALOGE("%s: Cannot allocate memory for client handle\n", __func__);
+            goto exit;
+        }
+        client_handle->pid = pid;
+        list_add_tail(&client_list, &client_handle->list);
+        list_init(&client_handle->agm_client_hndl_list);
+        hndl = (agm_client_session_handle *)calloc(1, sizeof(agm_client_session_handle));
+        if (hndl == NULL) {
+            ALOGE("%s: Cannot allocate memory to store agm session handle\n", __func__);
+            goto exit;
+        }
+        hndl->handle = handle;
+        hndl->session_id = session_id;
+        ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
+        list_add_tail(&client_handle->agm_client_hndl_list, &hndl->list);
     }
 exit :
         pthread_mutex_unlock(&client_list_lock);
@@ -232,15 +208,31 @@ void ipc_callback (uint32_t session_id,
     ALOGV("%s called with sess_id = %d, client_data = %p \n", __func__,
           session_id, client_data);
     SrvrClbk *sr_clbk_dat;
-    sr_clbk_dat = (SrvrClbk *) client_data;
-    sp<IAGMCallback> clbk_bdr = sr_clbk_dat->clbk_binder;
+    sr_clbk_dat = (SrvrClbk *)client_data;
+    sp<IAGMCallback> clbk_bdr = NULL;
+    struct listnode *node = NULL;
+    struct listnode *tempnode = NULL;
     hidl_vec<AgmEventCbParams> evt_param_l;
     hidl_vec<AgmReadWriteEventCbParams> rw_evt_param_hidl;
     AgmReadWriteEventCbParams *rw_evt_param = NULL;
     AgmEventReadWriteDonePayload *rw_payload = NULL;
     struct gsl_event_read_write_done_payload *rw_done_payload;
     uint32_t eventId = evt_param->event_id;
+    client_info *client_obj = NULL;
 
+    pthread_mutex_lock(&client_list_lock);
+    list_for_each_safe(node, tempnode, &client_list) {
+        client_obj = node_to_item(node, client_info, list);
+        if (client_obj->pid == sr_clbk_dat->pid) {
+            clbk_bdr = client_obj->clbk_binder;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&client_list_lock);
+    if (!client_obj || !clbk_bdr) {
+        ALOGE("Failed to get client data for pid %d", sr_clbk_dat->pid);
+        return;
+    }
     /*
      *In case of EXTERN_MEM and SHMEM mode only we have a
      *valid payload for READ/WRITE_DONE event
@@ -255,7 +247,6 @@ void ipc_callback (uint32_t session_id,
         struct listnode *node = NULL;
         struct listnode *tempnode = NULL;
         agm_client_session_handle *hndle = NULL;
-        client_info *handle = NULL;
         struct listnode *sess_node = NULL;
         struct listnode *sess_tempnode = NULL;
         int input_fd = -1;
@@ -263,29 +254,26 @@ void ipc_callback (uint32_t session_id,
         rw_done_payload = (struct gsl_event_read_write_done_payload *)evt_param->event_payload;
 
         pthread_mutex_lock(&client_list_lock);
-        list_for_each_safe(node, tempnode, &client_list) {
-            handle = node_to_item(node, client_info, list);
-            list_for_each_safe(sess_node, sess_tempnode,
-                                         &handle->agm_client_hndl_list) {
-                hndle = node_to_item(sess_node,
-                                         agm_client_session_handle,
-                                         list);
-                if (hndle->session_id == session_id) {
-                    std::vector<std::pair<int, int>>::iterator it;
-                    for (int i = 0; i < hndle->shared_mem_fd_list.size(); i++) {
-                         ALOGV("fd_list [input - dup ] [%d %d] list size %d \n",
-                               hndle->shared_mem_fd_list[i].first, hndle->shared_mem_fd_list[i].second,
-                               hndle->shared_mem_fd_list.size());
-                         if (hndle->shared_mem_fd_list[i].second == rw_done_payload->buff.alloc_info.alloc_handle) {
-                             input_fd = hndle->shared_mem_fd_list[i].first;
-                             it = (hndle->shared_mem_fd_list.begin() + i);
-                             if (it != hndle->shared_mem_fd_list.end())
-                                 hndle->shared_mem_fd_list.erase(it);
-                             ALOGV("input fd %d  payload fd %d\n", input_fd,
-                                   rw_done_payload->buff.alloc_info.alloc_handle);
-                             break;
-                         }
-                    }
+        list_for_each_safe(sess_node, sess_tempnode,
+                                     &client_obj->agm_client_hndl_list) {
+            hndle = node_to_item(sess_node,
+                                     agm_client_session_handle,
+                                     list);
+            if (hndle->session_id == session_id) {
+                std::vector<std::pair<int, int>>::iterator it;
+                for (int i = 0; i < hndle->shared_mem_fd_list.size(); i++) {
+                     ALOGV("fd_list [input - dup ] [%d %d] list size %d \n",
+                           hndle->shared_mem_fd_list[i].first, hndle->shared_mem_fd_list[i].second,
+                           hndle->shared_mem_fd_list.size());
+                     if (hndle->shared_mem_fd_list[i].second == rw_done_payload->buff.alloc_info.alloc_handle) {
+                         input_fd = hndle->shared_mem_fd_list[i].first;
+                         it = (hndle->shared_mem_fd_list.begin() + i);
+                         if (it != hndle->shared_mem_fd_list.end())
+                             hndle->shared_mem_fd_list.erase(it);
+                         ALOGV("input fd %d  payload fd %d\n", input_fd,
+                               rw_done_payload->buff.alloc_info.alloc_handle);
+                         break;
+                     }
                 }
             }
         }
@@ -336,6 +324,8 @@ void ipc_callback (uint32_t session_id,
         // allocated during read_with_metadata()
         if (rw_done_payload->buff.metadata)
             free(rw_done_payload->buff.metadata);
+        if (allocHidlHandle)
+            native_handle_delete(allocHidlHandle);
     } else {
         evt_param_l.resize(sizeof(struct agm_event_cb_params) +
                                 evt_param->event_payload_size);
@@ -738,24 +728,24 @@ Return<int32_t> AGM::ipc_agm_session_close(uint64_t hndl) {
     client_info *handle = NULL;
     struct listnode *sess_node = NULL;
     struct listnode *sess_tempnode = NULL;
+    int pid = ::android::hardware::IPCThreadState::self()->getCallingPid();
+
     pthread_mutex_lock(&client_list_lock);
     list_for_each_safe(node, tempnode, &client_list) {
         handle = node_to_item(node, client_info, list);
-            list_for_each_safe(sess_node, sess_tempnode,
-                                       &handle->agm_client_hndl_list) {
-                hndle = node_to_item(sess_node,
-                                     agm_client_session_handle,
-                                     list);
-                   if (hndle->handle == hndl) {
-                       list_remove(sess_node);
-                       free(hndle);
-                   }
-                }
-                if (list_empty(&handle->agm_client_hndl_list)) {
-                    ALOGV("%s Deleting the client handle list \n", __func__);
-                    list_remove(node);
-                    free(handle);
-                }
+        if (handle->pid != pid)
+            continue;
+
+        list_for_each_safe(sess_node, sess_tempnode,
+                                  &handle->agm_client_hndl_list) {
+            hndle = node_to_item(sess_node,
+                                 agm_client_session_handle,
+                                 list);
+           if (hndle->handle == hndl) {
+               list_remove(sess_node);
+               free(hndle);
+           }
+       }
     }
     pthread_mutex_unlock(&client_list_lock);
     return agm_session_close(hndl);
@@ -898,60 +888,58 @@ Return<int32_t> AGM::ipc_agm_session_set_ec_ref(uint32_t capture_session_id,
     return agm_session_set_ec_ref(capture_session_id, aif_id, state);
 }
 
+Return<int32_t> AGM::ipc_agm_client_register_callback(const sp<IAGMCallback>& cb)
+{
+    int pid = ::android::hardware::IPCThreadState::self()->getCallingPid();
+    client_info *client_handle = NULL;
+    struct listnode* node = NULL;
+
+    pthread_mutex_lock(&client_list_lock);
+    list_for_each(node, &client_list) {
+        client_handle = node_to_item(node, client_info, list);
+        if (client_handle->pid == pid)
+                goto register_cb;
+    }
+
+    client_handle = (client_info *)calloc(1, sizeof(client_info));
+    if (client_handle == NULL) {
+        ALOGE("%s: Cannot allocate memory for client handle\n", __func__);
+        pthread_mutex_unlock(&client_list_lock);
+        return -ENOMEM;
+    }
+    client_handle->pid = pid;
+    list_init(&client_handle->agm_client_hndl_list);
+    list_add_tail(&client_list, &client_handle->list);
+register_cb:
+    if (mDeathNotifier == NULL)
+        mDeathNotifier = new client_death_notifier();
+
+    cb->linkToDeath(mDeathNotifier, pid);
+    client_handle->clbk_binder = cb;
+    pthread_mutex_unlock(&client_list_lock);
+    return 0;
+}
 
 Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
-                                                     const sp<IAGMCallback>& cb,
                                                      uint32_t evt_type,
                                                      uint64_t ipc_client_data,
                                                      uint64_t clnt_data) {
     agm_event_cb ipc_cb;
     SrvrClbk  *sr_clbk_data = NULL, *tmp_sr_clbk_data = NULL;
     clbk_data *clbk_data_obj = NULL;
-
+    struct listnode* node = NULL;
     int pid = ::android::hardware::IPCThreadState::self()->getCallingPid();
+    int32_t ret = 0;
 
-    if (cb != NULL) {
-        bool newClient = true;
-
-        ALOGV("%s : client linked to death with pid = %d\n", __func__, pid);
-        sr_clbk_data = new SrvrClbk (session_id, cb, evt_type, ipc_client_data, pid);
+    if (ipc_client_data) {
+        sr_clbk_data = new SrvrClbk (session_id, evt_type, ipc_client_data, pid);
         ALOGV("%s new SrvrClbk= %p, clntdata= %llx, sess id= %d, evt_type= %d \n",
-                __func__, (void *) sr_clbk_data, (unsigned long long) ipc_client_data,session_id,
+                __func__, (void *) sr_clbk_data, (unsigned long long) ipc_client_data, session_id,
                 (uint32_t)evt_type);
-        /*TODO: Free this clbk list when the client dies abruptly also
-                deregister the callbacks*/
-        if (clbk_data_list_init == false) {
-            pthread_mutex_init(&clbk_data_list_lock,
-            (const pthread_mutexattr_t *) NULL);
-            list_init(&clbk_data_list);
-            clbk_data_list_init = true;
-        } else {
-            struct listnode* node = NULL;
-            clbk_data* callbackData = NULL;
-            pthread_mutex_lock(&clbk_data_list_lock);
-
-            list_for_each(node, &clbk_data_list) {
-                callbackData = node_to_item(node, clbk_data, list);
-                if (callbackData->srv_clt_data->pid == pid) {
-                    ALOGV("client with pid %d already exists", pid);
-                    newClient = false;
-                    break;
-                }
-            }
-
-            pthread_mutex_unlock(&clbk_data_list_lock);
-        }
-
-        if (newClient) {
-            if (mDeathNotifier == NULL) {
-                mDeathNotifier = new client_death_notifier();
-            }
-            ALOGI("linkToDeath for pid %d", pid);
-            cb->linkToDeath(mDeathNotifier, pid);
-        }
 
         clbk_data_obj = (clbk_data *)calloc(1, sizeof(clbk_data));
         if (clbk_data_obj == NULL) {
+            delete sr_clbk_data;
             ALOGE("%s: Cannot allocate memory for cb data object\n", __func__);
             return -ENOMEM;
         }
@@ -968,15 +956,16 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
          *client data should match with the one that was used to register
          *with AGM.
          */
-        struct listnode *node = NULL;
         pthread_mutex_lock(&clbk_data_list_lock);
         list_for_each(node, &clbk_data_list) {
             clbk_data_obj = node_to_item(node, clbk_data, list);
             tmp_sr_clbk_data = clbk_data_obj->srv_clt_data;
             if ((tmp_sr_clbk_data->session_id == session_id) &&
                 (tmp_sr_clbk_data->event == evt_type) &&
-                (clbk_data_obj->clbk_clt_data == clnt_data))
+                (clbk_data_obj->clbk_clt_data == clnt_data)) {
                 sr_clbk_data = tmp_sr_clbk_data;
+                break;
+            }
         }
         pthread_mutex_unlock(&clbk_data_list_lock);
         ipc_cb = NULL;
@@ -986,10 +975,21 @@ Return<int32_t> AGM::ipc_agm_session_register_callback(uint32_t session_id,
         return -ENOMEM;
     }
     ALOGV("%s : Exit ", __func__);
-    return agm_session_register_cb(session_id,
+    ret =  agm_session_register_cb(session_id,
                                    ipc_cb,
                                    (enum event_type) evt_type,
                                    (void *) sr_clbk_data);
+    /*
+     * Free client data after deregister
+     */
+    if (!ipc_client_data) {
+        list_remove(node);
+        free(clbk_data_obj);
+        delete sr_clbk_data;
+        clbk_data_obj = NULL;
+        sr_clbk_data = nullptr;
+    }
+    return ret;
 }
 
 Return<int32_t> AGM::ipc_agm_session_eos(uint64_t hndl){
