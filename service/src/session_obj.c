@@ -1340,6 +1340,9 @@ int session_obj_set_sess_params(struct session_obj *sess_obj,
        sess_obj->params_size = 0;
    }
 
+   if ((size == 0) ||(payload == NULL))
+       goto done;
+
    sess_obj->params = calloc(1, size);
    if (!sess_obj->params) {
        AGM_LOGE("No memory for sess params on sess_id:%d\n",
@@ -1388,6 +1391,9 @@ int session_obj_set_sess_aif_params(struct session_obj *sess_obj,
        aif_obj->params = NULL;
        aif_obj->params_size = 0;
    }
+
+   if ((size == 0) || (payload == NULL))
+       goto done;
 
    aif_obj->params = calloc(1, size);
    if (!aif_obj->params) {

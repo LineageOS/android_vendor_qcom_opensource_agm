@@ -36,6 +36,8 @@
 #include <hwbinder/IPCThreadState.h>
 
 #define MAX_CACHE_SIZE 64
+#define NUM_GKV(x)                     (*((uint32_t *) x))
+
 using AgmCallbackData = ::vendor::qti::hardware::AGMIPC::V1_0::implementation::clbk_data;
 using AgmServerCallback = ::vendor::qti::hardware::AGMIPC::V1_0::implementation::SrvrClbk;
 
@@ -48,8 +50,10 @@ static pthread_mutex_t clbk_data_list_lock = PTHREAD_MUTEX_INITIALIZER;
 typedef struct {
    struct listnode list;
    uint32_t session_id;
+   pthread_mutex_t handle_lock;
    uint64_t handle;
    std::vector<std::pair<int, int>> shared_mem_fd_list;
+   std::vector<int> aif_id_list;
 } agm_client_session_handle;
 
 typedef struct {
@@ -65,7 +69,7 @@ void client_death_notifier::serviceDied(uint64_t cookie,
     ALOGI("Client died (pid): %llu",(unsigned long long) cookie);
     struct listnode *node = NULL;
     struct listnode *tempnode = NULL;
-    agm_client_session_handle *hndl = NULL;
+    agm_client_session_handle *session_handle = NULL;
     client_info *handle = NULL;
     struct listnode *sess_node = NULL;
     struct listnode *sess_tempnode = NULL;
@@ -96,13 +100,34 @@ void client_death_notifier::serviceDied(uint64_t cookie,
             ALOGV("%s: MATCHED pid = %llu\n", __func__, (unsigned long long) cookie);
             list_for_each_safe(sess_node, sess_tempnode,
                                       &handle->agm_client_hndl_list) {
-                hndl = node_to_item(sess_node, agm_client_session_handle, list);
-                if (hndl->handle) {
-                    agm_session_close(hndl->handle);
-                    list_remove(sess_node);
-                    hndl->shared_mem_fd_list.clear();
-                    free(hndl);
+                session_handle = node_to_item(sess_node, agm_client_session_handle, list);
+                pthread_mutex_lock(&session_handle->handle_lock);
+                if (session_handle->handle) {
+                    pthread_mutex_unlock(&client_list_lock);
+                    agm_session_close(session_handle->handle);
+                    pthread_mutex_lock(&client_list_lock);
                 }
+                session_handle->shared_mem_fd_list.clear();
+                for (const auto & aif_id : session_handle->aif_id_list) {
+                    agm_session_aif_set_params(session_handle->session_id,
+                                      aif_id, NULL, 0);
+                    /* AGM session close disconnects the backend,
+                       if handle is not present, disconnect explicitly */
+                    if (!session_handle->handle)
+                        agm_session_aif_connect(session_handle->session_id, aif_id, false);
+                    agm_session_aif_set_metadata(session_handle->session_id, aif_id, 0, NULL);
+                }
+                session_handle->handle = 0;
+                pthread_mutex_unlock(&session_handle->handle_lock);
+
+                agm_session_set_metadata(session_handle->session_id, 0, NULL);
+                agm_session_set_params(session_handle->session_id, NULL, 0);
+
+                session_handle->aif_id_list.clear();
+                pthread_mutex_destroy(&session_handle->handle_lock);
+                list_remove(sess_node);
+                free(session_handle);
+                session_handle = NULL;
             }
             list_remove(node);
             free(handle);
@@ -116,7 +141,7 @@ void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
 {
     struct listnode *node = NULL;
     struct listnode *tempnode = NULL;
-    agm_client_session_handle *hndle = NULL;
+    agm_client_session_handle *session_handle = NULL;
     client_info *handle = NULL;
     struct listnode *sess_node = NULL;
     struct listnode *sess_tempnode = NULL;
@@ -127,71 +152,137 @@ void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
         handle = node_to_item(node, client_info, list);
         list_for_each_safe(sess_node, sess_tempnode,
                                      &handle->agm_client_hndl_list) {
-            hndle = node_to_item(sess_node,
+            session_handle = node_to_item(sess_node,
                                      agm_client_session_handle,
                                      list);
-            if (hndle->handle == sess_handle) {
-                if (hndle->shared_mem_fd_list.size() > MAX_CACHE_SIZE) {
-                    ALOGE("%s cache limit exceeded handle %p [input %d - dup %d] ",
+            if (session_handle->handle == sess_handle) {
+                if (session_handle->shared_mem_fd_list.size() > MAX_CACHE_SIZE) {
+                    ALOGE("%s cache limit exceeded handle %llx [input %d - dup %d] ",
                             __func__ , sess_handle, input_fd, dup_fd );
                 }
-                hndle->shared_mem_fd_list.push_back(std::make_pair(input_fd, dup_fd));
-                ALOGV("sess_handle %x, session_id:%d input_fd %d, dup fd %d", hndle->handle,
-                       hndle->session_id, input_fd, dup_fd);
+                session_handle->shared_mem_fd_list.push_back(std::make_pair(input_fd, dup_fd));
+                ALOGV("sess_handle %x, session_id:%d input_fd %d, dup fd %d", session_handle->handle,
+                       session_handle->session_id, input_fd, dup_fd);
             }
          }
     }
     pthread_mutex_unlock(&client_list_lock);
 }
 
-static void add_handle_to_list(uint32_t session_id, uint64_t handle)
+static client_info* get_client_handle_l(int pid)
 {
     struct listnode *node = NULL;
     client_info *client_handle = NULL;
-    client_info *client_handle_temp = NULL;
-    agm_client_session_handle *hndl = NULL;
-    int pid = ::android::hardware::IPCThreadState::self()->getCallingPid();
-    int flag = 0;
 
-    pthread_mutex_lock(&client_list_lock);
     list_for_each(node, &client_list) {
-        client_handle_temp = node_to_item(node, client_info, list);
-        if (client_handle_temp->pid == pid) {
-            hndl = (agm_client_session_handle *)
-                               calloc(1, sizeof(agm_client_session_handle));
-            if (hndl == NULL) {
-                ALOGE("%s: Cannot allocate memory for agm handle\n", __func__);
+        client_handle = node_to_item(node, client_info, list);
+        if (client_handle->pid == pid)
+            goto exit;
+    }
+
+    client_handle = (client_info *)calloc(1, sizeof(client_info));
+    if (client_handle == NULL) {
+        ALOGE("%s: Cannot allocate memory for client handle\n", __func__);
+        goto exit;
+    }
+    client_handle->pid = pid;
+    list_add_tail(&client_list, &client_handle->list);
+    list_init(&client_handle->agm_client_hndl_list);
+exit:
+    return client_handle;
+}
+
+static agm_client_session_handle* get_session_handle_l(uint32_t session_id)
+{
+    struct listnode *node = NULL;
+    agm_client_session_handle *session_handle = NULL;
+    client_info *client_handle = NULL;
+    int pid = ::android::hardware::IPCThreadState::self()->getCallingPid();
+
+    client_handle = get_client_handle_l(pid);
+    if (!client_handle) {
+        ALOGE("Client handle in NULL, unable to add session %d", session_id);
+        goto exit;
+    }
+
+    list_for_each(node, &client_handle->agm_client_hndl_list) {
+        session_handle = node_to_item(node,
+                                     agm_client_session_handle,
+                                     list);
+            if (session_handle->session_id == session_id) {
                 goto exit;
             }
-            hndl->handle = handle;
-            hndl->session_id = session_id;
-            ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
-            list_add_tail(&client_handle_temp->agm_client_hndl_list, &hndl->list);
-            flag = 1;
-            break;
+    }
+    session_handle = (agm_client_session_handle *)calloc(1, sizeof(agm_client_session_handle));
+    if (session_handle == NULL) {
+        ALOGE("%s: Cannot allocate memory to store agm session handle\n", __func__);
+        goto exit;
+    }
+    pthread_mutex_init(&session_handle->handle_lock, (const pthread_mutexattr_t *) NULL);
+    session_handle->session_id = session_id;
+    list_add_tail(&client_handle->agm_client_hndl_list, &session_handle->list);
+    ALOGV("%s: Adding session id %d to client session list", __func__, session_id);
+exit:
+    return session_handle;
+}
+
+static void add_session_to_list_l(uint32_t session_id)
+{
+    agm_client_session_handle *session_handle = NULL;
+
+
+    session_handle = get_session_handle_l(session_id);
+    if (!session_handle) {
+        ALOGE("session handle in NULL, unable to add session %d", session_id);
+        return;
+    }
+}
+
+static void add_session_aif_to_list_l(uint32_t session_id, uint64_t aif_id)
+{
+    agm_client_session_handle *session_handle = NULL;
+
+    session_handle = get_session_handle_l(session_id);
+    if (!session_handle) {
+        ALOGE("session handle in NULL, unable to add session %d", session_id);
+        return;
+    }
+    for (const auto & avail_aif_id : session_handle->aif_id_list) {
+        if (avail_aif_id == aif_id) {
+            ALOGD("Aif id %d already added to session list of %d", aif_id, session_id);
+            return;
         }
     }
-    if (flag == 0) {
-        client_handle = (client_info *)calloc(1, sizeof(client_info));
-        if (client_handle == NULL) {
-            ALOGE("%s: Cannot allocate memory for client handle\n", __func__);
-            goto exit;
-        }
-        client_handle->pid = pid;
-        list_add_tail(&client_list, &client_handle->list);
-        list_init(&client_handle->agm_client_hndl_list);
-        hndl = (agm_client_session_handle *)calloc(1, sizeof(agm_client_session_handle));
-        if (hndl == NULL) {
-            ALOGE("%s: Cannot allocate memory to store agm session handle\n", __func__);
-            goto exit;
-        }
-        hndl->handle = handle;
-        hndl->session_id = session_id;
-        ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
-        list_add_tail(&client_handle->agm_client_hndl_list, &hndl->list);
+    session_handle->aif_id_list.push_back(aif_id);
+}
+
+static void remove_session_aif_from_list_l(uint32_t session_id, uint64_t aif_id)
+{
+    agm_client_session_handle *session_handle = NULL;
+
+    session_handle = get_session_handle_l(session_id);
+    if (!session_handle) {
+        ALOGE("session handle in NULL, unable to get session %d", session_id);
+        return;
     }
-exit :
-        pthread_mutex_unlock(&client_list_lock);
+
+    auto iter = std::find(session_handle->aif_id_list.begin(), session_handle->aif_id_list.end(), aif_id);
+    if (iter != session_handle->aif_id_list.end()) {
+        session_handle->aif_id_list.erase(iter);
+    }
+}
+
+static void add_session_handle_to_list_l(uint32_t session_id, uint64_t handle)
+{
+    agm_client_session_handle *session_handle = NULL;
+
+    session_handle = get_session_handle_l(session_id);
+    if (!session_handle) {
+        ALOGE("session handle in NULL, unable to add session %d", session_id);
+        return;
+    }
+    session_handle->handle = handle;
+    ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
 }
 
 namespace vendor {
@@ -402,6 +493,10 @@ Return<int32_t> AGM::ipc_agm_session_set_metadata(uint32_t session_id,
         return -ENOMEM;
     }
     memcpy(metadata_l, metadata.data(), size);
+    pthread_mutex_lock(&client_list_lock);
+    if (NUM_GKV(metadata_l))
+        add_session_to_list_l(session_id);
+    pthread_mutex_unlock(&client_list_lock);
     ret = agm_session_set_metadata(session_id, size, metadata_l);
     free(metadata_l);
     return ret;
@@ -421,6 +516,11 @@ Return<int32_t> AGM::ipc_agm_session_aif_set_metadata(uint32_t session_id,
         return -ENOMEM;
     }
     memcpy(metadata_l, metadata.data(), size);
+    pthread_mutex_lock(&client_list_lock);
+    if (NUM_GKV(metadata_l))
+        add_session_aif_to_list_l(session_id, aif_id);
+    pthread_mutex_unlock(&client_list_lock);
+
     ret = agm_session_aif_set_metadata(session_id, aif_id, size, metadata_l);
     free(metadata_l);
     return ret;
@@ -431,6 +531,13 @@ Return<int32_t> AGM::ipc_agm_session_aif_connect(uint32_t session_id,
                                                  bool state) {
     ALOGV("%s : session_id = %d, aif_id =%d, state = %s\n", __func__,
                           session_id, aif_id, state ? "true" : "false");
+    pthread_mutex_lock(&client_list_lock);
+    if (state)
+        add_session_aif_to_list_l(session_id, aif_id);
+    else
+        remove_session_aif_from_list_l(session_id, aif_id);
+    pthread_mutex_unlock(&client_list_lock);
+
     return agm_session_aif_connect(session_id, aif_id, state);
 }
 
@@ -657,17 +764,32 @@ Return<int32_t> AGM::ipc_agm_session_register_for_events(uint32_t session_id,
 Return<void> AGM::ipc_agm_session_open(uint32_t session_id,
                                        AgmSessionMode sess_mode,
                                        ipc_agm_session_open_cb _hidl_cb) {
-    uint64_t handle;
+    uint64_t handle = 0;
+    agm_client_session_handle *session_handle = NULL;
+    hidl_vec<uint64_t> handle_ret;
+    int32_t ret = -EINVAL;
     enum agm_session_mode session_mode = (enum agm_session_mode) sess_mode;
+
     ALOGV("%s: session_id=%d session_mode=%d\n", __func__, session_id,
               session_mode);
-    int32_t ret = agm_session_open(session_id, session_mode, &handle);
-    hidl_vec<uint64_t> handle_ret;
     handle_ret.resize(sizeof(uint64_t));
+    pthread_mutex_lock(&client_list_lock);
+    session_handle = get_session_handle_l(session_id);
+    pthread_mutex_unlock(&client_list_lock);
+    if (!session_handle) {
+        *handle_ret.data() = handle;
+        goto exit;
+    }
+
+    pthread_mutex_lock(&session_handle->handle_lock);
+    ret = agm_session_open(session_id, session_mode, &handle);
     *handle_ret.data() = handle;
-    _hidl_cb(ret, handle_ret);
     if (!ret)
-        add_handle_to_list(session_id, handle);
+        add_session_handle_to_list_l(session_id, handle);
+
+    pthread_mutex_unlock(&session_handle->handle_lock);
+exit:
+    _hidl_cb(ret, handle_ret);
     ALOGV("%s : handle received is : %llx",__func__, (unsigned long long) handle);
     return Void();
 }
@@ -724,7 +846,7 @@ Return<int32_t> AGM::ipc_agm_session_close(uint64_t hndl) {
     ALOGV("%s called with handle = %llx \n", __func__, (unsigned long long) hndl);
     struct listnode *node = NULL;
     struct listnode *tempnode = NULL;
-    agm_client_session_handle *hndle = NULL;
+    agm_client_session_handle *session_handle = NULL;
     client_info *handle = NULL;
     struct listnode *sess_node = NULL;
     struct listnode *sess_tempnode = NULL;
@@ -738,15 +860,24 @@ Return<int32_t> AGM::ipc_agm_session_close(uint64_t hndl) {
 
         list_for_each_safe(sess_node, sess_tempnode,
                                   &handle->agm_client_hndl_list) {
-            hndle = node_to_item(sess_node,
+            session_handle = node_to_item(sess_node,
                                  agm_client_session_handle,
                                  list);
-           if (hndle->handle == hndl) {
+           pthread_mutex_lock(&session_handle->handle_lock);
+           if (session_handle->handle == hndl) {
+               session_handle->handle = 0;
+               pthread_mutex_unlock(&session_handle->handle_lock);
+               session_handle->shared_mem_fd_list.clear();
+               session_handle->aif_id_list.clear();
+               pthread_mutex_destroy(&session_handle->handle_lock);
                list_remove(sess_node);
-               free(hndle);
-           }
-       }
+               free(session_handle);
+               goto done;
+            }
+           pthread_mutex_unlock(&session_handle->handle_lock);
+        }
     }
+done:
     pthread_mutex_unlock(&client_list_lock);
     return agm_session_close(hndl);
 }
@@ -914,8 +1045,10 @@ register_cb:
     if (mDeathNotifier == NULL)
         mDeathNotifier = new client_death_notifier();
 
-    cb->linkToDeath(mDeathNotifier, pid);
-    client_handle->clbk_binder = cb;
+    if (!client_handle->clbk_binder) {
+        cb->linkToDeath(mDeathNotifier, pid);
+        client_handle->clbk_binder = cb;
+    }
     pthread_mutex_unlock(&client_list_lock);
     return 0;
 }
