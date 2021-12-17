@@ -561,6 +561,11 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
     free(priv->buffer_config);
     free(priv->media_config);
     free(priv->session_config);
+    if (priv->buf_info) {
+        if (priv->buf_info->data_buf_fd != -1)
+            close(priv->buf_info->data_buf_fd);
+        free(priv->buf_info);
+    }
     free(plugin->priv);
     free(plugin);
 
