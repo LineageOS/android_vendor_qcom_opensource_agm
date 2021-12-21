@@ -1261,6 +1261,11 @@ static int session_close(struct session_obj *sess_obj)
                 }
                 aif_obj->state = AIF_CLOSED;
             }
+
+            if (aif_obj->tag_config) {
+                free(aif_obj->tag_config);
+                aif_obj->tag_config = NULL;
+            }
         }
     }
     pthread_mutex_unlock(&hwep_lock);
