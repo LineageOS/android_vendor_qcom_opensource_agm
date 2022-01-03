@@ -26,14 +26,14 @@
 <!--  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                           -->
 <defs>
 <card>
-    <id>0</id>
-    <name>konamtpsndcard</name>
+    <id>100</id>
+    <name>konavirtualsndcard</name>
 
     <pcm-device>
         <id>100</id>
         <name>PCM100</name>
         <pcm_plugin>
-            <so-name>libagm_pcm_plugin.so</so-name>
+            <so-name>libagm_pcm_passthrough_plugin.so</so-name>
         </pcm_plugin>
         <props>
             <playback>1</playback>
@@ -45,7 +45,7 @@
         <id>101</id>
         <name>PCM101</name>
         <pcm_plugin>
-            <so-name>libagm_pcm_plugin.so</so-name>
+            <so-name>libagm_pcm_passthrough_plugin.so</so-name>
         </pcm_plugin>
         <props>
             <playback>0</playback>
@@ -57,7 +57,7 @@
         <id>103</id>
         <name>PCM103</name>
         <pcm_plugin>
-            <so-name>libagm_pcm_plugin.so</so-name>
+            <so-name>libagm_pcm_passthrough_plugin.so</so-name>
         </pcm_plugin>
         <props>
             <playback>1</playback>
@@ -70,7 +70,7 @@
         <id>104</id>
         <name>PCM104</name>
         <pcm_plugin>
-            <so-name>libagm_pcm_plugin.so</so-name>
+            <so-name>libagm_pcm_passthrough_plugin.so</so-name>
         </pcm_plugin>
         <props>
             <playback>0</playback>
@@ -83,7 +83,7 @@
         <id>105</id>
         <name>COMPRESS105</name>
         <compress_plugin>
-            <so-name>libagm_compress_plugin.so</so-name>
+            <so-name>libagm_compress_passthrough_plugin.so</so-name>
         </compress_plugin>
         <props>
             <playback>1</playback>
@@ -96,7 +96,7 @@
         <id>1</id>
         <name>agm_mixer</name>
         <mixer_plugin>
-            <so-name>libagm_mixer_plugin.so</so-name>
+            <so-name>libagm_mixer_passthrough_plugin.so</so-name>
         </mixer_plugin>
     </mixer>
 
