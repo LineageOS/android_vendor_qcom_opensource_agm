@@ -75,6 +75,11 @@ struct pcm_plugin_pos_buf_info {
     snd_pcm_uframes_t avail_min; /* RW: min available frames for wakeup */
 };
 
+struct agm_mmap_buffer_port {
+    void* mmap_buffer_addr;
+    snd_pcm_uframes_t mmap_buffer_length;
+};
+
 struct agm_pcm_priv {
     struct agm_media_config *media_config;
     struct agm_buffer_config *buffer_config;
@@ -86,6 +91,8 @@ struct agm_pcm_priv {
     int session_id;
     unsigned int period_size;
     snd_pcm_uframes_t total_size_frames;
+    /* idx: 0: out port, 1: in port */
+    struct agm_mmap_buffer_port mmap_buffer_port[2];
 };
 
 struct pcm_plugin_hw_constraints agm_pcm_constrs = {
@@ -325,6 +332,49 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
         clock_gettime(CLOCK_MONOTONIC, &priv->pos_buf->tstamp);
     }
 
+    return ret;
+}
+
+static void agm_get_shared_buffer_addr(struct pcm_plugin *plugin,
+                                       void **addr, snd_pcm_uframes_t *length)
+{
+    struct agm_pcm_priv *priv = plugin->priv;
+    enum direction dir;
+
+    dir = (plugin->mode & PCM_IN) ? TX : RX;
+    *addr = priv->mmap_buffer_port[dir-1].mmap_buffer_addr;
+    *length = priv->mmap_buffer_port[dir-1].mmap_buffer_length;
+}
+
+static int agm_pcm_plugin_reset(struct pcm_plugin *plugin)
+{
+    struct agm_pcm_priv *priv = plugin->priv;
+    uint64_t handle;
+    int ret = 0;
+    void *mmap_addr = NULL;
+    snd_pcm_uframes_t mmap_length = 0;
+
+    if (!(plugin->mode & PCM_NOIRQ))
+        return -EOPNOTSUPP;
+
+    ret = agm_get_session_handle(priv, &handle);
+    if (ret)
+        return ret;
+
+    if (!priv->buf_info)
+        return -EINVAL;
+
+    agm_get_shared_buffer_addr(plugin,&mmap_addr,&mmap_length);
+    if (mmap_addr && mmap_length != 0) {
+        memset(mmap_addr,0,mmap_length);
+    } else {
+        AGM_LOGE("%s: failed to clear shared buffer\n", __func__);
+        ret = -EINVAL;
+    }
+    agm_pcm_plugin_update_hw_ptr(priv);
+    priv->pos_buf->hw_ptr = (snd_pcm_uframes_t)(priv->pos_buf->hw_ptr % priv->total_size_frames);
+    priv->pos_buf->hw_ptr_base = 0;
+    AGM_LOGD("%s: reset hw_ptr to %d \n", __func__, priv->pos_buf->hw_ptr);
     return ret;
 }
 
@@ -639,7 +689,8 @@ static void* agm_pcm_mmap(struct pcm_plugin *plugin, void *addr __unused, size_t
     int flag = DATA_BUF;
     int ret = 0;
     unsigned int boundary;
-
+    void *mmap_addr = NULL;
+    enum direction dir;
     if (offset != 0)
         return MAP_FAILED;
 
@@ -687,9 +738,15 @@ static void* agm_pcm_mmap(struct pcm_plugin *plugin, void *addr __unused, size_t
     if (length > priv->buf_info->data_buf_size)
         return MAP_FAILED;
 
-    return mmap(0, length,
-            PROT_READ | PROT_WRITE, MAP_SHARED,
-            priv->buf_info->data_buf_fd, 0);
+    dir = (plugin->mode & PCM_IN) ? TX : RX;
+    mmap_addr = mmap(0, length,
+             PROT_READ | PROT_WRITE, MAP_SHARED,
+             priv->buf_info->data_buf_fd, 0);
+    if (mmap_addr != MAP_FAILED) {
+        priv->mmap_buffer_port[dir-1].mmap_buffer_addr = mmap_addr;
+        priv->mmap_buffer_port[dir-1].mmap_buffer_length = length;
+    }
+    return mmap_addr;
 }
 
 static int agm_pcm_munmap(struct pcm_plugin *plugin, void *addr, size_t length)
@@ -707,6 +764,33 @@ static int agm_pcm_munmap(struct pcm_plugin *plugin, void *addr, size_t length)
     return munmap(addr, length);
 }
 
+static int agm_pcm_ioctl(struct pcm_plugin *plugin, int cmd, ...)
+{
+    struct agm_pcm_priv *priv = plugin->priv;
+    uint64_t handle;
+    int ret = 0;
+    va_list ap;
+    void *arg;
+
+    ret = agm_get_session_handle(priv, &handle);
+    if (ret)
+        return ret;
+
+    va_start(ap, cmd);
+    arg = va_arg(ap, void *);
+    va_end(ap);
+
+    switch (cmd) {
+    case SNDRV_PCM_IOCTL_RESET:
+        ret = agm_pcm_plugin_reset(plugin);
+        break;
+    default:
+        break;
+    }
+
+    return ret;
+}
+
 struct pcm_plugin_ops agm_pcm_ops = {
     .close = agm_pcm_close,
     .hw_params = agm_pcm_hw_params,
@@ -721,6 +805,7 @@ struct pcm_plugin_ops agm_pcm_ops = {
     .mmap = agm_pcm_mmap,
     .munmap = agm_pcm_munmap,
     .poll = agm_pcm_poll,
+    .ioctl = agm_pcm_ioctl,
 };
 
 PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
