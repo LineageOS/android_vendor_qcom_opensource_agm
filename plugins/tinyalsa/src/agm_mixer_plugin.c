@@ -197,7 +197,6 @@ struct amp_priv {
     struct snd_value_enum tx_be_enum;
     struct snd_value_enum rx_be_enum;
 
-    struct agm_media_config media_fmt;
     event_callback event_cb;
 };
 
@@ -812,25 +811,24 @@ static int amp_be_media_fmt_get(struct mixer_plugin *plugin __unused,
 static int amp_be_media_fmt_put(struct mixer_plugin *plugin,
                 struct snd_control *ctl, struct snd_ctl_elem_value *ev)
 {
-    struct amp_priv *amp_priv = plugin->priv;
     uint32_t audio_intf_id = ctl->private_value;
+    struct agm_media_config media_fmt;
     int ret = 0;
 
     AGM_LOGV("%s: enter\n", __func__);
-    amp_priv->media_fmt.rate = (uint32_t)ev->value.integer.value[0];
-    amp_priv->media_fmt.channels = (uint32_t)ev->value.integer.value[1];
-    amp_priv->media_fmt.format = alsa_to_agm_fmt(ev->value.integer.value[2]);
-    amp_priv->media_fmt.data_format = (uint32_t)ev->value.integer.value[3];
+    media_fmt.rate = (uint32_t)ev->value.integer.value[0];
+    media_fmt.channels = (uint32_t)ev->value.integer.value[1];
+    media_fmt.format = alsa_to_agm_fmt(ev->value.integer.value[2]);
+    media_fmt.data_format = (uint32_t)ev->value.integer.value[3];
 
-    ret = agm_aif_set_media_config(audio_intf_id,
-                                   &amp_priv->media_fmt);
+    ret = agm_aif_set_media_config(audio_intf_id, &media_fmt);
 
     if (ret)
         AGM_LOGE("%s: set_media_config failed, err %d, aif_id %u rate %u \
                  channels %u fmt %u, data_fmt %u\n",
-                 __func__, ret, audio_intf_id, amp_priv->media_fmt.rate,
-                 amp_priv->media_fmt.channels, amp_priv->media_fmt.format,
-                 amp_priv->media_fmt.data_format);
+                 __func__, ret, audio_intf_id, media_fmt.rate,
+                 media_fmt.channels, media_fmt.format,
+                 media_fmt.data_format);
     return ret;
 }
 
