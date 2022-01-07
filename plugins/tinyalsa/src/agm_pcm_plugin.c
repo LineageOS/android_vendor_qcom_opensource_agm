@@ -1,5 +1,6 @@
 /*
 ** Copyright (c) 2019, 2021 The Linux Foundation. All rights reserved.
+** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -374,6 +375,8 @@ static int agm_pcm_plugin_reset(struct pcm_plugin *plugin)
     agm_pcm_plugin_update_hw_ptr(priv);
     priv->pos_buf->hw_ptr = (snd_pcm_uframes_t)(priv->pos_buf->hw_ptr % priv->total_size_frames);
     priv->pos_buf->hw_ptr_base = 0;
+    priv->pos_buf->wall_clk_msw = 0;
+    priv->pos_buf->wall_clk_lsw = 0;
     AGM_LOGD("%s: reset hw_ptr to %d \n", __func__, priv->pos_buf->hw_ptr);
     return ret;
 }
