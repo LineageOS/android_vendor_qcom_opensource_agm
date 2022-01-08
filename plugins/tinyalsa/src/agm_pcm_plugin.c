@@ -637,7 +637,7 @@ static snd_pcm_sframes_t agm_pcm_get_avail(struct pcm_plugin *plugin)
         else if ((snd_pcm_uframes_t)avail >= priv->pos_buf->boundary)
             avail -= priv->pos_buf->boundary;
     } else if (plugin->mode & PCM_IN) {
-        avail = priv->pos_buf->hw_ptr - priv->pos_buf->appl_ptr;
+        __builtin_sub_overflow(priv->pos_buf->hw_ptr, priv->pos_buf->appl_ptr, &avail);
         if (avail < 0)
             avail += priv->pos_buf->boundary;
     }
