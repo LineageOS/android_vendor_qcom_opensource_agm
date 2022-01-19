@@ -178,6 +178,9 @@ struct AGM : public IAGM {
                             uint32_t aif_id,
                             const hidl_vec<uint8_t>& payload,
                             uint32_t size) override;
+    Return<int32_t> ipc_agm_set_params_to_acdb_tunnel(
+                            const hidl_vec<uint8_t>& payload,
+                            uint32_t size) override;
     Return<int32_t> ipc_agm_session_register_for_events(uint32_t session_id,
                          const hidl_vec<AgmEventRegCfg>& evt_reg_cfg) override;
     Return<void> ipc_agm_session_open(uint32_t session_id,
