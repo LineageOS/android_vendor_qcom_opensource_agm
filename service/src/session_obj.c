@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -1249,6 +1250,7 @@ static int session_close(struct session_obj *sess_obj)
     }
     sess_obj->graph = NULL;
     sess_obj->ec_ref_state = false;
+    sess_obj->loopback_state = false;
 
     if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         list_for_each(node, &sess_obj->aif_pool) {
@@ -2062,7 +2064,9 @@ int session_obj_open(uint32_t session_id,
         ret = session_set_loopback(sess_obj, sess_obj->loopback_sess_id,
                                               sess_obj->loopback_state);
         if (ret) {
-            goto done;
+            sess_obj->loopback_state = false;
+            sess_obj->loopback_sess_id = 0;
+            goto unwind;
         }
     }
 
