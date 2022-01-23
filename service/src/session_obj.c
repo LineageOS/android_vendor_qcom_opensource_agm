@@ -552,6 +552,8 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
                       ret, sess_obj->sess_id, aif_obj->aif_id);
         }
     }
+    if (sess_obj->state == SESSION_STARTED)
+        device_stop(aif_obj->dev_obj);
 
     ret = device_close(aif_obj->dev_obj);
     if (ret) {
@@ -1989,6 +1991,7 @@ int session_obj_open(uint32_t session_id,
 
     struct session_obj *sess_obj = NULL;
     int ret = 0;
+    int ret_unwind = 0;
     struct listnode *node;
     struct aif *aif_obj = NULL;
 
@@ -2072,17 +2075,17 @@ unwind:
         aif_obj = node_to_item(node, struct aif, node);
         if (aif_obj && aif_obj->state == AIF_OPENED) {
             /*TODO: fix the 3rd argument to provide correct count*/
-            ret = session_disconnect_aif(sess_obj, aif_obj, 1);
-            if (ret) {
+            ret_unwind = session_disconnect_aif(sess_obj, aif_obj, 1);
+            if (ret_unwind) {
                 AGM_LOGE("Error:%d Failed to disconnect device\n",
-                                                     ret);
+                                                     ret_unwind);
             }
             aif_obj->state = AIF_OPEN;
         }
     }
-    ret = graph_close(sess_obj->graph);
-    if (ret) {
-        AGM_LOGE("Error:%d Failed to close graph\n", ret);
+    ret_unwind = graph_close(sess_obj->graph);
+    if (ret_unwind) {
+        AGM_LOGE("Error:%d Failed to close graph\n", ret_unwind);
     }
     sess_obj->graph = NULL;
 
