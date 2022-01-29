@@ -58,6 +58,40 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+**
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted (subject to the limitations in the
+** disclaimer below) provided that the following conditions are met:
+**
+**   * Redistributions of source code must retain the above copyright
+**     notice, this list of conditions and the following disclaimer.
+**
+**   * Redistributions in binary form must reproduce the above
+**     copyright notice, this list of conditions and the following
+**     disclaimer in the documentation and/or other materials provided
+**     with the distribution.
+**
+**   * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+**     contributors may be used to endorse or promote products derived
+**     from this software without specific prior written permission.
+**
+** NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+** GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+** HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+** WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+** MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+** IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+** ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+** GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+** INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+** IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+** OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _AGM_INTF_H_
@@ -180,6 +214,7 @@ enum agm_session_mode
     AGM_SESSION_NO_HOST,         /**< Hostless mode */
     AGM_SESSION_NON_TUNNEL,      /**< Non tunnel mode */
     AGM_SESSION_NO_CONFIG,       /**< No Config mode*/
+    AGM_SESSION_COMPRESS,        /**< Compress mode*/
 };
 
 struct agm_extern_alloc_buff_info{
@@ -216,6 +251,19 @@ struct agm_session_aac_dec {
     uint16_t num_channels;          /**< AAC obj type */
     uint16_t total_size_of_PCE_bits;/**< PCE bits size */
     uint32_t sample_rate;           /**< Sample rate */
+};
+
+/**
+ * AAC encoder parameters
+ */
+struct agm_session_aac_enc_cfg {
+    uint16_t aac_enc_mode; /**< AAC encoder mode */
+    uint16_t aac_fmt_flag; /**< AAC format flag */
+};
+
+struct agm_session_aac_enc {
+    uint32_t aac_bit_rate;
+    struct agm_session_aac_enc_cfg enc_cfg;
 };
 
 /**
@@ -302,6 +350,7 @@ struct agm_session_wmapro_dec {
 union agm_session_codec
 {
     struct agm_session_aac_dec aac_dec;        /**< AAC decoder config */
+    struct agm_session_aac_enc aac_enc;        /**< AAC encoder config */
     struct agm_session_flac_dec flac_dec;      /**< Flac decoder config */
     struct agm_session_alac_dec alac_dec;      /**< Alac decoder config */
     struct agm_session_ape_dec ape_dec;        /**< APE decoder config */
