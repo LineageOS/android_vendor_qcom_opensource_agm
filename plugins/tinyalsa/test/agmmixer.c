@@ -706,6 +706,36 @@ void populateChannelMap(uint16_t *pcmChannel, uint8_t numChannel)
         pcmChannel[1] = PCM_CHANNEL_R;
         pcmChannel[2] = PCM_CHANNEL_LB;
         pcmChannel[3] = PCM_CHANNEL_RB;
+    }  else if (numChannel == 5) {
+        pcmChannel[0] = PCM_CHANNEL_L;
+        pcmChannel[1] = PCM_CHANNEL_R;
+        pcmChannel[2] = PCM_CHANNEL_C;
+        pcmChannel[3] = PCM_CHANNEL_LB;
+        pcmChannel[4] = PCM_CHANNEL_RB;
+    }  else if (numChannel == 6) {
+        pcmChannel[0] = PCM_CHANNEL_L;
+        pcmChannel[1] = PCM_CHANNEL_R;
+        pcmChannel[2] = PCM_CHANNEL_C;
+        pcmChannel[3] = PCM_CHANNEL_LFE;
+        pcmChannel[4] = PCM_CHANNEL_LB;
+        pcmChannel[5] = PCM_CHANNEL_RB;
+    }  else if (numChannel == 7) {
+        pcmChannel[0] = PCM_CHANNEL_L;
+        pcmChannel[1] = PCM_CHANNEL_R;
+        pcmChannel[2] = PCM_CHANNEL_C;
+        pcmChannel[3] = PCM_CHANNEL_LFE;
+        pcmChannel[4] = PCM_CHANNEL_LB;
+        pcmChannel[5] = PCM_CHANNEL_RB;
+        pcmChannel[6] = PCM_CHANNEL_CS;
+    }  else if (numChannel == 8) {
+        pcmChannel[0] = PCM_CHANNEL_L;
+        pcmChannel[1] = PCM_CHANNEL_R;
+        pcmChannel[2] = PCM_CHANNEL_C;
+        pcmChannel[3] = PCM_CHANNEL_LFE;
+        pcmChannel[4] = PCM_CHANNEL_LB;
+        pcmChannel[5] = PCM_CHANNEL_RB;
+        pcmChannel[6] = PCM_CHANNEL_LS;
+        pcmChannel[7] = PCM_CHANNEL_RS;
     }
 }
 
