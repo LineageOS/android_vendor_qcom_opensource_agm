@@ -282,6 +282,8 @@ static int populate_cdc_dma_i2s_tdm_pcm_ep_info(hw_ep_info_t *hw_ep_info, char *
         cdc_dma_i2s_tdm_config->lpaif_type = LPAIF_AXI;
     else if (!strcmp(lpaif_type, "LPAIF_AUD"))
         cdc_dma_i2s_tdm_config->lpaif_type = LPAIF_AUD;
+    else if (!strcmp(lpaif_type, "LPAIF_SDR"))
+        cdc_dma_i2s_tdm_config->lpaif_type = LPAIF_SDR;
     else {
         AGM_LOGE("No matching lpaif_type found\n");
         return -EINVAL;
