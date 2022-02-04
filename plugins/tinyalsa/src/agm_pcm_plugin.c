@@ -74,6 +74,8 @@ struct pcm_plugin_pos_buf_info {
     struct timespec tstamp;
     snd_pcm_uframes_t appl_ptr;  /* RW: appl ptr (0...boundary-1) */
     snd_pcm_uframes_t avail_min; /* RW: min available frames for wakeup */
+    uint32_t wall_clk_msw;
+    uint32_t wall_clk_lsw;
 };
 
 struct agm_mmap_buffer_port {
@@ -308,8 +310,11 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
     snd_pcm_sframes_t circ_buf_pos;
     snd_pcm_uframes_t pos, old_hw_ptr, new_hw_ptr, hw_base;
     uint32_t read_index, wall_clk_msw, wall_clk_lsw;
+    uint64_t delta_wall_clk_us = 0;
+    uint32_t delta_wall_clk_frames = 0;
     int ret = 0;
     uint32_t period_size = priv->period_size; /** in frames */
+    uint32_t crossed_boundary = 0;
 
     do {
         ret = agm_pcm_plugin_get_shared_pos(priv->pos_buf,
@@ -322,14 +327,51 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
         old_hw_ptr = agm_pcm_plugin_get_hw_ptr(priv);
         hw_base = priv->pos_buf->hw_ptr_base;
         new_hw_ptr = hw_base + pos;
-        if (new_hw_ptr < old_hw_ptr) {
-            hw_base += priv->total_size_frames;
+
+        // Set delta_wall_clk_us only if cached wall clk is non-zero
+        if (priv->pos_buf->wall_clk_msw || priv->pos_buf->wall_clk_lsw) {
+                delta_wall_clk_us = (((uint64_t)wall_clk_msw) << 32 | wall_clk_lsw) -
+                                        (((uint64_t)priv->pos_buf->wall_clk_msw) << 32 |
+                                         priv->pos_buf->wall_clk_lsw);
+        }
+        // Identify the number of times of shared buffer length that the
+        // hw ptr has jumped through by checking wall clock time delta
+        // and assuming read ptr moved at a constant rate
+        if (delta_wall_clk_us > 0 ) {
+            delta_wall_clk_frames = ((delta_wall_clk_us / 1000000)
+                                        * (priv->media_config->rate)
+                                        * priv->media_config->channels);
+            crossed_boundary = delta_wall_clk_frames / priv->total_size_frames;
+        }
+
+        // More than 1 loop of shared buffer completed by hw_ptr
+        // No need to check if new_hw_ptr < old_hw_ptr, as new_hw_ptr
+        // has crossed old_hw_ptr atleast once if not more
+        if (crossed_boundary > 0) {
+            hw_base += (crossed_boundary * priv->total_size_frames);
             if (hw_base >= priv->pos_buf->boundary)
                 hw_base = 0;
             new_hw_ptr = hw_base + pos;
             priv->pos_buf->hw_ptr_base = hw_base;
+            AGM_LOGD("%s: crossed_boundary = %u, new_hw_ptr=%ld \n",
+                                                __func__, crossed_boundary, new_hw_ptr);
+            AGM_LOGD("%s: delta_wall_clk_frames = %lx, delta_wall_clk_us=%ld \n",
+                                                __func__, delta_wall_clk_frames, delta_wall_clk_us);
+            AGM_LOGD("%s: shared buffer length = %lx \n",
+                                                __func__, priv->total_size_frames);
+        } else {
+            if (new_hw_ptr < old_hw_ptr) {
+                hw_base += priv->total_size_frames;
+                if (hw_base >= priv->pos_buf->boundary)
+                    hw_base = 0;
+                new_hw_ptr = hw_base + pos;
+                priv->pos_buf->hw_ptr_base = hw_base;
+            }
         }
+
         priv->pos_buf->hw_ptr = new_hw_ptr;
+        priv->pos_buf->wall_clk_lsw = wall_clk_lsw;
+        priv->pos_buf->wall_clk_msw = wall_clk_msw;
         clock_gettime(CLOCK_MONOTONIC, &priv->pos_buf->tstamp);
     }
 
@@ -554,6 +596,11 @@ static int agm_pcm_prepare(struct pcm_plugin *plugin)
     uint64_t handle;
     struct agm_pcm_priv *priv = plugin->priv;
     int ret = 0;
+
+    if (priv->pos_buf) {
+        priv->pos_buf->wall_clk_msw = 0;
+        priv->pos_buf->wall_clk_lsw = 0;
+    }
 
     ret = agm_get_session_handle(priv, &handle);
     if (ret)
