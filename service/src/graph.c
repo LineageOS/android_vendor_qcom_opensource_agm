@@ -81,6 +81,7 @@ typedef struct module_info_link_list {
 }module_info_link_list_t;
 
 static char acdb_path[ACDB_PATH_MAX_LENGTH];
+static void print_graph_alias(const struct agm_meta_data_gsl *meta_data_kv);
 
 static int get_acdb_files_from_directory(const char* acdb_files_path,
                                          struct gsl_acdb_data_files *data_files)
@@ -508,6 +509,7 @@ int graph_open(struct agm_meta_data_gsl *meta_data_kv,
     }
 
     metadata_print(meta_data_kv);
+    print_graph_alias(meta_data_kv);
 
     list_init(&graph_obj->tagged_mod_list);
     pthread_mutex_init(&graph_obj->lock, (const pthread_mutexattr_t *)NULL);
@@ -1229,6 +1231,7 @@ int graph_add(struct graph_obj *graph_obj,
     add_graph.cal_key_vect.kvp = (struct gsl_key_value_pair *)
                                      meta_data_kv->ckv.kv;
     metadata_print(meta_data_kv);
+    print_graph_alias(meta_data_kv);
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_ADD_GRAPH, &add_graph,
                     sizeof(struct gsl_cmd_graph_select));
     if (ret != 0) {
@@ -1461,6 +1464,7 @@ int graph_change(struct graph_obj *graph_obj,
     change_graph.cal_key_vect.kvp = (struct gsl_key_value_pair *)
                                      meta_data_kv->ckv.kv;
     metadata_print(meta_data_kv);
+    print_graph_alias(meta_data_kv);
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_CHANGE_GRAPH, &change_graph,
                     sizeof(struct gsl_cmd_graph_select));
     if (ret != 0) {
@@ -1508,6 +1512,7 @@ int graph_remove(struct graph_obj *graph_obj,
     rm_graph.graph_key_vector.kvp = (struct gsl_key_value_pair *)
                                      meta_data_kv->gkv.kv;
     metadata_print(meta_data_kv);
+    print_graph_alias(meta_data_kv);
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_REMOVE_GRAPH, &rm_graph,
                     sizeof(struct gsl_cmd_remove_graph));
     if (ret != 0) {
@@ -1981,4 +1986,23 @@ int graph_set_media_config_datapath(struct graph_obj *graph_obj)
                  sess_obj->out_media_config.format);
     }
     return ret;
+}
+
+static void print_graph_alias(const struct agm_meta_data_gsl *meta_data_kv)
+{
+    uint32_t acdb_string_len = 255;
+    char acdb_string [255] = {0};
+    int ret = AR_EOK;
+
+    if (meta_data_kv->gkv.num_kvs == 0) {
+        AGM_LOGD("print_graph_alias: No GKV pairs in meta_data");
+        return;
+    }
+
+    ret = gsl_get_graph_alias(&meta_data_kv->gkv, acdb_string, &acdb_string_len);
+    if (ret) {
+        AGM_LOGD("gsl_get_graph_alias failed: ret = %d\n", ret);
+        return;
+    }
+    AGM_LOGD("GKV Alias %s\n", acdb_string);
 }
