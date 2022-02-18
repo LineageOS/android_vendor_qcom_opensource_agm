@@ -1162,6 +1162,7 @@ android::status_t BnAgmService::onTransact(uint32_t code,
                                 blob.data(), blob_size);
          blob.release();
          rc = ipc_agm_session_register_for_events(session_id, evt_reg_cfg);
+         free(evt_reg_cfg);
          reply->writeInt32(rc);
          break; }
 
