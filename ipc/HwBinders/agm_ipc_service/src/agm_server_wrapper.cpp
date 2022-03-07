@@ -104,11 +104,18 @@ typedef struct {
     struct listnode agm_client_hndl_list;
 } client_info;
 
-void dumpAgmStackTrace(uid_t uid, int signal) {
-    if (uid == AID_AUDIOSERVER && signal > 0) {
-        if (raise(DEBUGGER_SIGNAL)) {
-            ALOGW("%s: Sending signal %u failed with error %d",
-                    __func__, signal, errno);
+void dumpAgmStackTrace(struct agm_dump_info *d_info) {
+    if (d_info->uid == AID_AUDIOSERVER && d_info->signal > 0) {
+        // In TimeCheck or ANR scenarios, HAL receives debugger signal
+        // with sigqueue (code SI_QUEUE).
+        // Debug message to print original sender's info in the tombstone
+        ALOGE_IF(d_info->signal == DEBUGGER_SIGNAL,
+                 "signal %d (<debuggerd signal>), code -1 "
+                 "(SI_QUEUE from originating pid %d, uid %d)",
+                 d_info->signal, d_info->pid, d_info->uid);
+        if (sigqueue(getpid(), DEBUGGER_SIGNAL, {.sival_int = 0}) < 0) {
+            ALOGW("%s: Sending signal %d failed with error %d",
+                    __func__, DEBUGGER_SIGNAL, errno);
         }
     }
 }
@@ -1535,7 +1542,7 @@ Return<int32_t> AGM::ipc_agm_dump(const hidl_vec<AgmDumpInfo>& dump_info) {
     if (d_info->signal) {
         ALOGD("%s: client with pid %d received signal %d",
                   __func__, d_info->pid, d_info->signal);
-        dumpAgmStackTrace(d_info->uid, d_info->signal);
+        dumpAgmStackTrace(d_info);
     }
     return agm_dump(d_info);
 }
