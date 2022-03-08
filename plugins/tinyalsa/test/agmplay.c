@@ -66,8 +66,9 @@ struct chunk_fmt {
 
 static int close = 0;
 
-void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int device_kv,
-                 struct chunk_fmt fmt, struct device_config *dev_config, bool haptics);
+void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int *device_kv,
+                 unsigned int stream_kv, unsigned int instance_kv, unsigned int *devicepp_kv,
+                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num);
 
 void stream_close(int sig)
 {
@@ -76,24 +77,37 @@ void stream_close(int sig)
     close = 1;
 }
 
+static void usage(void)
+{
+    printf(" Usage: %s file.wav [-help print usage] [-D card] [-d device]\n"
+           " [-num_intf num of interfaces followed by interface name]\n"
+           " [-i intf_name] : Can be multiple if num_intf is more than 1\n"
+           " [-dkv device_kv] : Can be multiple if num_intf is more than 1\n"
+           " [-dppkv deviceppkv] : Assign 0 if no device pp in the graph\n"
+           " [-ikv instance_kv] :  Assign 0 if no instance kv in the graph\n"
+           " [-skv stream_kv] [-h haptics usecase]\n");
+}
+
 int main(int argc, char **argv)
 {
     FILE *file;
     struct riff_wave_header riff_wave_header;
     struct chunk_header chunk_header;
     struct chunk_fmt chunk_fmt;
-    unsigned int card = 100, device = 100;
-    unsigned int device_kv = 0;
+    unsigned int card = 100, device = 100, i=0;
+    int intf_num = 1;
+    unsigned int *device_kv = 0;
+    unsigned int stream_kv = 0;
+    unsigned int instance_kv = INSTANCE_1;
+    unsigned int *devicepp_kv = NULL;
     bool haptics = false;
-    char *intf_name = NULL;
+    char **intf_name = NULL;
     struct device_config config;
     char *filename;
     int more_chunks = 1, ret = 0;
 
     if (argc < 3) {
-        printf("Usage: %s file.wav [-D card] [-d device] [-i device_id] [-h haptics]",
-               " [-dkv device_kv]\n",
-                argv[0]);
+        usage();
         return 1;
     }
 
@@ -143,51 +157,97 @@ int main(int argc, char **argv)
             argv++;
             if (*argv)
                 card = atoi(*argv);
-        } else if (strcmp(*argv, "-i") == 0) {
+        } else if (strcmp(*argv, "-num_intf") == 0) {
             argv++;
             if (*argv)
-                intf_name = *argv;
+                intf_num = atoi(*argv);
+        } else if (strcmp(*argv, "-i") == 0) {
+            intf_name = (char**) malloc(intf_num * sizeof(char*));
+            if (!intf_name) {
+                printf("invalid memory\n");
+            }
+            for (i = 0; i < intf_num ; i++){
+                argv++;
+                if (*argv)
+                    intf_name[i] = *argv;
+            }
         } else if (strcmp(*argv, "-h") == 0) {
             argv++;
             if (*argv)
                 haptics = *argv;
         } else if (strcmp(*argv, "-dkv") == 0) {
+            device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+            if (!device_kv) {
+                printf(" insufficient memory\n");
+            }
+            for (i = 0; i < intf_num ; i++) {
+                argv++;
+                if (*argv) {
+                    device_kv[i] = convert_char_to_hex(*argv);
+                }
+            }
+        } else if (strcmp(*argv, "-skv") == 0) {
             argv++;
             if (*argv)
-                device_kv = convert_char_to_hex(*argv);
+                stream_kv = convert_char_to_hex(*argv);
+        } else if (strcmp(*argv, "-ikv") == 0) {
+            argv++;
+            if (*argv) {
+                instance_kv = atoi(*argv);
+            }
+        } else if (strcmp(*argv, "-dppkv") == 0) {
+            devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+            if (!devicepp_kv) {
+                printf(" insufficient memory\n");
+            }
+            for (i = 0; i < intf_num ; i++) {
+                devicepp_kv[i] = DEVICEPP_RX_AUDIO_MBDRC;
+            }
+            for (i = 0; i < intf_num ; i++)
+            {
+                argv++;
+                if (*argv) {
+                    devicepp_kv[i] = convert_char_to_hex(*argv);
+                }
+            }
+        } else if (strcmp(*argv, "-help") == 0) {
+            usage();
         }
         if (*argv)
             argv++;
     }
 
-    if (intf_name == NULL)
+    if (*intf_name == NULL)
         return 1;
 
-    ret = get_device_media_config(BACKEND_CONF_FILE, intf_name, &config);
-    if (ret) {
-        printf("Invalid input, entry not found for : %s\n", intf_name);
-        fclose(file);
-        return ret;
-    }
-    play_sample(file, card, device, device_kv, chunk_fmt, &config, haptics);
+    play_sample(file, card, device, device_kv, stream_kv, instance_kv, devicepp_kv,
+                 chunk_fmt, haptics, intf_name, intf_num);
 
     fclose(file);
+    if (device_kv)
+        free(device_kv);
+    if (devicepp_kv)
+        free(devicepp_kv);
+    if (intf_name)
+        free(intf_name);
 
     return 0;
 }
 
-void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int device_kv,
-                 struct chunk_fmt fmt, struct device_config *dev_config, bool haptics)
+void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int *device_kv,
+                 unsigned int stream_kv, unsigned int instance_kv, unsigned int *devicepp_kv,
+                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num)
 {
     struct pcm_config config;
     struct pcm *pcm;
     struct mixer *mixer;
     char *buffer;
     int playback_path, playback_value;
-    int size;
+    int size, index, ret = 0;
     int num_read;
-    char *name = dev_config->name;
-    struct group_config grp_config;
+    struct group_config *grp_config = (struct group_config *)malloc(intf_num*sizeof(struct group_config *));
+    struct device_config *dev_config = (struct device_config *)malloc(intf_num*sizeof(struct device_config *));
+    uint32_t miid = 0;
 
     memset(&config, 0, sizeof(config));
     config.channels = fmt.num_channels;
@@ -204,62 +264,87 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     config.stop_threshold = 0;
     config.silence_threshold = 0;
 
-    printf("Backend %s rate ch bit : %d, %d, %d\n", name,
-            dev_config->rate, dev_config->ch, dev_config->bits);
     mixer = mixer_open(card);
     if (!mixer) {
         printf("Failed to open mixer\n");
         return;
     }
 
-    /* set device/audio_intf media config mixer control */
-    if (set_agm_device_media_config(mixer, dev_config->ch, dev_config->rate,
-                                    dev_config->bits, name)) {
-        printf("Failed to set device media config\n");
-        goto err_close_mixer;
-    }
-
     if (haptics) {
         playback_path = HAPTICS;
-        playback_value = HAPTICS_PLAYBACK;
+        stream_kv = stream_kv ? stream_kv : HAPTICS_PLAYBACK;
     } else {
         playback_path = PLAYBACK;
-        playback_value = PCM_LL_PLAYBACK;
+        stream_kv = stream_kv ? stream_kv : PCM_LL_PLAYBACK;
     }
-     /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, name, device_kv, playback_path,
-                                    dev_config->rate, dev_config->bits, PCM_LL_PLAYBACK)) {
-        printf("Failed to set device metadata\n");
-        goto err_close_mixer;
+
+    for (index = 0; index < intf_num; index++) {
+        ret = get_device_media_config(BACKEND_CONF_FILE, intf_name[index], &dev_config[index]);
+        if (ret) {
+            printf("Invalid input, entry not found for : %s\n", intf_name[index]);
+            fclose(file);
+        }
+        printf("Backend %s rate ch bit : %d, %d, %d\n", intf_name[index],
+            dev_config[index].rate, dev_config[index].ch, dev_config[index].bits);
+
+        /* set device/audio_intf media config mixer control */
+        if (set_agm_device_media_config(mixer, dev_config[index].ch, dev_config[index].rate,
+                                    dev_config[index].bits, intf_name[index])) {
+            printf("Failed to set device media config\n");
+            goto err_close_mixer;
+        }
+
+        /* set audio interface metadata mixer control */
+        if (set_agm_audio_intf_metadata(mixer, intf_name[index], device_kv[index], playback_path,
+                                    dev_config[index].rate, dev_config[index].bits, stream_kv)) {
+            printf("Failed to set device metadata\n");
+            goto err_close_mixer;
+        }
     }
+
     /* set audio interface metadata mixer control */
-    if (set_agm_stream_metadata(mixer, device, playback_value, PLAYBACK, STREAM_PCM, NULL)) {
+    if (set_agm_stream_metadata(mixer, device, stream_kv, PLAYBACK, STREAM_PCM,
+                                instance_kv)) {
         printf("Failed to set pcm metadata\n");
         goto err_close_mixer;
     }
 
-    /* Note:  No common metadata as of now*/
+     /* Note:  No common metadata as of now*/
+    for (index = 0; index < intf_num; index++) {
+         if (devicepp_kv[index] != 0) {
+             if (set_agm_streamdevice_metadata(mixer, device, stream_kv, PLAYBACK, STREAM_PCM, intf_name[index],
+                                               devicepp_kv[index])) {
+                 printf("Failed to set pcm metadata\n");
+                 goto err_close_mixer;
+             }
+         }
 
-    /* connect pcm stream to audio intf */
-    if (connect_agm_audio_intf_to_stream(mixer, device, name, STREAM_PCM, true)) {
-        printf("Failed to connect pcm to audio interface\n");
-        goto err_close_mixer;
-    }
-
-    if (configure_mfc(mixer, device, name, PER_STREAM_PER_DEVICE_MFC,
-                           STREAM_PCM, dev_config->rate, dev_config->ch,
-                           dev_config->bits)) {
-        printf("Failed to configure pspd mfc\n");
-        goto err_close_mixer;
-    }
-
-    if (strstr(name, "VIRT-")) {
-        if (get_group_device_info(BACKEND_CONF_FILE, name, &grp_config))
+        /* connect pcm stream to audio intf */
+        if (connect_agm_audio_intf_to_stream(mixer, device, intf_name[index], STREAM_PCM, true)) {
+            printf("Failed to connect pcm to audio interface\n");
             goto err_close_mixer;
+        }
 
-        if (set_agm_group_device_config(mixer, name, &grp_config)) {
-            printf("Failed to set grp device config\n");
-            goto err_close_mixer;
+        ret = agm_mixer_get_miid (mixer, device, intf_name[index], STREAM_PCM, PER_STREAM_PER_DEVICE_MFC, &miid);
+        if (ret) {
+            printf("MFC not present for this graph\n");
+        } else {
+            if (configure_mfc(mixer, device, intf_name[index], PER_STREAM_PER_DEVICE_MFC,
+                           STREAM_PCM, dev_config[index].rate, dev_config[index].ch,
+                           dev_config[index].bits, miid)) {
+                printf("Failed to configure pspd mfc\n");
+                goto err_close_mixer;
+            }
+        }
+
+        if (strstr(intf_name[index], "VIRT-")) {
+            if (get_group_device_info(BACKEND_CONF_FILE, intf_name[index], &grp_config[index]))
+                goto err_close_mixer;
+
+            if (set_agm_group_device_config(mixer, intf_name[index], &grp_config[index])) {
+                printf("Failed to set grp device config\n");
+                goto err_close_mixer;
+            }
         }
     }
 
@@ -270,10 +355,11 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
         goto err_close_mixer;
     }
 
-    if (strstr(name, "VIRT-")) {
-        if (set_agm_group_mux_config(mixer, device, &grp_config, name)) {
-            printf("Failed to set grp device config\n");
-            goto err_close_pcm;
+    for (index = 0; index < intf_num; index++) {
+        if (strstr(intf_name[index], "VIRT-") || (device_kv[index] == SPEAKER) || (device_kv[index] == HANDSET)) {
+            if (set_agm_group_mux_config(mixer, device, &grp_config[index], intf_name[index], dev_config[index].ch)) {
+                printf("Failed to set grp device config\n");
+            }
         }
     }
 
@@ -306,13 +392,18 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     } while (!close && num_read > 0);
 
     pcm_stop(pcm);
-    /* connect pcm stream to audio intf */
-    connect_agm_audio_intf_to_stream(mixer, device, name, STREAM_PCM, false);
+    /* disconnect pcm stream to audio intf */
+    for (index = 0; index < intf_num; index++) {
+        connect_agm_audio_intf_to_stream(mixer, device, intf_name[index], STREAM_PCM, false);
+    }
 
     free(buffer);
 err_close_pcm:
     pcm_close(pcm);
 err_close_mixer:
+    if (dev_config)
+        free(dev_config);
+    if (grp_config)
+        free(grp_config);
     mixer_close(mixer);
 }
-

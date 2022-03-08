@@ -236,11 +236,12 @@ static void* merge_payload(uint32_t miid, int num, int *sum,  ...)
         buf += size[i];
     }
     *sum = total_size;
-	/* TODO : free memory */
+    /* TODO : free memory */
     return payload;
 }
 
-void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_intf, unsigned int cap_time, int ec_aif)
+void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_intf, unsigned int cap_time, int ec_aif,
+                    unsigned int device_kv, unsigned int stream_kv, unsigned int instance_kv, unsigned int devicepp_kv)
 {
     struct mixer *mixer;
     char *intf_name = audio_interface_name[audio_intf];
@@ -261,6 +262,7 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
     config.start_threshold = 0;
     config.stop_threshold = 0;
     config.silence_threshold = 0;
+    stream_kv = stream_kv ? stream_kv : VOICE_UI;
 
     mixer = mixer_open(card);
     if (!mixer) {
@@ -276,20 +278,25 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
     }
 
     /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, intf_name, 0, CAPTURE, config.rate, pcm_format_to_bits(format), VOICE_UI)) {
+    if (set_agm_audio_intf_metadata(mixer, intf_name, 0, CAPTURE, config.rate,
+                                    pcm_format_to_bits(format), stream_kv)) {
         printf("Failed to set device metadata\n");
         goto err_close_mixer;
     }
 
     /* set stream metadata mixer control */
-    if (set_agm_stream_metadata(mixer, device, VOICE_UI, CAPTURE, STREAM_PCM, NULL)) {
+    if (set_agm_stream_metadata(mixer, device, stream_kv, CAPTURE, STREAM_PCM,
+                                instance_kv)) {
         printf("Failed to set pcm metadata\n");
         goto err_close_mixer;
     }
 
-    if (set_agm_stream_metadata(mixer, device, VOICE_UI, CAPTURE, STREAM_PCM, intf_name)) {
-        printf("Failed to set pcm metadata\n");
-        goto err_close_mixer;
+    if (devicepp_kv != 0) {
+        if (set_agm_streamdevice_metadata(mixer, device, stream_kv, CAPTURE, STREAM_PCM,
+                                intf_name, devicepp_kv)) {
+            printf("Failed to set pcm metadata\n");
+            goto err_close_mixer;
+        }
     }
     /* connect pcm stream to audio intf */
     if (connect_agm_audio_intf_to_stream(mixer, device, intf_name, STREAM_PCM, true)) {
@@ -385,6 +392,10 @@ int main(int argc, char **argv)
     unsigned int audio_intf = 0;
     int ec_aif = -1;
     unsigned int cap_time = 5;
+    unsigned int device_kv = 0;
+    unsigned int devicepp_kv = DEVICEPP_TX_FLUENCE_FFECNS;
+    unsigned int stream_kv = 0;
+    unsigned int instance_kv = INSTANCE_1;
 
     argv += 1;
     while (*argv) {
@@ -420,12 +431,29 @@ int main(int argc, char **argv)
             argv++;
             if (*argv)
                 cap_time = atoi(*argv);
+        } else if (strcmp(*argv, "-dkv") == 0) {
+            argv++;
+            if (*argv)
+                device_kv = convert_char_to_hex(*argv);
+        } else if (strcmp(*argv, "-skv") == 0) {
+            argv++;
+            if (*argv)
+                stream_kv = convert_char_to_hex(*argv);
+        } else if (strcmp(*argv, "-ikv") == 0) {
+            argv++;
+            if (*argv)
+                instance_kv = atoi(*argv);
+        } else if (strcmp(*argv, "-dppkv") == 0) {
+            argv++;
+            if (*argv)
+                devicepp_kv = convert_char_to_hex(*argv);
         }
 
         if (*argv)
             argv++;
     }
 
-    voice_ui_test(card, device, audio_intf, cap_time, ec_aif);
+    voice_ui_test(card, device, audio_intf, cap_time, ec_aif, device_kv, stream_kv,
+                  instance_kv, devicepp_kv);
     return 0;
 }

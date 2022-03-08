@@ -60,16 +60,27 @@ struct group_config {
     unsigned int slot_mask;
 };
 
+typedef enum {
+   SLOT_MASK1  = 1,
+   SLOT_MASK3  = 3,
+   SLOT_MASK7  = 7,
+   SLOT_MASK15 = 15,
+}slot_mask_t;
+
 int convert_char_to_hex(char *char_num);
 int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
                                 unsigned int rate, unsigned int bits, char *intf_name);
 int set_agm_group_device_config(struct mixer *mixer, char *intf_name, struct group_config *config);
-int set_agm_group_mux_config(struct mixer *mixer, unsigned int device, struct group_config *config, char *intf_name);
+int set_agm_group_mux_config(struct mixer *mixer, unsigned int device, struct group_config *config, char *intf_name, unsigned int channels);
 int connect_play_pcm_to_cap_pcm(struct mixer *mixer, unsigned int p_device, unsigned int c_device);
 int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, unsigned int dkv, enum usecase_type, int rate, int bitwidth, uint32_t val);
 int set_agm_stream_metadata_type(struct mixer *mixer, int device, char *val, enum stream_type stype);
-int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum usecase_type utype, enum stream_type stype, char *intf_name);
-int set_agm_capture_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum usecase_type utype, enum stream_type stype, unsigned int dev_channels);
+int set_agm_streamdevice_metadata(struct mixer *mixer, int device, uint32_t val, enum usecase_type usecase, enum stream_type stype,
+                                  char *intf_name, unsigned int devicepp_kv);
+int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum usecase_type utype, enum stream_type stype,
+                            unsigned int instance_kv);
+int set_agm_capture_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum usecase_type utype, enum stream_type stype,
+                            unsigned int instance_kv);
 int connect_agm_audio_intf_to_stream(struct mixer *mixer, unsigned int device,
                                   char *intf_name, enum stream_type, bool connect);
 int agm_mixer_register_event(struct mixer *mixer, int device, enum stream_type stype, uint32_t miid, uint8_t is_register);
@@ -84,5 +95,5 @@ int agm_mixer_get_buf_tstamp(struct mixer *mixer, int device, enum stream_type s
 int get_device_media_config(char* filename, char *intf_name, struct device_config *config);
 int get_group_device_info(char* filename, char *intf_name, struct group_config *config);
 int configure_mfc(struct mixer *mixer, int device, char *intf_name, int tag, enum stream_type stype, unsigned int rate,
-                       unsigned int channels, unsigned int bits);
+                       unsigned int channels, unsigned int bits, uint32_t miid);
 #endif
