@@ -76,6 +76,7 @@ struct pcm_plugin_pos_buf_info {
     snd_pcm_uframes_t avail_min; /* RW: min available frames for wakeup */
     uint32_t wall_clk_msw;
     uint32_t wall_clk_lsw;
+    uint32_t frame_counter;
 };
 
 struct agm_mmap_buffer_port {
@@ -299,6 +300,7 @@ static int agm_pcm_plugin_get_shared_pos(struct pcm_plugin_pos_buf_info *pos_buf
         if (frame_cnt1 != frame_cnt2)
             continue;
 
+        pos_buf->frame_counter = frame_cnt1;
         return 0;
     }
 
@@ -316,6 +318,7 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
     int ret = 0;
     uint32_t period_size = priv->period_size; /** in frames */
     uint32_t crossed_boundary = 0;
+    uint32_t old_frame_counter = priv->pos_buf->frame_counter;
 
     do {
         ret = agm_pcm_plugin_get_shared_pos(priv->pos_buf,
@@ -371,8 +374,11 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
         }
 
         priv->pos_buf->hw_ptr = new_hw_ptr;
-        priv->pos_buf->wall_clk_lsw = wall_clk_lsw;
-        priv->pos_buf->wall_clk_msw = wall_clk_msw;
+        // cache wall clk only when there's data update in shared buffer
+        if (priv->pos_buf->frame_counter != old_frame_counter) {
+            priv->pos_buf->wall_clk_lsw = wall_clk_lsw;
+            priv->pos_buf->wall_clk_msw = wall_clk_msw;
+        }
         clock_gettime(CLOCK_MONOTONIC, &priv->pos_buf->tstamp);
     }
 
