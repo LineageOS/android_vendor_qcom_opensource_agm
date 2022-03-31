@@ -112,7 +112,7 @@ void dumpAgmStackTrace(struct agm_dump_info *d_info) {
         // Debug message to print original sender's info in the tombstone
         ALOGE_IF(d_info->signal == DEBUGGER_SIGNAL,
                  "signal %d (<debuggerd signal>), code -1 "
-                 "(SI_QUEUE from originating pid %d, uid %d)",
+                 "(SI_QUEUE from pid %d, uid %d)",
                  d_info->signal, d_info->pid, d_info->uid);
         if (sigqueue(getpid(), DEBUGGER_SIGNAL, {.sival_int = 0}) < 0) {
             ALOGW("%s: Sending signal %d failed with error %d",
