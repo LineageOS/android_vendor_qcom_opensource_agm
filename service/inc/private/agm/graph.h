@@ -313,6 +313,8 @@ int graph_get_config(struct graph_obj *graph_obj, void *payload,
 int graph_set_cal(struct graph_obj *gph_obj,
                               struct agm_meta_data_gsl *meta_data);
 
+int graph_set_acdb_param(void *payload);
+
 /**
  *\brief Issue eos to the associated graph
  *\param [in] graph_obj: associated graph obj
