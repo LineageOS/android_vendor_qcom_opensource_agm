@@ -515,7 +515,7 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
                       audio interface id:%d \n",
                        sess_obj->sess_id, aif_obj->aif_id);
         ret = -ENOMEM;
-        return ret;
+        goto done;
     }
 
     pthread_mutex_lock(&hwep_lock);
@@ -532,7 +532,7 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
                           sess_obj->sess_id, aif_obj->aif_id);
             ret = -ENOMEM;
             pthread_mutex_unlock(&hwep_lock);
-            return ret;
+            goto done;
         }
 
         temp.gkv = merged_metadata->gkv;
@@ -562,10 +562,17 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
             ret, aif_obj->aif_id);
     }
     pthread_mutex_unlock(&hwep_lock);
-    if (merged_meta_sess_aif)
-        metadata_free(merged_meta_sess_aif);
 
-    metadata_free(merged_metadata);
+done:
+    if (merged_meta_sess_aif) {
+        metadata_free(merged_meta_sess_aif);
+        free(merged_meta_sess_aif);
+    }
+
+    if (merged_metadata) {
+        metadata_free(merged_metadata);
+        free(merged_metadata);
+    }
     return ret;
 }
 

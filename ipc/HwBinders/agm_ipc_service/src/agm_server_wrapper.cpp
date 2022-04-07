@@ -95,7 +95,7 @@ typedef struct {
    pthread_mutex_t handle_lock;
    uint64_t handle;
    std::vector<std::pair<int, int>> shared_mem_fd_list;
-   std::vector<int> aif_id_list;
+   std::vector<uint32_t> aif_id_list;
 } agm_client_session_handle;
 
 typedef struct {
@@ -297,7 +297,7 @@ static void add_session_to_list_l(uint32_t session_id)
     }
 }
 
-static void add_session_aif_to_list_l(uint32_t session_id, uint64_t aif_id)
+static void add_session_aif_to_list_l(uint32_t session_id, uint32_t aif_id)
 {
     agm_client_session_handle *session_handle = NULL;
 
@@ -315,7 +315,7 @@ static void add_session_aif_to_list_l(uint32_t session_id, uint64_t aif_id)
     session_handle->aif_id_list.push_back(aif_id);
 }
 
-static void remove_session_aif_from_list_l(uint32_t session_id, uint64_t aif_id)
+static void remove_session_aif_from_list_l(uint32_t session_id, uint32_t aif_id)
 {
     agm_client_session_handle *session_handle = NULL;
 
