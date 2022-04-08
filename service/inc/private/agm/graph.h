@@ -317,7 +317,7 @@ int graph_get_config(struct graph_obj *graph_obj, void *payload,
 int graph_set_cal(struct graph_obj *gph_obj,
                               struct agm_meta_data_gsl *meta_data);
 
-int graph_set_acdb_param(void *payload);
+int graph_rw_acdb_param(void *payload, bool is_param_write);
 
 /**
  *\brief Issue eos to the associated graph
@@ -412,6 +412,22 @@ int graph_set_cal_data_to_acdb(
 
 int graph_get_tagged_data(const struct agm_key_vector_gsl *graph_key_vect,
     uint32_t tag, struct agm_key_vector_gsl *tag_key_vect, uint8_t *payload,
+    size_t *payload_size);
+
+/**
+ *\brief Get TKV or CKV parameter from acdb
+ *\param [in] graph_key_vect: graph key vector list
+ *\param [in] tag: tag for the module. use 0 for CKV.
+ *\param [in] tag_key_vect: tag key vector list
+ *\param [in/out] payload: query buffer for in and return buffer for out
+ *\param [in/out] payload_size: size of the payload for query buffer at in and
+ *                              return buffer at out
+ *
+ * return CASA_EOK on success or error code otherwise.
+ */
+int graph_get_tckv_data_from_acdb(
+    const struct agm_key_vector_gsl *graph_key_vect, uint32_t tag,
+    struct agm_key_vector_gsl *tag_key_vect, uint8_t *payload,
     size_t *payload_size);
 
 /**

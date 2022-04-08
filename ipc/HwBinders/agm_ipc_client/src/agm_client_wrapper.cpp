@@ -656,6 +656,37 @@ int agm_set_params_to_acdb_tunnel(void *payload, size_t size)
     return -EINVAL;
 }
 
+int agm_get_params_from_acdb_tunnel(void *payload, size_t *size)
+{
+    ALOGV("%s: enter\n", __func__);
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+        uint32_t size_hidl = (uint32_t) *size;
+        int ret = 0;
+        hidl_vec<uint8_t> payload_hidl;
+        payload_hidl.resize(size_hidl);
+        memcpy(payload_hidl.data(), payload, size_hidl);
+        agm_client->ipc_agm_get_params_from_acdb_tunnel(
+                            payload_hidl,
+                            size_hidl,
+                            [&](int32_t _ret,
+                                hidl_vec<uint8_t> payload_ret,
+                                uint32_t size_ret)
+                            { ret = _ret;
+                              if (ret != -ENOMEM) {
+                                  if (payload != NULL)
+                                      memcpy(payload, payload_ret.data(), size_ret);
+                                  else if (size_ret == 0)
+                                      ALOGE("%s : received NULL Payload",__func__);
+                                  *size = (size_t) size_ret;
+                              }
+                            });
+        return ret;
+    }
+
+    return -EINVAL;
+}
+
 int agm_session_register_for_events(uint32_t session_id,
                                           struct agm_event_reg_cfg *evt_reg_cfg)
 {

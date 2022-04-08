@@ -78,6 +78,8 @@ class AgmService : public BnAgmService
         virtual int ipc_agm_session_aif_get_tag_module_info(uint32_t session_id,
                                      uint32_t aif_id, void *payload,
                                      size_t *size);
+        virtual int ipc_agm_get_params_from_acdb_tunnel(void *payload,
+                                     size_t *size);
         virtual int ipc_agm_session_aif_set_params(uint32_t session_id,
                                      uint32_t aif_id, void *payload,
                                      size_t size);

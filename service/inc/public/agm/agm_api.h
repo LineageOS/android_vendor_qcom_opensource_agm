@@ -748,6 +748,17 @@ int agm_session_get_params(uint32_t session_id,
     void* payload, size_t size);
 
 /**
+ * \brief Get parameters for modules at acdb without session
+ *
+
+ * \param[in] payload - payload with tag and calibration date
+ * \param[in] size - size of payload
+ *
+ *  \return 0 on success, error code on failure.
+ */
+int agm_get_params_from_acdb_tunnel(void *payload, size_t *size);
+
+/**
  * \brief Set parameters for modules in b/w stream and audio interface
  *
  * \param[in] session_id - Valid audio session id
@@ -779,7 +790,7 @@ int agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id,
                                 void *payload, size_t size);
 
 /**
- * \brief Set parameters for modules at acd without session
+ * \brief Set parameters for modules at acdb without session
  *
 
  * \param[in] payload - payload with tag and calibration date
