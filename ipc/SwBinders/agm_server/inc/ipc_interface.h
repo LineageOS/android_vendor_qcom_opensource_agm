@@ -90,6 +90,8 @@ class IAgmService: public ::android::IInterface
         virtual int ipc_agm_session_aif_get_tag_module_info(uint32_t session_id,
                                     uint32_t aif_id, void *payload,
                                     size_t *size) = 0;
+        virtual int ipc_agm_get_params_with_tag_from_acdb(void *payload,
+                                    size_t *size) = 0;
         virtual int ipc_agm_session_aif_set_params(uint32_t session_id,
                                     uint32_t aif_id, void *payload,
                                     size_t size) = 0;
