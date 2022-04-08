@@ -158,6 +158,10 @@ struct AGM : public IAGM {
                                 uint32_t size,
                                 const hidl_vec<uint8_t>& buff,
                                 ipc_agm_session_get_params_cb _hidl_cb) override;
+    Return<void> ipc_agm_get_params_from_acdb_tunnel(
+                 const hidl_vec<uint8_t>& payload,
+                 uint32_t size,
+                 ipc_agm_get_params_from_acdb_tunnel_cb _hidl_cb) override;
     Return<int32_t> ipc_agm_aif_set_params(uint32_t aif_id,
                                            const hidl_vec<uint8_t>& payload,
                                            uint32_t size) override;
