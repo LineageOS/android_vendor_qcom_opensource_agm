@@ -90,6 +90,12 @@
 
 #define TAGGED_MOD_SIZE_BYTES 1024
 
+enum {
+    MIID_IDX,
+    NUM_OF_PARAM_IDX,
+    PARAM_ID_IDX,
+    PARAM_LIST_MAX_IDX,
+};
 
 /* TODO: remove this later after including in spf header files */
 #define PARAM_ID_SOFT_PAUSE_START 0x800102e
@@ -1194,7 +1200,7 @@ int graph_set_cal(struct graph_obj *graph_obj,
      return ret;
 }
 
-int graph_set_acdb_param(void *payload)
+int graph_rw_acdb_param(void *payload, bool is_param_write)
 {
     int ret = 0;
     struct agm_acdb_tunnel_param *payloadACDBTunnelInfo = NULL;
@@ -1323,10 +1329,17 @@ int graph_set_acdb_param(void *payload)
         AGM_LOGV("%d data to acdb = 0x%x", i, *ptr++);
     }
 
-    if (payloadACDBTunnelInfo->isTKV)
-        ret = gsl_set_tag_data_to_acdb(&gkv, tag, &kv, ptr_to_param, actual_size);
-    else
-        ret = gsl_set_cal_data_to_acdb(&gkv, &kv, ptr_to_param, actual_size);
+    if (is_param_write) {
+        if (payloadACDBTunnelInfo->isTKV)
+            ret = gsl_set_tag_data_to_acdb(&gkv, tag, &kv, ptr_to_param, actual_size);
+        else
+            ret = gsl_set_cal_data_to_acdb(&gkv, &kv, ptr_to_param, actual_size);
+    } else {
+        if (payloadACDBTunnelInfo->isTKV)
+            ret = graph_get_tckv_data_from_acdb(&gkv, tag, &kv, ptr_to_param, &actual_size);
+        else
+            ret = graph_get_tckv_data_from_acdb(&gkv, 0, &kv, ptr_to_param, &actual_size);
+    }
 
     return ar_err_get_lnx_err_code(ret);
 }
@@ -2170,6 +2183,94 @@ int graph_get_tagged_data(
     return gsl_get_tagged_data((struct gsl_key_vector *)graph_key_vect,
                 tag, (struct gsl_key_vector *)tag_key_vect,
                 payload, payload_size);
+}
+
+int graph_get_tckv_data_from_acdb(
+    const struct agm_key_vector_gsl *graph_key_vect, uint32_t tag,
+    struct agm_key_vector_gsl *tag_key_vect, uint8_t *payload,
+    size_t *payload_size)
+{
+    int ret = 0;
+    uint32_t *ptr = NULL;
+    size_t query_payload_size = *payload_size;
+    struct apm_module_param_data_t *param = (apm_module_param_data_t *)payload;
+    uint32_t *param_list;
+
+    if (!payload) {
+        return -EINVAL;
+    }
+
+    //payload: instance_id, param_id, size, error_code, data, padding if possible
+    ptr = (uint32_t *)payload;
+    param_list = calloc(1, PARAM_LIST_MAX_IDX * sizeof(uint32_t));
+    if (!param_list)
+        return -ENOMEM;
+
+    param_list[MIID_IDX] = ptr[0];
+    param_list[NUM_OF_PARAM_IDX] = 1;
+    param_list[PARAM_ID_IDX] = param->param_id;
+
+    AGM_LOGI("miid=0x%x param_id=0x%x",
+                param_list[MIID_IDX], param_list[PARAM_ID_IDX]);
+
+    if (tag) {
+        AGM_LOGI("Tag for tkv is 0x%x", tag);
+        ret = gsl_get_tag_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
+                    tag, (struct gsl_key_vector *)tag_key_vect, 1, param_list,
+                    NULL, payload_size);
+    } else {
+        AGM_LOGI("This is ckv");
+        ret = gsl_get_cal_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
+                    (struct gsl_key_vector *)tag_key_vect, 1, param_list,
+                    NULL, payload_size);
+    }
+
+    if (ret) {
+        AGM_LOGE("failed to get tagged data size");
+        ret = -EINVAL;
+        goto end;
+    }
+
+    AGM_LOGI("expected size = %d query_size= %d",
+                *payload_size, query_payload_size);
+    if (*payload_size > query_payload_size) {
+        AGM_LOGE("payload size is too small to hold result.");
+        ret = -ENOMEM;
+        goto end;
+    }
+
+    uint8_t *get_payload = calloc(1, *payload_size);
+    if (!get_payload) {
+        ret = -ENOMEM;
+        goto end;
+    }
+
+    if (tag) {
+        AGM_LOGE("This is tag data.");
+        ret = gsl_get_tag_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
+                    tag, (struct gsl_key_vector *)tag_key_vect, 1, param_list,
+                    get_payload, payload_size);
+    } else {
+        AGM_LOGE("This is ckv data.");
+        ret = gsl_get_cal_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
+                    (struct gsl_key_vector *)tag_key_vect, 1, param_list,
+                    get_payload, payload_size);
+    }
+
+    if (ret) {
+        AGM_LOGE("failed to get tagged data");
+        ret = -EINVAL;
+        goto error;
+    }
+
+    memcpy(payload, get_payload, *payload_size);
+
+error:
+    free(get_payload);
+
+end:
+    free(param_list);
+    return ret;
 }
 
 int graph_enable_acdb_persistence(uint8_t enable_flag)
