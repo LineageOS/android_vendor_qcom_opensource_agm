@@ -283,6 +283,7 @@ int graph_init()
     struct gsl_init_data init_data;
     const char *delta_file_path;
     char file_path_extn[FILE_PATH_EXTN_MAX_SIZE] = {0};
+    char file_path_extn_wo_variant[FILE_PATH_EXTN_MAX_SIZE] = {0};
     bool snd_card_found = false;
 
 #ifndef ACDB_PATH
@@ -291,7 +292,7 @@ int graph_init()
     /*Populate acdbfiles from the shared file path*/
     acdb_files.num_files = 0;
 
-    snd_card_found = get_file_path_extn(file_path_extn);
+    snd_card_found = get_file_path_extn(file_path_extn, file_path_extn_wo_variant);
     if (snd_card_found) {
         snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, file_path_extn);
     } else {
@@ -301,8 +302,15 @@ int graph_init()
     AGM_LOGI("acdb file path: %s\n", acdb_path);
 
     ret = get_acdb_files_from_directory(acdb_path, &acdb_files);
-    if (ret)
-       goto err;
+    if (ret) {
+        /* if acdb_path is not found, try without variant */
+        snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH,
+                file_path_extn_wo_variant);
+        AGM_LOGI("trying - acdb file path: %s\n", acdb_path);
+        ret = get_acdb_files_from_directory(acdb_path, &acdb_files);
+        if (ret)
+            goto err;
+    }
 
 #ifdef ACDB_DELTA_FILE_PATH
     delta_file_path = CONV_TO_STRING(ACDB_DELTA_FILE_PATH);
