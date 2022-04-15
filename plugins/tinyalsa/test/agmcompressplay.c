@@ -295,7 +295,8 @@ int main(int argc, char **argv)
         } else if (strcmp(*argv, "-i") == 0) {
             intf_name = (char**) malloc(intf_num * sizeof(char*));
             if (!intf_name) {
-                printf("invalid memory\n");
+                printf("insufficient memory\n");
+                return 1;
             }
             for (i = 0; i < intf_num ; i++){
                 argv++;
@@ -306,6 +307,7 @@ int main(int argc, char **argv)
             device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
             if (!device_kv) {
                 printf(" insufficient memory\n");
+                return 1;
             }
             for (i = 0; i < intf_num ; i++) {
                 argv++;
@@ -326,6 +328,7 @@ int main(int argc, char **argv)
             devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
             if (!devicepp_kv) {
                 printf(" insufficient memory\n");
+                return 1;
             }
             for (i = 0; i < intf_num ; i++) {
                 devicepp_kv[i] = DEVICEPP_RX_AUDIO_MBDRC;
@@ -377,10 +380,21 @@ void play_samples(char *name, unsigned int card, unsigned int device, unsigned i
     char *buffer;
     int num_read, wrote;
     unsigned int channels = 0, rate = 0, bits = 0;
-    struct device_config *dev_config = (struct device_config *)malloc(intf_num*sizeof(struct device_config *));
-    struct group_config *grp_config = (struct group_config *)malloc(intf_num*sizeof(struct group_config *));
+    struct device_config *dev_config = NULL;
+    struct group_config *grp_config = NULL;
     int size, index, ret = 0;
     uint32_t miid = 0;
+
+    dev_config = (struct device_config *) malloc(intf_num * sizeof(struct device_config *));
+    if (!dev_config) {
+        printf("Failed to allocate memory for dev config");
+        return;
+    }
+    grp_config = (struct group_config *) malloc(intf_num * sizeof(struct group_config *));
+    if (!grp_config) {
+        printf("Failed to allocate memory for group config");
+        return;
+    }
 
     stream_kv = stream_kv ? stream_kv : COMPRESSED_OFFLOAD_PLAYBACK;
 
