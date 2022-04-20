@@ -96,6 +96,7 @@ struct agm_pcm_priv {
     snd_pcm_uframes_t total_size_frames;
     /* idx: 0: out port, 1: in port */
     struct agm_mmap_buffer_port mmap_buffer_port[2];
+    bool mmap_status;
 };
 
 struct pcm_plugin_hw_constraints agm_pcm_constrs = {
@@ -648,6 +649,7 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
 {
     struct agm_pcm_priv *priv = plugin->priv;
     uint64_t handle;
+    enum direction dir;
     int ret = 0;
 
     ret = agm_get_session_handle(priv, &handle);
@@ -661,6 +663,21 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
     free(priv->buffer_config);
     free(priv->media_config);
     free(priv->session_config);
+    // unmap memory in case agm_pcm_munmap not called before close
+    if (priv->mmap_status) {
+        if (plugin->mode & PCM_NOIRQ) {
+            if (priv->pos_buf) {
+                munmap(priv->pos_buf->pos_buf_addr,
+                        priv->buf_info->pos_buf_size);
+                free(priv->pos_buf);
+                priv->pos_buf = NULL;
+            }
+        }
+        dir = (plugin->mode & PCM_IN) ? TX : RX;
+        munmap(priv->mmap_buffer_port[dir-1].mmap_buffer_addr,
+            priv->mmap_buffer_port[dir-1].mmap_buffer_length);
+        priv->mmap_status = false;
+    }
     if (priv->buf_info) {
         if (priv->buf_info->data_buf_fd != -1)
             close(priv->buf_info->data_buf_fd);
@@ -796,6 +813,7 @@ static void* agm_pcm_mmap(struct pcm_plugin *plugin, void *addr __unused, size_t
         priv->mmap_buffer_port[dir-1].mmap_buffer_addr = mmap_addr;
         priv->mmap_buffer_port[dir-1].mmap_buffer_length = length;
     }
+    priv->mmap_status = true;
     return mmap_addr;
 }
 
@@ -803,6 +821,7 @@ static int agm_pcm_munmap(struct pcm_plugin *plugin, void *addr, size_t length)
 {
     struct agm_pcm_priv *priv = plugin->priv;
 
+    priv->mmap_status = false;
     if (plugin->mode & PCM_NOIRQ) {
         if (priv->pos_buf) {
             munmap(priv->pos_buf->pos_buf_addr,
@@ -929,6 +948,7 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
     priv->session_config = session_config;
     priv->card_node = card_node;
     priv->session_id = session_id;
+    priv->mmap_status = false;
     snd_card_def_get_int(pcm_node, "session_mode", &sess_mode);
 
     ret = agm_session_open(session_id, sess_mode, &handle);

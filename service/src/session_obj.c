@@ -515,7 +515,7 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
                       audio interface id:%d \n",
                        sess_obj->sess_id, aif_obj->aif_id);
         ret = -ENOMEM;
-        return ret;
+        goto done;
     }
 
     pthread_mutex_lock(&hwep_lock);
@@ -532,7 +532,7 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
                           sess_obj->sess_id, aif_obj->aif_id);
             ret = -ENOMEM;
             pthread_mutex_unlock(&hwep_lock);
-            return ret;
+            goto done;
         }
 
         temp.gkv = merged_metadata->gkv;
@@ -562,10 +562,17 @@ static int session_disconnect_aif(struct session_obj *sess_obj,
             ret, aif_obj->aif_id);
     }
     pthread_mutex_unlock(&hwep_lock);
-    if (merged_meta_sess_aif)
-        metadata_free(merged_meta_sess_aif);
 
-    metadata_free(merged_metadata);
+done:
+    if (merged_meta_sess_aif) {
+        metadata_free(merged_meta_sess_aif);
+        free(merged_meta_sess_aif);
+    }
+
+    if (merged_metadata) {
+        metadata_free(merged_metadata);
+        free(merged_metadata);
+    }
     return ret;
 }
 
@@ -1585,15 +1592,19 @@ int session_obj_rw_acdb_params_with_tag(
     memcpy((uint8_t *)tckv.kv, acdb_param->blob,
                 tckv.num_kvs*sizeof(struct agm_key_value));
     ptr = acdb_param->blob + tckv.num_kvs * sizeof(struct agm_key_value);
+    AGM_LOGV("blob_size = %d", acdb_param->blob_size);
     actual_size = acdb_param->blob_size -
                         acdb_param->num_kvs * sizeof(struct agm_key_value);
+    for (int f = 0; f < actual_size; f++) {
+        AGM_LOGV("%d blob data is 0x%x", f, ptr[f]);
+    }
     if (acdb_param->isTKV) {
-        AGM_LOGD("%s: TKV param to ACDB.\n", __func__);
+        AGM_LOGI("%s: TKV param to ACDB.\n", __func__);
         ret = graph_set_tag_data_to_acdb(&merged_metadata->gkv,
                                 acdb_param->tag, &tckv,
                                 ptr, actual_size);
     } else {
-        AGM_LOGD("%s: CKV param to ACDB.\n", __func__);
+        AGM_LOGI("%s: CKV param to ACDB.\n", __func__);
         ret = graph_set_cal_data_to_acdb(&merged_metadata->gkv,
                                     &tckv, ptr, actual_size);
     }
@@ -1606,6 +1617,27 @@ free_metadata:
     }
 error:
     pthread_mutex_unlock(&sess_obj->lock);
+
+    return ret;
+}
+
+int session_dummy_rw_acdb_tunnel(
+                             void *payload, bool is_param_set)
+{
+    int ret = 0;
+    uint8_t enable_flag = 1;
+
+    AGM_LOGD("enter");
+    ret = graph_enable_acdb_persistence(enable_flag);
+    if (ret) {
+        AGM_LOGE("Error: graph_enable_acdb_persistence failed. ret = %d\n", ret);
+        return ret;
+    }
+
+    if (is_param_set)
+        ret = graph_set_acdb_param(payload);
+
+    AGM_LOGD("exit status=%d", ret);
 
     return ret;
 }
@@ -1792,6 +1824,19 @@ done:
     }
 
     pthread_mutex_unlock(&sess_obj->lock);
+    return ret;
+}
+
+int session_dummy_get_tag_with_module_info(struct agm_key_vector_gsl *gkv,
+                                         void *payload, size_t *size)
+{
+    int ret = 0;
+
+    ret = graph_get_tags_with_module_info(gkv, payload, size);
+    if (ret) {
+        AGM_LOGE("Error getting tag with module info from graph");
+    }
+
     return ret;
 }
 

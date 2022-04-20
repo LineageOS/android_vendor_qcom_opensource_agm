@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -94,7 +95,7 @@ typedef struct {
    pthread_mutex_t handle_lock;
    uint64_t handle;
    std::vector<std::pair<int, int>> shared_mem_fd_list;
-   std::vector<int> aif_id_list;
+   std::vector<uint32_t> aif_id_list;
 } agm_client_session_handle;
 
 typedef struct {
@@ -111,7 +112,7 @@ void dumpAgmStackTrace(struct agm_dump_info *d_info) {
         // Debug message to print original sender's info in the tombstone
         ALOGE_IF(d_info->signal == DEBUGGER_SIGNAL,
                  "signal %d (<debuggerd signal>), code -1 "
-                 "(SI_QUEUE from originating pid %d, uid %d)",
+                 "(SI_QUEUE from pid %d, uid %d)",
                  d_info->signal, d_info->pid, d_info->uid);
         if (sigqueue(getpid(), DEBUGGER_SIGNAL, {.sival_int = 0}) < 0) {
             ALOGW("%s: Sending signal %d failed with error %d",
@@ -296,7 +297,7 @@ static void add_session_to_list_l(uint32_t session_id)
     }
 }
 
-static void add_session_aif_to_list_l(uint32_t session_id, uint64_t aif_id)
+static void add_session_aif_to_list_l(uint32_t session_id, uint32_t aif_id)
 {
     agm_client_session_handle *session_handle = NULL;
 
@@ -314,7 +315,7 @@ static void add_session_aif_to_list_l(uint32_t session_id, uint64_t aif_id)
     session_handle->aif_id_list.push_back(aif_id);
 }
 
-static void remove_session_aif_from_list_l(uint32_t session_id, uint64_t aif_id)
+static void remove_session_aif_from_list_l(uint32_t session_id, uint32_t aif_id)
 {
     agm_client_session_handle *session_handle = NULL;
 
@@ -361,8 +362,8 @@ void ipc_callback (uint32_t session_id,
     sp<IAGMCallback> clbk_bdr = NULL;
     struct listnode *node = NULL;
     struct listnode *tempnode = NULL;
-    hidl_vec<AgmEventCbParams> evt_param_l;
-    hidl_vec<AgmReadWriteEventCbParams> rw_evt_param_hidl;
+    hidl_vec<AgmEventCbParams> evt_param_l(1);
+    hidl_vec<AgmReadWriteEventCbParams> rw_evt_param_hidl(1);
     AgmReadWriteEventCbParams *rw_evt_param = NULL;
     AgmEventReadWriteDonePayload *rw_payload = NULL;
     struct gsl_event_read_write_done_payload *rw_done_payload;
@@ -438,7 +439,6 @@ void ipc_callback (uint32_t session_id,
             ALOGE("%s native_handle_create fails", __func__);
             return;
         }
-        rw_evt_param_hidl.resize(sizeof(struct AgmReadWriteEventCbParams));
         rw_evt_param = rw_evt_param_hidl.data();
         rw_evt_param->source_module_id = evt_param->source_module_id;
         rw_evt_param->event_payload_size = sizeof(struct agm_event_read_write_done_payload);
@@ -476,8 +476,6 @@ void ipc_callback (uint32_t session_id,
         if (allocHidlHandle)
             native_handle_delete(allocHidlHandle);
     } else {
-        evt_param_l.resize(sizeof(struct agm_event_cb_params) +
-                                evt_param->event_payload_size);
         evt_param_l.data()->source_module_id = evt_param->source_module_id;
         evt_param_l.data()->event_payload_size = evt_param->event_payload_size;
         evt_param_l.data()->event_id = evt_param->event_id;
@@ -716,13 +714,9 @@ Return<int32_t> AGM::ipc_agm_session_aif_set_cal(uint32_t session_id,
             return -ENOMEM;
     }
     cal_config_local->num_ckvs = cal_config.data()->num_ckvs;
-    AgmKeyValue * ptr = NULL;
     for (int i=0 ; i < cal_config.data()->num_ckvs ; i++ ) {
-        ptr = (AgmKeyValue *) (cal_config.data() +
-                                             sizeof(struct agm_cal_config) +
-                                             (sizeof(AgmKeyValue)*i));
-        cal_config_local->kv[i].key = ptr->key;
-        cal_config_local->kv[i].value = ptr->value;
+        cal_config_local->kv[i].key = cal_config.data()->kv[i].key;
+        cal_config_local->kv[i].value = cal_config.data()->kv[i].value;
     }
     ret = agm_session_aif_set_cal(session_id, aif_id, cal_config_local);
     free(cal_config_local);
@@ -762,13 +756,9 @@ Return<int32_t> AGM::ipc_agm_set_params_with_tag(uint32_t session_id,
     }
     tag_config_local->num_tkvs = tag_config.data()->num_tkvs;
     tag_config_local->tag = tag_config.data()->tag;
-    AgmKeyValue * ptr = NULL;
-    for (int i=0 ; i < tag_config.data()->num_tkvs ; i++ ) {
-        ptr = (AgmKeyValue *) (tag_config.data() +
-                                             sizeof(struct agm_tag_config) +
-                                             (sizeof(AgmKeyValue)*i));
-        tag_config_local->kv[i].key = ptr->key;
-        tag_config_local->kv[i].value = ptr->value;
+    for (int i = 0; i < tag_config.data()->num_tkvs; i++) {
+        tag_config_local->kv[i].key = tag_config.data()->kv[i].key;
+        tag_config_local->kv[i].value = tag_config.data()->kv[i].value;
     }
     ret = agm_set_params_with_tag(session_id, aif_id, tag_config_local);
     free(tag_config_local);
@@ -792,6 +782,26 @@ Return<int32_t> AGM::ipc_agm_set_params_with_tag_to_acdb(uint32_t session_id,
 
     ret = agm_set_params_with_tag_to_acdb(session_id, aif_id, payload_local, size_local);
     free(payload_local);
+    return ret;
+}
+
+Return<int32_t> AGM::ipc_agm_set_params_to_acdb_tunnel(
+                                     const hidl_vec<uint8_t>& payload,
+                                     uint32_t size) {
+    size_t size_local = (size_t) size;
+    void * payload_local = NULL;
+    int32_t ret = 0;
+
+    payload_local = (void*) calloc(1, size);
+    if (payload_local == NULL) {
+        ALOGE("%s: Cannot allocate memory for payload_local\n", __func__);
+        return -ENOMEM;
+    }
+
+    memcpy(payload_local, payload.data(), size);
+    ret = agm_set_params_to_acdb_tunnel(payload_local, size_local);
+    free(payload_local);
+
     return ret;
 }
 
@@ -824,13 +834,12 @@ Return<void> AGM::ipc_agm_session_open(uint32_t session_id,
                                        ipc_agm_session_open_cb _hidl_cb) {
     uint64_t handle = 0;
     agm_client_session_handle *session_handle = NULL;
-    hidl_vec<uint64_t> handle_ret;
+    hidl_vec<uint64_t> handle_ret(1);
     int32_t ret = -EINVAL;
     enum agm_session_mode session_mode = (enum agm_session_mode) sess_mode;
 
     ALOGV("%s: session_id=%d session_mode=%d\n", __func__, session_id,
               session_mode);
-    handle_ret.resize(sizeof(uint64_t));
     pthread_mutex_lock(&client_list_lock);
     session_handle = get_session_handle_l(session_id);
     pthread_mutex_unlock(&client_list_lock);
@@ -1046,7 +1055,7 @@ Return<void> AGM::ipc_agm_get_aif_info_list(uint32_t num_aif_info,
     }
     size_t num_aif_info_ret = (size_t) num_aif_info;
     ret = agm_get_aif_info_list(aif_list, &num_aif_info_ret);
-    aif_list_ret.resize(sizeof(struct aif_info) * num_aif_info);
+    aif_list_ret.resize(num_aif_info);
     if ( aif_list != NULL) {
         for (int i=0 ; i<num_aif_info ; i++) {
             aif_list_ret.data()[i].aif_name = aif_list[i].aif_name;
@@ -1402,7 +1411,7 @@ Return<void> AGM::ipc_agm_session_read_with_metadata(uint64_t hndl, const hidl_v
 {
     struct agm_buff buf;
     int32_t ret = 0;
-    hidl_vec<AgmBuff> outBuff_hidl;
+    hidl_vec<AgmBuff> outBuff_hidl(1);
     uint32_t bufSize;
     uint32_t captured_size = captured_sz;
     const native_handle *allochandle = nullptr;
@@ -1429,7 +1438,6 @@ Return<void> AGM::ipc_agm_session_read_with_metadata(uint64_t hndl, const hidl_v
     ALOGV("%s:%d sz %d", __func__,__LINE__,bufSize);
     ret = agm_session_read_with_metadata(hndl, &buf, &captured_size);
     if (ret > 0) {
-        outBuff_hidl.resize(sizeof(struct agm_buff));
         outBuff_hidl.data()->size = (uint32_t)buf.size;
         outBuff_hidl.data()->buffer.resize(buf.size);
         memcpy(outBuff_hidl.data()->buffer.data(), buf.addr,
@@ -1488,7 +1496,7 @@ Return<void> AGM::ipc_agm_get_group_aif_info_list(uint32_t num_groups,
     }
     size_t num_aif_groups_ret = (size_t) num_groups;
     ret = agm_get_group_aif_info_list(aif_list, &num_aif_groups_ret);
-    aif_list_ret.resize(sizeof(struct aif_info) * num_groups);
+    aif_list_ret.resize(num_groups);
     if (aif_list != NULL) {
         for (int i = 0; i < num_groups ; i++) {
             aif_list_ret.data()[i].aif_name = aif_list[i].aif_name;

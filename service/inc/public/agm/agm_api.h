@@ -433,6 +433,15 @@ struct agm_acdb_param {
     uint8_t blob[];            /**< kv + payload */
 };
 
+struct agm_acdb_tunnel_param {
+    bool isTKV;
+    uint32_t tag;
+    uint32_t num_gkvs;         /**< number of gkv*/
+    uint32_t num_kvs;          /**< number of ckv or tkv*/
+    uint32_t blob_size;        /**< gkv size + t/ckv size + payload size*/
+    uint8_t blob[];            /**< gkv + t/ckv + payload */
+};
+
 /**
  * Event types
  */
@@ -757,6 +766,18 @@ int agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id,
                                 void *payload, size_t size);
 
 /**
+ * \brief Set parameters for modules at acd without session
+ *
+
+ * \param[in] payload - payload with tag and calibration date
+ * \param[in] size - size of payload
+ *
+ *  \return 0 on success, error code on failure.
+ */
+
+int agm_set_params_to_acdb_tunnel(void *payload, size_t size);
+
+/**
   * \brief Open the session with specified session id.
   *
   * \param[in] session_id - Valid audio session id
@@ -1063,7 +1084,7 @@ int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_t
  * \brief Write data buffers with metadata to session
  *
  * \param[in] handle: session handle returned from
- *  	 agm_session_open
+ *       agm_session_open
  * \param[in] buff: agm_buffer where data will be copied from
  * \param[in] consumed size: Actual number of bytes that were consumed by AGM
  *
@@ -1076,7 +1097,7 @@ int agm_session_write_with_metadata(uint64_t hndl, struct agm_buff *buff,
  * \brief Read data buffers with metadata to session
  *
  * \param[in] handle: session handle returned from
- *  	 agm_session_open
+ *       agm_session_open
  * \param[in] buff: agm_buffer where data will be copied to
  * \param[in] captured_size: Actual number of bytes that were captured
  *
@@ -1089,7 +1110,7 @@ int agm_session_read_with_metadata(uint64_t hndl, struct agm_buff *buff,
  * \brief Helps set config for non tunnel mode (rx and tx path)
  *
  * \param[in] handle: session handle returned from
- *  	 agm_session_open
+ *       agm_session_open
  * \param[in] session_config - valid stream configuration of the
  *       sessions
  * \param[in] in_media_config - valid media configuration of the

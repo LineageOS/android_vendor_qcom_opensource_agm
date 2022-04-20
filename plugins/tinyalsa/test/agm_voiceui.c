@@ -25,7 +25,40 @@
 ** WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**/
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+**
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted (subject to the limitations in the
+** disclaimer below) provided that the following conditions are met:
+**
+**     * Redistributions of source code must retain the above copyright
+**       notice, this list of conditions and the following disclaimer.
+**
+**     * Redistributions in binary form must reproduce the above
+**       copyright notice, this list of conditions and the following
+**       disclaimer in the documentation and/or other materials provided
+**       with the distribution.
+**
+**     * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+**       contributors may be used to endorse or promote products derived
+**       from this software without specific prior written permission.
+**
+** NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+** GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+** HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+** WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+** MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+** IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+** ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+** GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+** INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+** IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+** OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 
 #include <errno.h>
 #include <tinyalsa/asoundlib.h>
@@ -75,6 +108,10 @@ static void read_event_data(struct mixer *mixer, char *mixer_str)
     num_values = mixer_ctl_get_num_values(ctl);
     printf("%s - %d\n", __func__, num_values);
     buf = calloc(1, num_values);
+    if (!buf) {
+        printf("Failed to allocate memory for buffer\n");
+        return;
+    }
 
     ret = mixer_ctl_get_array(ctl, buf, num_values);
     if (ret < 0) {
@@ -214,6 +251,11 @@ static void* merge_payload(uint32_t miid, int num, int *sum,  ...)
     void *payload = NULL;
     uint8_t *buf;
     uint32_t *module_instance_id = NULL;
+
+    if (!size || !temp) {
+        printf("Failed to allocate memory for size and temp\n");
+        return NULL;
+    }
 
     va_start(valist, num);
     for (i = 0; i < num; i++) {
