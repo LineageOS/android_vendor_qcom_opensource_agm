@@ -96,10 +96,12 @@ int main(int argc, char **argv)
     struct chunk_fmt chunk_fmt;
     unsigned int card = 100, device = 100, i=0;
     int intf_num = 1;
-    unsigned int *device_kv = NULL;
+    uint32_t dkv = SPEAKER;
+    uint32_t dppkv = DEVICEPP_RX_AUDIO_MBDRC;
+    unsigned int *device_kv = &dkv;
     unsigned int stream_kv = 0;
     unsigned int instance_kv = INSTANCE_1;
-    unsigned int *devicepp_kv = NULL;
+    unsigned int *devicepp_kv = &dppkv;
     bool haptics = false;
     char **intf_name = NULL;
     char *filename;
