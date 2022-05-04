@@ -928,7 +928,7 @@ int set_agm_streamdevice_metadata(struct mixer *mixer, int device, uint32_t val,
         gkv[index].value = val;
         index++;
     } else if (usecase == CAPTURE) {
-        gkv[index].key = STREAMRX;
+        gkv[index].key = STREAMTX;
         gkv[index].value = val;
         index++;
     }
