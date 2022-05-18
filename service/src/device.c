@@ -1120,7 +1120,8 @@ void device_deinit()
 #endif
 }
 
-static void split_snd_card_name(const char * in_snd_card_name, char* file_path_extn)
+static void split_snd_card_name(const char * in_snd_card_name, char* file_path_extn,
+                                char* file_path_extn_wo_variant)
 {
     /* Sound card name follows below mentioned convention:
        <target name>-<form factor>-<variant>-snd-card.
@@ -1143,6 +1144,7 @@ static void split_snd_card_name(const char * in_snd_card_name, char* file_path_e
 
     while ((card_sub_str = strtok_r(NULL, "-", &tmp))) {
         if (strncmp(card_sub_str, "snd", strlen("snd"))) {
+            strlcpy(file_path_extn_wo_variant, file_path_extn, FILE_PATH_EXTN_MAX_SIZE);
             strlcat(file_path_extn, "_", FILE_PATH_EXTN_MAX_SIZE);
             strlcat(file_path_extn, card_sub_str, FILE_PATH_EXTN_MAX_SIZE);
         }
@@ -1244,7 +1246,7 @@ done:
     return is_updated;
 }
 
-bool get_file_path_extn(char* file_path_extn)
+bool get_file_path_extn(char* file_path_extn, char* file_path_extn_wo_variant)
 {
     int snd_card_found = false, retry = 0;
     char snd_card_name[FILE_PATH_EXTN_MAX_SIZE];
@@ -1253,7 +1255,7 @@ bool get_file_path_extn(char* file_path_extn)
         snd_card_found = update_snd_card_info(snd_card_name);
 
         if (snd_card_found) {
-            split_snd_card_name(snd_card_name, file_path_extn);
+            split_snd_card_name(snd_card_name, file_path_extn, file_path_extn_wo_variant);
             AGM_LOGV("Found Codec sound card");
             break;
         } else {

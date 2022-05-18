@@ -26,6 +26,39 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+**
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted (subject to the limitations in the
+** disclaimer below) provided that the following conditions are met:
+**
+**   * Redistributions of source code must retain the above copyright
+**     notice, this list of conditions and the following disclaimer.
+**
+**   * Redistributions in binary form must reproduce the above
+**     copyright notice, this list of conditions and the following
+**     disclaimer in the documentation and/or other materials provided
+**     with the distribution.
+**
+**   * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+**     contributors may be used to endorse or promote products derived
+**     from this software without specific prior written permission.
+**
+** NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+** GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+** HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+** WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+** MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+** IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+** ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+** GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+** INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+** IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+** OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #define LOG_TAG "AGM: graph"
 
@@ -56,6 +89,12 @@
 
 #define TAGGED_MOD_SIZE_BYTES 1024
 
+enum {
+    MIID_IDX,
+    NUM_OF_PARAM_IDX,
+    PARAM_ID_IDX,
+    PARAM_LIST_MAX_IDX,
+};
 
 /* TODO: remove this later after including in spf header files */
 #define PARAM_ID_SOFT_PAUSE_START 0x800102e
@@ -236,6 +275,9 @@ int configure_buffer_params(struct graph_obj *gph_obj,
 
         if (mode == AGM_DATA_PUSH_PULL)
             buf_config.shmem_ep_tag = PULL_PUSH_SHMEM_ENDPOINT;
+        else if ((sess_obj->stream_config.sess_mode == AGM_SESSION_COMPRESS) &&
+                 (sess_obj->stream_config.dir == TX))
+            buf_config.shmem_ep_tag = RD_SHMEM_ENDPOINT;
         else
             buf_config.shmem_ep_tag = SHMEM_ENDPOINT;
         /**
@@ -283,6 +325,7 @@ int graph_init()
     struct gsl_init_data init_data;
     const char *delta_file_path;
     char file_path_extn[FILE_PATH_EXTN_MAX_SIZE] = {0};
+    char file_path_extn_wo_variant[FILE_PATH_EXTN_MAX_SIZE] = {0};
     bool snd_card_found = false;
 
 #ifndef ACDB_PATH
@@ -291,7 +334,7 @@ int graph_init()
     /*Populate acdbfiles from the shared file path*/
     acdb_files.num_files = 0;
 
-    snd_card_found = get_file_path_extn(file_path_extn);
+    snd_card_found = get_file_path_extn(file_path_extn, file_path_extn_wo_variant);
     if (snd_card_found) {
         snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, file_path_extn);
     } else {
@@ -301,8 +344,15 @@ int graph_init()
     AGM_LOGI("acdb file path: %s\n", acdb_path);
 
     ret = get_acdb_files_from_directory(acdb_path, &acdb_files);
-    if (ret)
-       goto err;
+    if (ret) {
+        /* if acdb_path is not found, try without variant */
+        snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH,
+                file_path_extn_wo_variant);
+        AGM_LOGI("trying - acdb file path: %s\n", acdb_path);
+        ret = get_acdb_files_from_directory(acdb_path, &acdb_files);
+        if (ret)
+            goto err;
+    }
 
 #ifdef ACDB_DELTA_FILE_PATH
     delta_file_path = CONV_TO_STRING(ACDB_DELTA_FILE_PATH);
@@ -1119,7 +1169,7 @@ int graph_set_cal(struct graph_obj *graph_obj,
      return ret;
 }
 
-int graph_set_acdb_param(void *payload)
+int graph_rw_acdb_param(void *payload, bool is_param_write)
 {
     int ret = 0;
     struct agm_acdb_tunnel_param *payloadACDBTunnelInfo = NULL;
@@ -1248,10 +1298,17 @@ int graph_set_acdb_param(void *payload)
         AGM_LOGV("%d data to acdb = 0x%x", i, *ptr++);
     }
 
-    if (payloadACDBTunnelInfo->isTKV)
-        ret = gsl_set_tag_data_to_acdb(&gkv, tag, &kv, ptr_to_param, actual_size);
-    else
-        ret = gsl_set_cal_data_to_acdb(&gkv, &kv, ptr_to_param, actual_size);
+    if (is_param_write) {
+        if (payloadACDBTunnelInfo->isTKV)
+            ret = gsl_set_tag_data_to_acdb(&gkv, tag, &kv, ptr_to_param, actual_size);
+        else
+            ret = gsl_set_cal_data_to_acdb(&gkv, &kv, ptr_to_param, actual_size);
+    } else {
+        if (payloadACDBTunnelInfo->isTKV)
+            ret = graph_get_tckv_data_from_acdb(&gkv, tag, &kv, ptr_to_param, &actual_size);
+        else
+            ret = graph_get_tckv_data_from_acdb(&gkv, 0, &kv, ptr_to_param, &actual_size);
+    }
 
     return ar_err_get_lnx_err_code(ret);
 }
@@ -1315,6 +1372,10 @@ int graph_read(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *siz
      */
     if ((graph_obj->sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL) &&
         (graph_obj->sess_obj->stream_config.dir == (RX | TX)))
+         read_mod_tag = RD_SHMEM_ENDPOINT;
+    else if ((graph_obj->sess_obj->stream_config.sess_mode ==
+              AGM_SESSION_COMPRESS) &&
+             (graph_obj->sess_obj->stream_config.dir == TX))
          read_mod_tag = RD_SHMEM_ENDPOINT;
 
     gsl_buff.timestamp = buffer->timestamp;
@@ -2085,6 +2146,94 @@ int graph_get_tagged_data(
     return gsl_get_tagged_data((struct gsl_key_vector *)graph_key_vect,
                 tag, (struct gsl_key_vector *)tag_key_vect,
                 payload, payload_size);
+}
+
+int graph_get_tckv_data_from_acdb(
+    const struct agm_key_vector_gsl *graph_key_vect, uint32_t tag,
+    struct agm_key_vector_gsl *tag_key_vect, uint8_t *payload,
+    size_t *payload_size)
+{
+    int ret = 0;
+    uint32_t *ptr = NULL;
+    size_t query_payload_size = *payload_size;
+    struct apm_module_param_data_t *param = (apm_module_param_data_t *)payload;
+    uint32_t *param_list;
+
+    if (!payload) {
+        return -EINVAL;
+    }
+
+    //payload: instance_id, param_id, size, error_code, data, padding if possible
+    ptr = (uint32_t *)payload;
+    param_list = calloc(1, PARAM_LIST_MAX_IDX * sizeof(uint32_t));
+    if (!param_list)
+        return -ENOMEM;
+
+    param_list[MIID_IDX] = ptr[0];
+    param_list[NUM_OF_PARAM_IDX] = 1;
+    param_list[PARAM_ID_IDX] = param->param_id;
+
+    AGM_LOGI("miid=0x%x param_id=0x%x",
+                param_list[MIID_IDX], param_list[PARAM_ID_IDX]);
+
+    if (tag) {
+        AGM_LOGI("Tag for tkv is 0x%x", tag);
+        ret = gsl_get_tag_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
+                    tag, (struct gsl_key_vector *)tag_key_vect, 1, param_list,
+                    NULL, payload_size);
+    } else {
+        AGM_LOGI("This is ckv");
+        ret = gsl_get_cal_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
+                    (struct gsl_key_vector *)tag_key_vect, 1, param_list,
+                    NULL, payload_size);
+    }
+
+    if (ret) {
+        AGM_LOGE("failed to get tagged data size");
+        ret = -EINVAL;
+        goto end;
+    }
+
+    AGM_LOGI("expected size = %d query_size= %d",
+                *payload_size, query_payload_size);
+    if (*payload_size > query_payload_size) {
+        AGM_LOGE("payload size is too small to hold result.");
+        ret = -ENOMEM;
+        goto end;
+    }
+
+    uint8_t *get_payload = calloc(1, *payload_size);
+    if (!get_payload) {
+        ret = -ENOMEM;
+        goto end;
+    }
+
+    if (tag) {
+        AGM_LOGE("This is tag data.");
+        ret = gsl_get_tag_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
+                    tag, (struct gsl_key_vector *)tag_key_vect, 1, param_list,
+                    get_payload, payload_size);
+    } else {
+        AGM_LOGE("This is ckv data.");
+        ret = gsl_get_cal_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
+                    (struct gsl_key_vector *)tag_key_vect, 1, param_list,
+                    get_payload, payload_size);
+    }
+
+    if (ret) {
+        AGM_LOGE("failed to get tagged data");
+        ret = -EINVAL;
+        goto error;
+    }
+
+    memcpy(payload, get_payload, *payload_size);
+
+error:
+    free(get_payload);
+
+end:
+    free(param_list);
+    return ret;
 }
 
 int graph_enable_acdb_persistence(uint8_t enable_flag)

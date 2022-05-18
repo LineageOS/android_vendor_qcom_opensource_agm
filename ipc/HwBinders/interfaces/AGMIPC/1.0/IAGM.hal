@@ -107,6 +107,10 @@ interface IAGM
     ipc_agm_set_params_to_acdb_tunnel(
                     vec<uint8_t> payload, uint32_t size)
                     generates (int32_t ret);
+    ipc_agm_get_params_from_acdb_tunnel(
+                    vec<uint8_t> payload, uint32_t size)
+                    generates (int32_t ret, vec<uint8_t> payload_ret,
+                               uint32_t size_ret);
     ipc_agm_session_register_for_events(uint32_t session_id,
                     vec<AgmEventRegCfg> evt_reg_cfg) generates (int32_t ret);
     ipc_agm_session_open(uint32_t session_id, AgmSessionMode sess_mode)

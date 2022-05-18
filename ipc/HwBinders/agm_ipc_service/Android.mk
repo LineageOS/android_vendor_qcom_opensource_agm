@@ -22,6 +22,10 @@ LOCAL_SHARED_LIBRARIES := \
     vendor.qti.hardware.AGMIPC@1.0 \
     libagm
 
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_AGM_HIDL)),true)
+  LOCAL_CFLAGS += -DAGM_HIDL_ENABLED
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 
 ifneq ($(strip $(AUDIO_FEATURE_ENABLED_AGM_HIDL)),true)

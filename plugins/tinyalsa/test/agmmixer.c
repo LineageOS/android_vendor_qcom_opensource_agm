@@ -27,6 +27,42 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 
+/*
+* Changes from Qualcomm Innovation Center are provided under the following license:
+*
+* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted (subject to the limitations in the
+* disclaimer below) provided that the following conditions are met:
+*
+*    * Redistributions of source code must retain the above copyright
+*      notice, this list of conditions and the following disclaimer.
+*
+*    * Redistributions in binary form must reproduce the above
+*      copyright notice, this list of conditions and the following
+*      disclaimer in the documentation and/or other materials provided
+*      with the distribution.
+*
+*    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+*      contributors may be used to endorse or promote products derived
+*      from this software without specific prior written permission.
+*
+* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #include <errno.h>
 #include <expat.h>
 #include <tinyalsa/asoundlib.h>
@@ -582,7 +618,7 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, unsigned i
     struct agm_key_value *gkv = NULL, *ckv = NULL;
     struct prop_data *prop = NULL;
     uint8_t *metadata = NULL;
-    uint32_t num_gkv = 1, num_ckv = 2, num_props = 0;
+    uint32_t num_gkv = 1, num_ckv = 3, num_props = 0;
     uint32_t gkv_size, ckv_size, prop_size, ckv_index = 0;
     int ctl_len = 0, offset = 0;
     int ret = 0;
@@ -626,6 +662,10 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, unsigned i
     ckv_index++;
     ckv[ckv_index].key = BITWIDTH;
     ckv[ckv_index].value = bitwidth;
+
+    ckv_index++;
+    ckv[ckv_index].key = GAIN;;
+    ckv[ckv_index].value = 0;
 
     prop->prop_id = 0;  //Update prop_id here
     prop->num_values = num_props;

@@ -655,6 +655,34 @@ Return<void> AGM::ipc_agm_session_get_params(uint32_t session_id,
     return Void();
 }
 
+Return<void> AGM::ipc_agm_get_params_from_acdb_tunnel(
+                        const hidl_vec<uint8_t>& payload, uint32_t size,
+                        ipc_agm_get_params_from_acdb_tunnel_cb _hidl_cb) {
+    uint8_t * payload_local = NULL;
+    size_t size_local;
+    size_local = (size_t) size;
+    hidl_vec<uint8_t> payload_hidl;
+    if (size_local) {
+        payload_local = (uint8_t *) calloc (1, size_local);
+        if (payload_local == NULL) {
+            ALOGE("%s: Cannot allocate memory for payload_local\n", __func__);
+            _hidl_cb(-ENOMEM, payload_hidl, size);
+            return Void();
+        }
+    }
+
+    memcpy(payload_local, payload.data(), size);
+    int32_t ret = agm_get_params_from_acdb_tunnel(payload_local,
+                                                      &size_local);
+    payload_hidl.resize(size_local);
+    if (payload_local)
+        memcpy(payload_hidl.data(), payload_local, size_local);
+    uint32_t size_hidl = (uint32_t) size_local;
+    _hidl_cb(ret, payload_hidl, size_hidl);
+    free(payload_local);
+    return Void();
+}
+
 Return<int32_t> AGM::ipc_agm_aif_set_params(uint32_t aif_id,
                                             const hidl_vec<uint8_t>& payload,
                                             uint32_t size)
@@ -1547,11 +1575,13 @@ exit:
 Return<int32_t> AGM::ipc_agm_dump(const hidl_vec<AgmDumpInfo>& dump_info) {
     struct agm_dump_info *d_info =
             (struct agm_dump_info *)dump_info.data();
+#ifndef AGM_HIDL_ENABLED
     if (d_info->signal) {
         ALOGD("%s: client with pid %d received signal %d",
                   __func__, d_info->pid, d_info->signal);
         dumpAgmStackTrace(d_info);
     }
+#endif
     return agm_dump(d_info);
 }
 
