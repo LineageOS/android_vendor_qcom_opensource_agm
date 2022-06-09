@@ -661,10 +661,7 @@ static int session_apply_aif_device_params(struct session_obj *sess_obj,
 
     pthread_mutex_lock(&dev_obj->lock);
 
-    if ((device_get_state(dev_obj) == DEV_OPENED ||
-         device_get_state(dev_obj) == DEV_STARTED ||
-         device_get_state(dev_obj) == DEV_PREPARED) &&
-        dev_obj->params != NULL) {
+    if ((device_get_state(dev_obj) != DEV_CLOSED) && dev_obj->params != NULL) {
         ret = graph_set_config(sess_obj->graph, dev_obj->params,
                 dev_obj->params_size);
         if (ret)
