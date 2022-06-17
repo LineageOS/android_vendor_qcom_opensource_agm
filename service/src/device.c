@@ -937,6 +937,19 @@ int device_get_start_refcnt(struct device_obj *dev_obj)
 
 }
 
+int device_get_state(struct device_obj *dev_obj)
+{
+    if (dev_obj == NULL) {
+        AGM_LOGE("Invalid device object\n");
+        return DEV_CLOSED;
+    }
+
+    if (dev_obj->parent_dev)
+        return dev_obj->parent_dev->state;
+    else
+        return dev_obj->state;
+}
+
 static struct device_group_data* device_get_group_data_by_name(char *dev_name)
 {
     struct device_group_data *grp_data = NULL;

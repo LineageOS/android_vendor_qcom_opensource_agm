@@ -660,8 +660,11 @@ static int session_apply_aif_device_params(struct session_obj *sess_obj,
         return ret;
 
     pthread_mutex_lock(&dev_obj->lock);
-    if ((dev_obj->state == DEV_OPENED || dev_obj->state == DEV_STARTED ||
-        dev_obj->state == DEV_PREPARED) && dev_obj->params != NULL) {
+
+    if ((device_get_state(dev_obj) == DEV_OPENED ||
+         device_get_state(dev_obj) == DEV_STARTED ||
+         device_get_state(dev_obj) == DEV_PREPARED) &&
+        dev_obj->params != NULL) {
         ret = graph_set_config(sess_obj->graph, dev_obj->params,
                 dev_obj->params_size);
         if (ret)
@@ -1049,7 +1052,7 @@ static int session_start(struct session_obj *sess_obj)
                     goto done;
                 }
 
-                if (ec_ref_dev_obj->state != DEV_STARTED) {
+                if (device_get_state(ec_ref_dev_obj) != DEV_STARTED) {
                     AGM_LOGE("Error:%d Device object with aif id:%d\n"
                               "not in STARTED state, current state:%d\n",
                               ret, sess_obj->ec_ref_aif_id,
