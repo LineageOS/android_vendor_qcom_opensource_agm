@@ -1846,15 +1846,15 @@ int session_obj_register_cb(struct session_obj *sess_obj, agm_event_cb cb,
     struct session_cb *sess_cb = NULL;
 
     pthread_mutex_lock(&sess_obj->cb_pool_lock);
-    sess_cb = calloc(1, sizeof(struct session_cb));
-    if (!sess_cb) {
-        AGM_LOGE("Error creating session_cb object with sess_id:%d\n",
-                                             sess_obj->sess_id);
-        ret = -ENOMEM;
-        goto done;
-    }
-
     if (cb != NULL) {
+        sess_cb = calloc(1, sizeof(struct session_cb));
+        if (!sess_cb) {
+            AGM_LOGE("Error creating session_cb object with sess_id:%d\n",
+                                             sess_obj->sess_id);
+            ret = -ENOMEM;
+            goto done;
+        }
+
         sess_cb->cb = cb;
         sess_cb->client_data = client_data;
         sess_cb->evt_type = evt_type;
@@ -1862,7 +1862,6 @@ int session_obj_register_cb(struct session_obj *sess_obj, agm_event_cb cb,
                                            client_data, evt_type);
         list_add_tail(&sess_obj->cb_pool, &sess_cb->node);
     } else {
-        struct session_cb *sess_cb;
         struct listnode *node, *next;
         list_for_each_safe(node, next, &sess_obj->cb_pool) {
             sess_cb = node_to_item(node, struct session_cb, node);
