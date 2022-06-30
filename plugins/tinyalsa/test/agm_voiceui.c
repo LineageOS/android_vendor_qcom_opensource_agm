@@ -446,12 +446,12 @@ int main(int argc, char **argv)
             if (*argv)
                 device = atoi(*argv);
         }
-        if (strcmp(*argv, "-D") == 0) {
+        if (*argv && strcmp(*argv, "-D") == 0) {
             argv++;
             if (*argv)
                 card = atoi(*argv);
         }
-        if (strcmp(*argv, "-i") == 0) {
+        if (*argv && strcmp(*argv, "-i") == 0) {
             argv++;
             if (*argv)
                 audio_intf = atoi(*argv);
@@ -460,7 +460,7 @@ int main(int argc, char **argv)
                 return 1;
             }
         }
-        if (strcmp(*argv, "-e") == 0) {
+        if (*argv && strcmp(*argv, "-e") == 0) {
             argv++;
             if (*argv)
                 ec_aif = atoi(*argv);
@@ -469,23 +469,23 @@ int main(int argc, char **argv)
                 return 1;
             }
         }
-        if (strcmp(*argv, "-T") == 0) {
+        if (*argv && strcmp(*argv, "-T") == 0) {
             argv++;
             if (*argv)
                 cap_time = atoi(*argv);
-        } else if (strcmp(*argv, "-dkv") == 0) {
+        } else if (*argv && strcmp(*argv, "-dkv") == 0) {
             argv++;
             if (*argv)
                 device_kv = convert_char_to_hex(*argv);
-        } else if (strcmp(*argv, "-skv") == 0) {
+        } else if (*argv && strcmp(*argv, "-skv") == 0) {
             argv++;
             if (*argv)
                 stream_kv = convert_char_to_hex(*argv);
-        } else if (strcmp(*argv, "-ikv") == 0) {
+        } else if (*argv && strcmp(*argv, "-ikv") == 0) {
             argv++;
             if (*argv)
                 instance_kv = atoi(*argv);
-        } else if (strcmp(*argv, "-dppkv") == 0) {
+        } else if (*argv && strcmp(*argv, "-dppkv") == 0) {
             argv++;
             if (*argv)
                 devicepp_kv = convert_char_to_hex(*argv);
