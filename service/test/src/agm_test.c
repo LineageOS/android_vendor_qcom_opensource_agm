@@ -478,6 +478,10 @@ int test_device_get_aif_list() {
 
 	if (num_aif_info > 0) {
 		aifinfo = calloc(num_aif_info, sizeof(struct aif_info));
+		if (aifinfo == NULL) {
+			ret = -1;
+			goto fail;
+		}
 	} else {
 		ret = -1;
 		goto fail;
