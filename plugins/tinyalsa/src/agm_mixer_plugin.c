@@ -1682,7 +1682,7 @@ static struct snd_value_tlv_bytes pcm_setacdbtunnel_bytes =
 static struct snd_value_tlv_bytes pcm_getacdbtunnel_bytes =
     SND_VALUE_TLV_BYTES(256 * 1024, amp_pcm_get_acdb_tunnel_get, amp_pcm_get_acdb_tunnel_put);
 static struct snd_value_tlv_bytes pcm_setparam_bytes =
-    SND_VALUE_TLV_BYTES(256 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
+    SND_VALUE_TLV_BYTES(512 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_getparam_bytes =
     SND_VALUE_TLV_BYTES(128 * 1024, amp_pcm_get_param_get, amp_pcm_get_param_put);
 static struct snd_value_tlv_bytes pcm_event_bytes =
