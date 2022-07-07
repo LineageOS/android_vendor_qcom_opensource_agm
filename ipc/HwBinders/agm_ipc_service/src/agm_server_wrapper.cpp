@@ -70,6 +70,8 @@
 #include <signal.h>
 #include "gsl_intf.h"
 #include <hwbinder/IPCThreadState.h>
+#include <utils/ProcessCallStack.h>
+#include <cutils/properties.h>
 
 #define MAX_CACHE_SIZE 64
 #define NUM_GKV(x)                     (*((uint32_t *) x))
@@ -114,6 +116,16 @@ void dumpAgmStackTrace(struct agm_dump_info *d_info) {
                  "signal %d (<debuggerd signal>), code -1 "
                  "(SI_QUEUE from pid %d, uid %d)",
                  d_info->signal, d_info->pid, d_info->uid);
+#ifdef _ANDROID_
+        char propValue[PROPERTY_VALUE_MAX];
+        property_get("ro.debuggable", propValue, "0");
+        if(atoi(propValue) == 1) {
+            std::string prefix = "audioserver_" + std::to_string(d_info->pid) + " ";
+            android::ProcessCallStack pcs;
+            pcs.update();
+            pcs.log(LOG_TAG, ANDROID_LOG_FATAL, prefix.c_str());
+        }
+#endif
         if (sigqueue(getpid(), DEBUGGER_SIGNAL, {.sival_int = 0}) < 0) {
             ALOGW("%s: Sending signal %d failed with error %d",
                     __func__, DEBUGGER_SIGNAL, errno);

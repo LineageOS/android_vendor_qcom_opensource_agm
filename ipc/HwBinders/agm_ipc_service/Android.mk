@@ -6,6 +6,7 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -v -Wall
+LOCAL_CFLAGS        += -D_ANDROID_
 LOCAL_C_INCLUDES    := $(TOP)/vendor/qcom/opensource/agm/ipc/HwBinders/agm_ipc_client/
 LOCAL_SRC_FILES     := src/agm_server_wrapper.cpp
 
@@ -20,6 +21,7 @@ LOCAL_SHARED_LIBRARIES := \
     libbase \
     libar-gsl \
     vendor.qti.hardware.AGMIPC@1.0 \
+    libutilscallstack \
     libagm
 
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_AGM_HIDL)),true)
