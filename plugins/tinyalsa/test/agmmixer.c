@@ -145,7 +145,6 @@ struct gsl_tag_module_info {
 
 unsigned int slot_mask_map[5] = { 0, SLOT_MASK1, SLOT_MASK3, SLOT_MASK7, SLOT_MASK15};
 
-
 #define PADDING_8BYTE_ALIGN(x)  ((((x) + 7) & 7) ^ 7)
 
 static unsigned int  bits_to_alsa_format(unsigned int bits)
@@ -444,15 +443,21 @@ int set_agm_group_mux_config(struct mixer *mixer, unsigned int device, struct gr
     tag_config->num_tkvs = 1;
     tag_config->kv[0].key = TAG_KEY_SLOT_MASK;
     ret = agm_mixer_get_miid(mixer, device, intf_name, STREAM_PCM, TAG_DEVICE_MUX, &miid);
-    if (ret)
+    if (strstr(intf_name, "VIRT-"))
         tag_config->kv[0].value = config->slot_mask;
-    else
+    else if (ret == 0)
         tag_config->kv[0].value = slot_mask_map[channels];
+    else {
+        ret = 0;
+        goto done;
+    }
 
     mixer_ctl_set_array(ctl, tag_config, val_len);
 done:
     if (mixer_str)
         free(mixer_str);
+    if (tag_config)
+        free(tag_config);
     return ret;
 }
 
@@ -639,6 +644,8 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, unsigned i
             free(ckv);
         if (gkv)
             free(gkv);
+        if (prop)
+            free(prop);
         free(metadata);
         return -ENOMEM;
     }
@@ -683,6 +690,9 @@ int set_agm_audio_intf_metadata(struct mixer *mixer, char *intf_name, unsigned i
     ctl_len = strlen(intf_name) + 1 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str) {
+        free(gkv);
+        free(ckv);
+        free(prop);
         free(metadata);
         return -ENOMEM;
     }
@@ -828,8 +838,9 @@ int configure_mfc(struct mixer *mixer, int device, char *intf_name, int tag,
     populateChannelMap(pcmChannel, channels);
     size = payloadSize + padBytes;
 
-    return agm_mixer_set_param(mixer, device, stype, (void *)payloadInfo, (int)size);
-
+    ret = agm_mixer_set_param(mixer, device, stype, (void *)payloadInfo, (int)size);
+    free(payloadInfo);
+    return ret;
 }
 
 int set_agm_capture_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum usecase_type usecase,
@@ -996,6 +1007,7 @@ int set_agm_streamdevice_metadata(struct mixer *mixer, int device, uint32_t val,
     ctl_len = strlen(stream) + 4 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str) {
+        free(gkv);
         free(metadata);
         return -ENOMEM;
     }
@@ -1062,6 +1074,8 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
             free(ckv);
         if (gkv)
             free(gkv);
+        if (prop)
+            free(prop);
         free(metadata);
         return -ENOMEM;
     }
@@ -1115,6 +1129,9 @@ int set_agm_stream_metadata(struct mixer *mixer, int device, uint32_t val, enum 
     ctl_len = strlen(stream) + 4 + strlen(control) + 1;
     mixer_str = calloc(1, ctl_len);
     if (!mixer_str) {
+        free(gkv);
+        free(ckv);
+        free(prop);
         free(metadata);
         return -ENOMEM;
     }
