@@ -311,7 +311,7 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
     snd_pcm_sframes_t circ_buf_pos;
     snd_pcm_uframes_t pos, old_hw_ptr, new_hw_ptr, hw_base;
     uint32_t read_index, wall_clk_msw, wall_clk_lsw;
-    uint64_t delta_wall_clk_us = 0;
+    int64_t delta_wall_clk_us = 0;
     uint32_t delta_wall_clk_frames = 0;
     int ret = 0;
     uint32_t period_size = priv->period_size; /** in frames */
@@ -331,9 +331,9 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
 
         // Set delta_wall_clk_us only if cached wall clk is non-zero
         if (priv->pos_buf->wall_clk_msw || priv->pos_buf->wall_clk_lsw) {
-                delta_wall_clk_us = (((uint64_t)wall_clk_msw) << 32 | wall_clk_lsw) -
+                delta_wall_clk_us = (int64_t)((((uint64_t)wall_clk_msw) << 32 | wall_clk_lsw) -
                                         (((uint64_t)priv->pos_buf->wall_clk_msw) << 32 |
-                                         priv->pos_buf->wall_clk_lsw);
+                                         priv->pos_buf->wall_clk_lsw));
         }
         // Identify the number of times of shared buffer length that the
         // hw ptr has jumped through by checking wall clock time delta
