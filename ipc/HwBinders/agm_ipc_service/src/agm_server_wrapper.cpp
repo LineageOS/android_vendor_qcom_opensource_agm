@@ -189,6 +189,7 @@ void client_death_notifier::serviceDied(uint64_t cookie,
                 session_handle = NULL;
             }
             list_remove(node);
+            handle->clbk_binder->unlinkToDeath(this);
             free(handle);
         }
     }
