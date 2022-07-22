@@ -1,5 +1,6 @@
 /*
 ** Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
+** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Copyright 2011, The Android Open Source Project
 **
