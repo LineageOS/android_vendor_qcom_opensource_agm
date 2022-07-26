@@ -59,6 +59,8 @@
 #define AGM_PULL_PUSH_IDX_RETRY_COUNT 2
 #define AGM_PULL_PUSH_FRAME_CNT_RETRY_COUNT 5
 
+#define SNDCARD_PATH "/sys/kernel/snd_card/card_state"
+
 struct agm_shared_pos_buffer {
     volatile uint32_t frame_counter;
     volatile uint32_t read_index;
@@ -98,6 +100,7 @@ struct agm_pcm_priv {
     /* idx: 0: out port, 1: in port */
     struct agm_mmap_buffer_port mmap_buffer_port[2];
     bool mmap_status;
+    int fd;
 };
 
 struct pcm_plugin_hw_constraints agm_pcm_constrs = {
@@ -307,6 +310,28 @@ static int agm_pcm_plugin_get_shared_pos(struct pcm_plugin_pos_buf_info *pos_buf
     return -EAGAIN;
 }
 
+static int agm_pcm_plugin_get_card_status(struct agm_pcm_priv *priv)
+{
+    char buf[10];
+    int card_status = -1;
+
+    if (priv->fd < 0) {
+         if ((priv->fd = open(SNDCARD_PATH, O_RDWR)) < 0) {
+             AGM_LOGE(LOG_TAG, "Open failed snd sysfs node");
+             errno = ENETRESET;
+             return -ENETRESET;
+        }
+        AGM_LOGD(LOG_TAG, "Snd sysfs node open successful");
+    }
+
+    memset(buf, 0, sizeof(buf));
+    read(priv->fd, buf, 1);
+    lseek(priv->fd, 0L, SEEK_SET);
+    sscanf(buf, "%d", &card_status);
+
+    return card_status;
+}
+
 static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
 {
     int retries = 10;
@@ -318,8 +343,15 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
     int ret = 0;
     uint32_t period_size = priv->period_size; /** in frames */
     uint32_t crossed_boundary = 0;
+    int card_status = -1;
     uint32_t old_frame_counter = priv->pos_buf->frame_counter;
 
+    card_status = agm_pcm_plugin_get_card_status(priv);
+    if (card_status != 1) {    // 1 assume to be snd card status online
+        AGM_LOGE("%s: Snd card is Offline\n", __func__);
+        errno = ENETRESET;
+        return -ENETRESET;
+    }
     do {
         ret = agm_pcm_plugin_get_shared_pos(priv->pos_buf,
                 &read_index, &wall_clk_msw, &wall_clk_lsw);
@@ -689,6 +721,10 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
             close(priv->buf_info->data_buf_fd);
         free(priv->buf_info);
     }
+    if (priv->fd >= 0) {
+        close(priv->fd);
+        priv->fd = -1;
+    }
     free(plugin->priv);
     free(plugin);
 
@@ -735,6 +771,8 @@ static int agm_pcm_poll(struct pcm_plugin *plugin, struct pollfd *pfd,
         ret = agm_pcm_plugin_update_hw_ptr(priv);
         if (ret == 0)
             avail = agm_pcm_get_avail(plugin);
+        else if (ret == -ENETRESET)
+            return ret;
     }
 
     if (avail >= period_size) {
@@ -923,6 +961,13 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
         goto err_buf_free;
     }
 
+    priv->fd = -1;
+    if ((priv->fd = open(SNDCARD_PATH, O_RDWR)) < 0) {
+        AGM_LOGE(LOG_TAG, "Open failed snd sysfs node");
+        ret = -EINVAL;
+        goto err_session_free;
+    }
+
     card_node = snd_card_def_get_card(card);
     if (!card_node) {
         ret = -EINVAL;
@@ -970,6 +1015,10 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
 err_card_put:
     snd_card_def_put_card(card_node);
 err_session_free:
+    if (priv->fd >= 0) {
+        close(priv->fd);
+        priv->fd = -1;
+    }
     free(session_config);
 err_buf_free:
     free(buffer_config);
