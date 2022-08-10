@@ -972,7 +972,7 @@ int parse_snd_card()
          * Here, pcm->idname is in the form of "<dai_link->stream_name>
                                           <codec_name>-<num_codecs>"
          */
-        sscanf(buffer, "%02u-%02u: %80s", &dev_obj->card_id,
+        sscanf(buffer, "%02u-%02u: %79s", &dev_obj->card_id,
                            &dev_obj->pcm_id, dev_obj->name);
         AGM_LOGD("%d:%d:%s\n", dev_obj->card_id, dev_obj->pcm_id, dev_obj->name);
 
