@@ -512,6 +512,8 @@ static int amp_get_be_info(struct amp_priv *amp_priv)
     return 0;
 
 err_backends_get:
+    if (aif_list)
+        free(aif_list);
     amp_free_be_dev_info(amp_priv);
     return ret;
 }
@@ -552,6 +554,8 @@ static int amp_get_group_be_info(struct amp_priv *amp_priv)
     return 0;
 
 err_backends_get:
+    if (aif_list)
+        free(aif_list);
     amp_free_group_be_dev_info(amp_priv);
     return ret;
 }
