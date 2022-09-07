@@ -219,6 +219,11 @@ void play_loopback(unsigned int card, unsigned int p_device, unsigned int c_devi
     struct group_config grp_config;
     stream_kv = stream_kv ? stream_kv : PCM_RX_LOOPBACK;
 
+    if (!cap_config || !p_config || !capture_intf || !play_intf) {
+        printf("%s: %d: Invalid arguments.\n", __func__, __LINE__);
+        return;
+    }
+
     memset(&config, 0, sizeof(config));
     config.channels = channels;
     config.rate = rate;
