@@ -203,6 +203,7 @@ struct amp_priv {
     struct snd_value_enum rx_be_enum;
 
     event_callback event_cb;
+    pthread_mutex_t lock;
 };
 
 struct event_params_node {
@@ -396,22 +397,28 @@ void amp_event_cb(uint32_t session_id, struct agm_event_cb_params *event_params,
     if (!stream)
         return;
 found:
+    pthread_mutex_lock(&amp_priv->lock);
     amp_add_event_params(amp_priv, session_id, event_params);
     event.type = SNDRV_CTL_EVENT_ELEM;
     ctl_len = (int)(strlen(stream) + 1 + strlen(ctl_name) + 1);
     mixer_str = calloc(1, ctl_len);
-    if (!mixer_str)
+    if (!mixer_str) {
+        pthread_mutex_unlock(&amp_priv->lock);
         return;
+    }
 
     snprintf(mixer_str, ctl_len, "%s %s", stream, ctl_name);
     strlcpy((char*)event.data.elem.id.name, mixer_str, sizeof(event.data.elem.id.name));
 
     data = calloc(1, sizeof(struct mixer_plugin_event_data));
-    if (!data)
+    if (!data) {
+        pthread_mutex_unlock(&amp_priv->lock);
         goto done;
+    }
 
     data->ev = event;
     list_add_tail(&amp_priv->events_list, &data->node);
+    pthread_mutex_unlock(&amp_priv->lock);
 
     if (amp_priv->event_cb)
         amp_priv->event_cb(plugin);
@@ -512,6 +519,8 @@ static int amp_get_be_info(struct amp_priv *amp_priv)
     return 0;
 
 err_backends_get:
+    if (aif_list)
+        free(aif_list);
     amp_free_be_dev_info(amp_priv);
     return ret;
 }
@@ -552,6 +561,8 @@ static int amp_get_group_be_info(struct amp_priv *amp_priv)
     return 0;
 
 err_backends_get:
+    if (aif_list)
+        free(aif_list);
     amp_free_group_be_dev_info(amp_priv);
     return ret;
 }
@@ -1048,6 +1059,7 @@ static int amp_pcm_event_get(struct mixer_plugin *plugin,
     int session_id = ctl->private_value;
     uint32_t tlv_size, event_payload_size;
     void *payload;
+    int ret = 0;
 
     AGM_LOGV("%s: enter\n", __func__);
     payload = &tlv->tlv[0];
@@ -1059,6 +1071,7 @@ static int amp_pcm_event_get(struct mixer_plugin *plugin,
         AGM_LOGE("%s: invalid array size %d\n", __func__, tlv_size);
         return -EINVAL;
     }
+    pthread_mutex_lock(&amp_priv->lock);
     list_for_each_safe(eparams_node, temp, &amp_priv->events_paramlist) {
         event_node = node_to_item(eparams_node, struct event_params_node, node);
         if (event_node->session_id == session_id) {
@@ -1066,18 +1079,21 @@ static int amp_pcm_event_get(struct mixer_plugin *plugin,
             event_payload_size = sizeof(struct agm_event_cb_params) + eparams->event_payload_size;
             if (tlv_size < event_payload_size) {
                 AGM_LOGE("Expected %d size, received %d\n", event_payload_size, tlv_size);
-                return -EINVAL;
+                ret = -EINVAL;
+                goto done;
             }
             memcpy(payload, eparams,
                    sizeof(struct agm_event_cb_params)
                    + eparams->event_payload_size);
             list_remove(&event_node->node);
             free(event_node);
-            return 0;
+            goto done;
         }
     }
 
-    return 0;
+done:
+    pthread_mutex_unlock(&amp_priv->lock);
+    return ret;
 }
 
 static int amp_pcm_event_put(struct mixer_plugin *plugin __unused,
@@ -2005,8 +2021,11 @@ static ssize_t amp_read_event(struct mixer_plugin *plugin,
     while (size >= sizeof(struct ctl_event)) {
         struct mixer_plugin_event_data *data;
 
-        if (list_empty(&amp_priv->events_list))
+        pthread_mutex_lock(&amp_priv->lock);
+        if (list_empty(&amp_priv->events_list)) {
+            pthread_mutex_unlock(&amp_priv->lock);
             return result;
+        }
 
         data = node_to_item(amp_priv->events_list.next,
                             struct mixer_plugin_event_data, node);
@@ -2014,6 +2033,8 @@ static ssize_t amp_read_event(struct mixer_plugin *plugin,
 
         list_remove(&data->node);
         free(data);
+        pthread_mutex_unlock(&amp_priv->lock);
+
         ev += sizeof(struct ctl_event);
         size -= sizeof(struct ctl_event);
         result += sizeof(struct ctl_event);
@@ -2066,6 +2087,7 @@ static void amp_close(struct mixer_plugin **plugin)
     amp_free_group_be_dev_info(amp_priv);
     amp_free_be_dev_info(amp_priv);
     amp_free_ctls(amp_priv);
+    pthread_mutex_destroy(&amp_priv->lock);
     free(amp_priv);
     free(*plugin);
     plugin = NULL;
@@ -2173,6 +2195,7 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     amp_register_event_callback(amp, 1);
     list_init(&amp_priv->events_paramlist);
     list_init(&amp_priv->events_list);
+    pthread_mutex_init(&amp_priv->lock, (const pthread_mutexattr_t *) NULL);
     AGM_LOGV("%s: total_ctl_cnt = %d\n", __func__, total_ctl_cnt);
 
     return 0;
