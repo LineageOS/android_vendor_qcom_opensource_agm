@@ -1299,6 +1299,8 @@ static int session_close(struct session_obj *sess_obj)
                 free(aif_obj->tag_config);
                 aif_obj->tag_config = NULL;
             }
+            list_remove(&aif_obj->node);
+            aif_free(aif_obj);
         }
     }
     pthread_mutex_unlock(&hwep_lock);
