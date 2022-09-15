@@ -330,7 +330,7 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
         new_hw_ptr = hw_base + pos;
 
         // Set delta_wall_clk_us only if cached wall clk is non-zero
-        if (wall_clk_msw != 0 || wall_clk_lsw != 0) {
+        if (priv->pos_buf->wall_clk_msw || priv->pos_buf->wall_clk_lsw) {
                 delta_wall_clk_us = (int64_t)((((uint64_t)wall_clk_msw) << 32 | wall_clk_lsw) -
                                         (((uint64_t)priv->pos_buf->wall_clk_msw) << 32 |
                                          priv->pos_buf->wall_clk_lsw));
