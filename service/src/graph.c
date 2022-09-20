@@ -705,7 +705,8 @@ free_graph_obj:
         list_remove(node);
         temp_mod = node_to_item(node, module_info_t, list);
         if (temp_mod->gkv) {
-            free(temp_mod->gkv->kv);
+            if (temp_mod->gkv->kv)
+                free(temp_mod->gkv->kv);
             free(temp_mod->gkv);
         }
         free(temp_mod);
