@@ -89,7 +89,11 @@ static bool agm_server_died = false;
 static pthread_mutex_t agmclient_init_lock = PTHREAD_MUTEX_INITIALIZER;
 static android::sp<IAGM> agm_client = NULL;
 static sp<server_death_notifier> Server_death_notifier = NULL;
+#ifdef AGM_HIDL_ENABLED
+sp<IAGMCallback> ClbkBinder = NULL;
+#else
 static bool is_cb_registered = false;
+#endif
 static list_declare(client_clbk_data_list);
 static pthread_mutex_t clbk_data_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static std::mutex agm_session_register_cb_mutex;
@@ -692,10 +696,13 @@ int agm_session_register_cb(uint32_t session_id, agm_event_cb cb,
            session_id, evt_type, client_data);
     int32_t ret = 0;
     if (!agm_server_died) {
+#ifndef AGM_HIDL_ENABLED
         sp<IAGMCallback> ClbkBinder = NULL;
+#endif
         ClntClbk *cl_clbk_data = NULL;
         uint64_t cl_clbk_data_add = 0;
         android::sp<IAGM> agm_client = get_agm_server();
+#ifndef AGM_HIDL_ENABLED
         if (!is_cb_registered) {
             ClbkBinder = new AGMCallback();
             ret = agm_client->ipc_agm_client_register_callback(ClbkBinder);
@@ -705,6 +712,15 @@ int agm_session_register_cb(uint32_t session_id, agm_event_cb cb,
             }
             is_cb_registered = true;
         }
+#else //AGM_HIDL_ENABLED
+        if (!ClbkBinder)
+            ClbkBinder = new AGMCallback();
+        ret = agm_client->ipc_agm_client_register_callback(ClbkBinder);
+        if (ret) {
+            ALOGE("Client callback registration failed");
+            return ret;
+        }
+#endif
         if (cb != NULL) {
             cl_clbk_data = new ClntClbk(session_id, cb, evt_type, client_data);
             struct client_cb_data *cb_data = (struct client_cb_data *)calloc(1, sizeof(struct client_cb_data));
