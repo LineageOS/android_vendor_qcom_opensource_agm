@@ -9,6 +9,8 @@ LOCAL_CFLAGS        += -v -Wall
 LOCAL_C_INCLUDES    := $(TOP)/vendor/qcom/opensource/agm/ipc/HwBinders/agm_ipc_client/
 LOCAL_SRC_FILES     := src/agm_server_wrapper.cpp
 
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/inc
+
 LOCAL_SHARED_LIBRARIES := \
     libhidlbase \
     libutils \
@@ -22,6 +24,11 @@ LOCAL_SHARED_LIBRARIES := \
 
 include $(BUILD_SHARED_LIBRARY)
 
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_AGM_HIDL)),true)
+  LOCAL_CFLAGS += -DAGM_HIDL_ENABLED
+endif
+
+ifneq ($(strip $(AUDIO_FEATURE_ENABLED_AGM_HIDL)),true)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE               := vendor.qti.hardware.AGMIPC@1.0-service
@@ -46,3 +53,4 @@ LOCAL_SHARED_LIBRARIES := \
     libagm
 
 include $(BUILD_EXECUTABLE)
+endif
