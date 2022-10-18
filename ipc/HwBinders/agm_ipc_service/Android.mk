@@ -1,4 +1,6 @@
 LOCAL_PATH := $(call my-dir)
+
+ifneq ($(QCPATH),)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE        := vendor.qti.hardware.AGMIPC@1.0-impl
@@ -23,6 +25,7 @@ LOCAL_SHARED_LIBRARIES := \
     libagm
 
 include $(BUILD_SHARED_LIBRARY)
+endif
 
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_AGM_HIDL)),true)
   LOCAL_CFLAGS += -DAGM_HIDL_ENABLED
