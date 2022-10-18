@@ -1,4 +1,6 @@
 LOCAL_PATH := $(call my-dir)
+
+ifneq ($(QCPATH),)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE        := vendor.qti.hardware.AGMIPC@1.0-impl
@@ -29,6 +31,8 @@ ifeq ($(strip $(AUDIO_FEATURE_ENABLED_AGM_HIDL)),true)
 endif
 
 include $(BUILD_SHARED_LIBRARY)
+
+endif
 
 ifneq ($(strip $(AUDIO_FEATURE_ENABLED_AGM_HIDL)),true)
 include $(CLEAR_VARS)
