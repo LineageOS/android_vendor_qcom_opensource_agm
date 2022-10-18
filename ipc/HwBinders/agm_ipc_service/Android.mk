@@ -40,6 +40,8 @@ LOCAL_VENDOR_MODULE        := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_OWNER         := qti
 
+LOCAL_HEADER_LIBRARIES := libagm_headers
+
 LOCAL_C_INCLUDES           := $(call project-path-for,qcom-audio)/agm/ipc/HwBinders/agm_ipc_client/
 LOCAL_SRC_FILES            := src/service.cpp
 
