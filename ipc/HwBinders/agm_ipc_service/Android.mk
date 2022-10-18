@@ -55,5 +55,7 @@ LOCAL_SHARED_LIBRARIES := \
     vendor.qti.hardware.AGMIPC@1.0-impl \
     libagm
 
+LOCAL_HEADER_LIBRARIES := libagm_headers
+
 include $(BUILD_EXECUTABLE)
 endif
