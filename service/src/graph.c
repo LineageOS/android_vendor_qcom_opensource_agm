@@ -868,6 +868,7 @@ int graph_stop(struct graph_obj *graph_obj,
     }
 
     if (meta_data) {
+        metadata_print(meta_data);
         memcpy (&(gsl_cmd_prop.gkv), &(meta_data->gkv),
                                        sizeof(struct gsl_key_vector));
         gsl_cmd_prop.property_id = meta_data->sg_props.prop_id;
