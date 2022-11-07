@@ -1541,11 +1541,13 @@ exit:
 Return<int32_t> AGM::ipc_agm_dump(const hidl_vec<AgmDumpInfo>& dump_info) {
     struct agm_dump_info *d_info =
             (struct agm_dump_info *)dump_info.data();
+#ifndef AGM_HIDL_ENABLED
     if (d_info->signal) {
         ALOGD("%s: client with pid %d received signal %d",
                   __func__, d_info->pid, d_info->signal);
         dumpAgmStackTrace(d_info);
     }
+#endif
     return agm_dump(d_info);
 }
 

@@ -1556,7 +1556,7 @@ static struct snd_value_tlv_bytes pcm_setparamtag_bytes =
 static struct snd_value_tlv_bytes pcm_setparamtagacdb_bytes =
     SND_VALUE_TLV_BYTES(256 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_setparam_bytes =
-    SND_VALUE_TLV_BYTES(256 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
+    SND_VALUE_TLV_BYTES(512 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_getparam_bytes =
     SND_VALUE_TLV_BYTES(128 * 1024, amp_pcm_get_param_get, amp_pcm_get_param_put);
 static struct snd_value_tlv_bytes pcm_event_bytes =
