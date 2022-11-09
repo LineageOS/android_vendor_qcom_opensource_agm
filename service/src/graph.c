@@ -1199,7 +1199,7 @@ int graph_rw_acdb_param(void *payload, bool is_param_write)
     size_t size = 0;
     struct gsl_tag_module_info *tag_info;
     struct gsl_tag_module_info_entry *tag_entry;
-    uint32_t offset = 0;
+    uint32_t offset = 0, temp_sum = 0;
     uint32_t total_parsed_size = 0;
     uint8_t tag_pool[TAGGED_MOD_SIZE_BYTES] = { 0 };
 
@@ -1281,9 +1281,10 @@ int graph_rw_acdb_param(void *payload, bool is_param_write)
         payloadACDBTunnelInfo->num_gkvs * sizeof(struct agm_key_value);
 
     AGM_LOGD("blob size = %d", payloadACDBTunnelInfo->blob_size);
-    actual_size = payloadACDBTunnelInfo->blob_size -
-        (payloadACDBTunnelInfo->num_gkvs + payloadACDBTunnelInfo->num_kvs) *
-                sizeof(struct agm_key_value);
+    __builtin_add_overflow(payloadACDBTunnelInfo->num_gkvs * sizeof(struct agm_key_value),
+            payloadACDBTunnelInfo->num_kvs * sizeof(struct agm_key_value),
+            &temp_sum);
+    __builtin_sub_overflow(payloadACDBTunnelInfo->blob_size, temp_sum, &actual_size);
     AGM_LOGD("actual size = 0x%x", actual_size);
     AGM_LOGI("num kvs = %d", kv.num_kvs);
     ptr = kv.kv;
