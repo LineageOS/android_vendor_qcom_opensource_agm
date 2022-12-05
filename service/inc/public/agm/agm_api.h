@@ -180,6 +180,7 @@ enum agm_session_mode
     AGM_SESSION_NO_HOST,         /**< Hostless mode */
     AGM_SESSION_NON_TUNNEL,      /**< Non tunnel mode */
     AGM_SESSION_NO_CONFIG,       /**< No Config mode*/
+    AGM_SESSION_COMPRESS,        /**< Compress mode*/
 };
 
 struct agm_extern_alloc_buff_info{
@@ -216,6 +217,17 @@ struct agm_session_aac_dec {
     uint16_t num_channels;          /**< AAC obj type */
     uint16_t total_size_of_PCE_bits;/**< PCE bits size */
     uint32_t sample_rate;           /**< Sample rate */
+};
+/**
+ * AAC encoder parameters
+ */
+struct agm_session_aac_enc_cfg {
+    uint16_t aac_enc_mode; /**< AAC encoder mode */
+    uint16_t aac_fmt_flag; /**< AAC format flag */
+};
+struct agm_session_aac_enc {
+    uint32_t aac_bit_rate;
+    struct agm_session_aac_enc_cfg enc_cfg;
 };
 
 /**
@@ -302,6 +314,7 @@ struct agm_session_wmapro_dec {
 union agm_session_codec
 {
     struct agm_session_aac_dec aac_dec;        /**< AAC decoder config */
+    struct agm_session_aac_enc aac_enc;        /**< AAC encoder config */
     struct agm_session_flac_dec flac_dec;      /**< Flac decoder config */
     struct agm_session_alac_dec alac_dec;      /**< Alac decoder config */
     struct agm_session_ape_dec ape_dec;        /**< APE decoder config */
