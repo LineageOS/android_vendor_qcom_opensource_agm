@@ -301,7 +301,17 @@ int agm_compress_tstamp(struct compress_plugin *plugin,
     tstamp->sampling_rate = priv->media_config.rate;
     tstamp->copied_total = priv->bytes_copied;
 
-    ret = agm_get_session_time(handle, &timestamp);
+    /*
+     * for compress capture get latest buffer timestamp
+     * otherwise in case of playback use get session time
+     * which inturn queries SPR module in playback graph.
+     */
+    if (priv->session_config.dir == TX) {
+        ret = agm_get_buffer_timestamp(priv->session_id, &timestamp);
+    } else {
+        ret = agm_get_session_time(handle, &timestamp);
+    }
+
     if (ret) {
         errno = ret;
         return ret;
