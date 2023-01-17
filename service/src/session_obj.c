@@ -2234,13 +2234,40 @@ done:
 int session_obj_flush(struct session_obj *sess_obj)
 {
     int ret = 0;
+    struct session_cb *sess_cb;
+    struct listnode *node, *next;
+    struct agm_event_cb_params *event_params = NULL;
 
     pthread_mutex_lock(&sess_obj->lock);
 
     ret = graph_flush(sess_obj->graph);
     if (ret) {
         AGM_LOGE("Error:%d flushing graph\n", ret);
+        goto done;
     }
+
+    // Unblock the call waiting for EARLY_EOS callback
+    event_params = (struct agm_event_cb_params*) calloc(1,
+                   (sizeof(struct agm_event_cb_params)));
+    if (!event_params) {
+        AGM_LOGE("Not enough memory for event_params");
+        goto done;
+    }
+
+    pthread_mutex_lock(&sess_obj->cb_pool_lock);
+    list_for_each_safe(node, next, &sess_obj->cb_pool) {
+        sess_cb = node_to_item(node, struct session_cb, node);
+        if (sess_cb && sess_cb->cb) {
+            event_params->event_id = AGM_EVENT_EARLY_EOS;
+            sess_cb->cb(sess_obj->sess_id,
+                        (struct agm_event_cb_params *)event_params,
+                        sess_cb->client_data);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&sess_obj->cb_pool_lock);
+    if (event_params)
+        free(event_params);
 
 done:
     pthread_mutex_unlock(&sess_obj->lock);
