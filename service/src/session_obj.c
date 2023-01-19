@@ -1081,7 +1081,7 @@ static int session_start(struct session_obj *sess_obj)
 
         pthread_mutex_lock(&hwep_lock);
 
-        //For Slimbus EP - First configure the slave ports via device_prepare/start
+        //For Slimbus/CP EP - First configure the slave ports via device_prepare/start
         //and then start the master side via graph_start.
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
@@ -1090,8 +1090,9 @@ static int session_start(struct session_obj *sess_obj)
                 goto device_stop;
             }
 
-            if (aif_obj->dev_obj->hw_ep_info.intf == SLIMBUS) {
-                AGM_LOGD("configuring device early - for SLIMBUS EPs\n");
+            if ((aif_obj->dev_obj->hw_ep_info.intf == SLIMBUS) ||
+                (aif_obj->dev_obj->hw_ep_info.intf == BTFM_PROXY)) {
+                AGM_LOGD("configuring device early - for SLIMBUS/Connectivity Proxy EPs\n");
                 if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_STOPPED) {
                     ret = device_prepare(aif_obj->dev_obj);
                     if (ret) {
@@ -1128,9 +1129,11 @@ static int session_start(struct session_obj *sess_obj)
                 goto unwind;
             }
 
-            //Continue/SKIP for SLIMBUS EP as they are started early.
-            if (aif_obj->dev_obj->hw_ep_info.intf == SLIMBUS)
+            //Continue/SKIP for SLIMBUS/Connectivity Proxy EP as they are started early.
+            if ((aif_obj->dev_obj->hw_ep_info.intf == SLIMBUS) ||
+                (aif_obj->dev_obj->hw_ep_info.intf == BTFM_PROXY)) {
                 continue;
+            }
 
             if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_STOPPED) {
                 ret = device_prepare(aif_obj->dev_obj);
