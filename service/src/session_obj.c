@@ -1750,7 +1750,6 @@ int session_obj_set_sess_aif_metadata(struct session_obj *sess_obj,
     int ret = 0;
     struct aif *aif_obj = NULL;
 
-    AGM_LOGI("Setting metadata for sess aif id %d\n", aif_id);
     pthread_mutex_lock(&sess_obj->lock);
     ret = aif_obj_get(sess_obj, aif_id, &aif_obj);
     if (ret) {
@@ -1766,8 +1765,10 @@ int session_obj_set_sess_aif_metadata(struct session_obj *sess_obj,
                   sess_id:%d, aif_id:%d \n",
                   sess_obj->sess_id, aif_obj->aif_id);
     }
+#ifdef AGM_DEBUG_METADATA
+    AGM_LOGI("Setting metadata for sess aif id %d\n", aif_id);
     metadata_print(&(aif_obj->sess_aif_meta));
-
+#endif
 done:
     pthread_mutex_unlock(&sess_obj->lock);
     AGM_LOGI("Exit");
