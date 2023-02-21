@@ -14,7 +14,7 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
-LOCAL_CFLAGS        := -D_ANDROID_
+LOCAL_CFLAGS        := -D_ANDROID_ -DAGM_DEBUG_METADATA
 LOCAL_CFLAGS        += -Wno-tautological-compare -Wno-macro-redefined -Wall
 LOCAL_CFLAGS        += -D_GNU_SOURCE -DACDB_PATH=\"/vendor/etc/acdbdata/\"
 LOCAL_CFLAGS        += -DACDB_DELTA_FILE_PATH="/data/vendor/audio/acdbdata/delta"
