@@ -25,6 +25,10 @@
 ** WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*  Changes from Qualcomm Innovation Center are provided under the following license:
+*
+*  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+*  SPDX-License-Identifier: BSD-3-Clause-Clear
 **/
 
 #include <errno.h>
@@ -486,7 +490,8 @@ void *snd_card_def_get_card(unsigned int card)
         if (card_found) {
             card_def->refcnt++;
             pthread_rwlock_unlock(&snd_rwlock);
-            free(snd_card_name);
+            if (snd_card_name != NULL)
+               free(snd_card_name);
             return card_def;
         }
     }
@@ -496,7 +501,8 @@ void *snd_card_def_get_card(unsigned int card)
     file = fopen(CARD_DEF_FILE, "r");
     if (!file) {
         pthread_rwlock_unlock(&snd_rwlock);
-        free(snd_card_name);
+        if (snd_card_name != NULL )
+           free(snd_card_name);
         return NULL;
     }
 
@@ -504,7 +510,8 @@ void *snd_card_def_get_card(unsigned int card)
     if (!parser) {
         fclose(file);
         pthread_rwlock_unlock(&snd_rwlock);
-        free(snd_card_name);
+        if (snd_card_name != NULL)
+           free(snd_card_name);
         return NULL;
     }
 
@@ -539,7 +546,8 @@ void *snd_card_def_get_card(unsigned int card)
         card_def->refcnt++;
     }
 ret:
-    free(snd_card_name);
+    if (snd_card_name != NULL)
+       free(snd_card_name);
     card_data.card_name = NULL;
     XML_ParserFree(parser);
     fclose(file);
