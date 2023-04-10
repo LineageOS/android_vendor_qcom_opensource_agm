@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -1766,7 +1766,7 @@ int session_obj_set_sess_aif_metadata(struct session_obj *sess_obj,
                   sess_obj->sess_id, aif_obj->aif_id);
     }
 #ifdef AGM_DEBUG_METADATA
-    AGM_LOGI("Setting metadata for sess aif id %d\n", aif_id);
+    AGM_LOGI("Setting metadata for sess_id %d, aif id %d\n", sess_obj->sess_id, aif_id);
     metadata_print(&(aif_obj->sess_aif_meta));
 #endif
 done:
