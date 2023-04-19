@@ -1485,6 +1485,7 @@ static int amp_pcm_get_param_get(struct mixer_plugin *plugin __unused,
     free(pcm_adi->get_param_info[idx].get_param_payload);
     pcm_adi->get_param_info[idx].get_param_payload = NULL;
     pcm_adi->get_param_info[idx].get_param_payload_size = 0;
+    errno = ret;
     return ret;
 }
 
