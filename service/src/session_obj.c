@@ -2262,7 +2262,6 @@ int session_obj_flush(struct session_obj *sess_obj)
             sess_cb->cb(sess_obj->sess_id,
                         (struct agm_event_cb_params *)event_params,
                         sess_cb->client_data);
-            break;
         }
     }
     pthread_mutex_unlock(&sess_obj->cb_pool_lock);

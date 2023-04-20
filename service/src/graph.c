@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -86,6 +86,8 @@
 #define DEVICE_TX 1
 #define FILE_PATH_EXTN_MAX_SIZE 80
 #define ACDB_PATH_MAX_LENGTH 50
+#define ARRAX_FILE_PATH_EXTN "_arrax"
+#define ARRAX_SOC_ID 585
 
 #define TAGGED_MOD_SIZE_BYTES 1024
 
@@ -311,6 +313,27 @@ done:
     return ret;
 }
 
+static int get_soc_id() {
+    FILE *fd;
+    char strData[32];
+    int soc_id = -1;
+    char socbuf[] = "/sys/devices/soc0/soc_id";
+    fd = fopen(socbuf, "r");
+    if (fd == NULL) {
+        AGM_LOGE("Unable to open file");
+        return -1;
+    }
+
+    fgets(strData, sizeof(strData), fd);
+    if (strlen(strData) != 0) {
+        soc_id = atoi(strData);
+    } else {
+        AGM_LOGE("id is null");
+    }
+    fclose(fd);
+    return soc_id;
+}
+
 int graph_init()
 {
     uint32_t ret = 0;
@@ -329,7 +352,11 @@ int graph_init()
 
     snd_card_found = get_file_path_extn(file_path_extn);
     if (snd_card_found) {
-        snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, file_path_extn);
+        if (get_soc_id() == ARRAX_SOC_ID) {
+            snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s%s", ACDB_PATH, file_path_extn, ARRAX_FILE_PATH_EXTN);
+        } else {
+            snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s%s", ACDB_PATH, file_path_extn);
+        }
     } else {
         ret = -ENOENT;
         goto err;
