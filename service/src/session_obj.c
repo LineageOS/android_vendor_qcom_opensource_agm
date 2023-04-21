@@ -1666,9 +1666,9 @@ int session_obj_set_sess_aif_cal(struct session_obj *sess_obj,
         ckv.num_kvs = cal_config->num_ckvs;
         metadata_update_cal(&sess_obj->sess_meta, &ckv);
         metadata_update_cal(&aif_obj->sess_aif_meta, &ckv);
+        pthread_mutex_lock(&aif_obj->dev_obj->lock);
         metadata_update_cal(&aif_obj->dev_obj->metadata, &ckv);
 
-        pthread_mutex_lock(&aif_obj->dev_obj->lock);
         merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
                           &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
         pthread_mutex_unlock(&aif_obj->dev_obj->lock);
