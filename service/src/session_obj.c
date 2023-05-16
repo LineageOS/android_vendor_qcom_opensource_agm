@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,6 +25,10 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #define LOG_TAG "AGM: session"
 
@@ -1695,9 +1698,9 @@ int session_obj_set_sess_aif_cal(struct session_obj *sess_obj,
         ckv.num_kvs = cal_config->num_ckvs;
         metadata_update_cal(&sess_obj->sess_meta, &ckv);
         metadata_update_cal(&aif_obj->sess_aif_meta, &ckv);
+        pthread_mutex_lock(&aif_obj->dev_obj->lock);
         metadata_update_cal(&aif_obj->dev_obj->metadata, &ckv);
 
-        pthread_mutex_lock(&aif_obj->dev_obj->lock);
         merged_metadata = metadata_merge(3, &sess_obj->sess_meta,
                           &aif_obj->sess_aif_meta, &aif_obj->dev_obj->metadata);
         pthread_mutex_unlock(&aif_obj->dev_obj->lock);
@@ -1766,7 +1769,7 @@ int session_obj_set_sess_aif_metadata(struct session_obj *sess_obj,
                   sess_obj->sess_id, aif_obj->aif_id);
     }
 #ifdef AGM_DEBUG_METADATA
-    AGM_LOGI("Setting metadata for sess aif id %d\n", aif_id);
+    AGM_LOGI("Setting metadata for sess_id %d, aif id %d\n", sess_obj->sess_id, aif_id);
     metadata_print(&(aif_obj->sess_aif_meta));
 #endif
 done:

@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -28,7 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
 ** Changes from Qualcomm Innovation Center are provided under the following license:
-** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted (subject to the limitations in the
@@ -1600,6 +1599,7 @@ int graph_change(struct graph_obj *graph_obj,
 
     pthread_mutex_lock(&graph_obj->lock);
     AGM_LOGD("entry graph_handle %p", graph_obj->graph_handle);
+    metadata_print(meta_data_kv);
 
     if (dev_obj != NULL) {
         mod = NULL;
@@ -1696,7 +1696,6 @@ int graph_change(struct graph_obj *graph_obj,
     change_graph.cal_key_vect.num_kvps = meta_data_kv->ckv.num_kvs;
     change_graph.cal_key_vect.kvp = (struct gsl_key_value_pair *)
                                      meta_data_kv->ckv.kv;
-    metadata_print(meta_data_kv);
     print_graph_alias(meta_data_kv);
     ret = gsl_ioctl(graph_obj->graph_handle, GSL_CMD_CHANGE_GRAPH, &change_graph,
                     sizeof(struct gsl_cmd_graph_select));
