@@ -64,14 +64,26 @@ struct wav_header {
 int capturing = 1;
 
 static unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
-                            unsigned int dkv, unsigned int channels, unsigned int rate,
+                            unsigned int channels, unsigned int rate,
                             enum pcm_format format, unsigned int period_size,
                             unsigned int period_count, unsigned int cap_time,
-                            struct device_config *dev_config);
+                            struct device_config *dev_config, unsigned int stream_kv,
+                            unsigned int device_kv, unsigned int instance_kv,
+                            unsigned int devicepp_kv);
 
 static void sigint_handler(int sig)
 {
     capturing = 0;
+}
+
+static void usage(void)
+{
+    printf(" Usage: %s file.wav [-help print usage] [-D card] [-d device]\n"
+           " [-c channels] [-r rate] [-b bits] [-p period_size]\n"
+           " [-n n_periods] [-T capture time] [-i intf_name] [-dkv device_kv]\n"
+           " [-dppkv deviceppkv] : Assign 0 if no device pp in the graph\n"
+           " [-ikv instance_kv] :  Assign 0 if no instance kv in the graph\n"
+           " [-skv stream_kv]\n");
 }
 
 int main(int argc, char **argv)
@@ -92,11 +104,13 @@ int main(int argc, char **argv)
     struct device_config config;
     enum pcm_format format;
     int ret = 0;
+    unsigned int devicepp_kv = DEVICEPP_TX_AUDIO_FLUENCE_SMECNS;
+    unsigned int stream_kv = 0;
+    unsigned int instance_kv = INSTANCE_1;
+
 
     if (argc < 2) {
-        printf("Usage: %s file.wav [-D card] [-d device]"
-                " [-c channels] [-r rate] [-b bits] [-p period_size]"
-                " [-n n_periods] [-T capture time] [-i intf_name] [-dkv device_kv]\n", argv[0]);
+        usage();
         return 1;
     }
 
@@ -149,8 +163,21 @@ int main(int argc, char **argv)
             argv++;
             if (*argv)
                 device_kv = convert_char_to_hex(*argv);
+        } else if (strcmp(*argv, "-skv") == 0) {
+            argv++;
+            if (*argv)
+                stream_kv = convert_char_to_hex(*argv);
+        } else if (strcmp(*argv, "-ikv") == 0) {
+            argv++;
+            if (*argv)
+                instance_kv = atoi(*argv);
+        } else if (strcmp(*argv, "-dppkv") == 0) {
+            argv++;
+            if (*argv)
+                devicepp_kv = convert_char_to_hex(*argv);
+        } else if (strcmp(*argv, "-help") == 0) {
+            usage();
         }
-
         if (*argv)
             argv++;
     }
@@ -202,9 +229,10 @@ int main(int argc, char **argv)
     signal(SIGINT, sigint_handler);
     signal(SIGHUP, sigint_handler);
     signal(SIGTERM, sigint_handler);
-    frames = capture_sample(file, card, device, device_kv, header.num_channels,
+    frames = capture_sample(file, card, device, header.num_channels,
                             header.sample_rate, format,
-                            period_size, period_count, cap_time, &config);
+                            period_size, period_count, cap_time, &config,
+                            stream_kv, device_kv, instance_kv, devicepp_kv);
     printf("Captured %u frames\n", frames);
 
     /* write header now all information is known */
@@ -219,10 +247,11 @@ int main(int argc, char **argv)
 }
 
 unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
-                            unsigned int dkv, unsigned int channels, unsigned int rate,
+                            unsigned int channels, unsigned int rate,
                             enum pcm_format format, unsigned int period_size,
                             unsigned int period_count, unsigned int cap_time,
-                            struct device_config *dev_config)
+                            struct device_config *dev_config, unsigned int stream_kv,
+                            unsigned int device_kv, unsigned int instance_kv, unsigned int devicepp_kv)
 {
     struct pcm_config config;
     struct pcm *pcm;
@@ -234,6 +263,9 @@ unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
     unsigned int frames = 0;
     struct timespec end;
     struct timespec now;
+    uint32_t miid = 0;
+    int ret = 0;
+    stream_kv = stream_kv ? stream_kv : PCM_RECORD;
 
     memset(&config, 0, sizeof(config));
     config.channels = channels;
@@ -259,21 +291,36 @@ unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
     }
 
     /* set audio interface metadata mixer control */
-    if (set_agm_audio_intf_metadata(mixer, intf_name, dkv, CAPTURE, dev_config->rate, dev_config->bits, PCM_RECORD)) {
+    if (set_agm_audio_intf_metadata(mixer, intf_name, device_kv, CAPTURE,
+                                    dev_config->rate, dev_config->bits, stream_kv)) {
         printf("Failed to set device metadata\n");
         goto err_close_mixer;
     }
 
     /* set stream metadata mixer control */
-    if (set_agm_capture_stream_metadata(mixer, device, PCM_RECORD, CAPTURE, STREAM_PCM, dev_config->ch)) {
+    if (set_agm_capture_stream_metadata(mixer, device, stream_kv, CAPTURE, STREAM_PCM,
+                                        instance_kv)) {
         printf("Failed to set pcm metadata\n");
         goto err_close_mixer;
     }
 
-    if (configure_mfc(mixer, device, intf_name, TAG_STREAM_MFC,
-                     STREAM_PCM, rate, channels, pcm_format_to_bits(format))) {
-        printf("Failed to configure pspd mfc\n");
-        goto err_close_mixer;
+    if (devicepp_kv != 0) {
+        if (set_agm_streamdevice_metadata(mixer, device, stream_kv, CAPTURE, STREAM_PCM,
+                                intf_name, devicepp_kv)) {
+            printf("Failed to set pcm metadata\n");
+            goto err_close_mixer;
+        }
+    }
+
+    ret = agm_mixer_get_miid (mixer, device, intf_name, STREAM_PCM, TAG_STREAM_MFC, &miid);
+    if (ret) {
+        printf("MFC not present for this graph\n");
+    } else {
+        if (configure_mfc(mixer, device, intf_name, TAG_STREAM_MFC,
+                     STREAM_PCM, rate, channels, pcm_format_to_bits(format), miid)) {
+            printf("Failed to configure stream mfc\n");
+            goto err_close_mixer;
+        }
     }
 
     /* connect pcm stream to audio intf */

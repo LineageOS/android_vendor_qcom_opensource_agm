@@ -66,5 +66,9 @@
     <device name="TDM-LPAIF_VA-TX-PRIMARY" rate="48000" ch="1" bits="16" />
     <device name="TDM-LPAIF_WSA-RX-PRIMARY" rate="48000" ch="1" bits="16" />
     <device name="TDM-LPAIF_WSA-TX-PRIMARY" rate="48000" ch="1" bits="16" />
+    <device name="TDM-LPAIF_AXI-TX-PRIMARY" rate="48000" ch="2" bits="16" />
+    <device name="AUXPCM-LPAIF_AXI-TX-PRIMARY" rate="48000" ch="2" bits="16" />
+    <device name="MI2S-LPAIF_AXI-RX-PRIMARY" rate="48000" ch="2" bits="16" />
+    <device name="AUXPCM-LPAIF_AXI-RX-PRIMARY" rate="48000" ch="2" bits="16" />
 </config>
 
