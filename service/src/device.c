@@ -1155,6 +1155,7 @@ static void split_snd_card_name(const char * in_snd_card_name, char* file_path_e
     char *snd_card_name = NULL;
     char *tmp = NULL;
     char *card_sub_str = NULL;
+    int token_count = 0;
 
     snd_card_name = strdup(in_snd_card_name);
     if (snd_card_name == NULL) {
@@ -1170,12 +1171,14 @@ static void split_snd_card_name(const char * in_snd_card_name, char* file_path_e
 
     while ((card_sub_str = strtok_r(NULL, "-", &tmp))) {
         if (strncmp(card_sub_str, "snd", strlen("snd"))) {
-            strlcpy(file_path_extn_wo_variant, file_path_extn, FILE_PATH_EXTN_MAX_SIZE);
+            if(token_count == 1)
+               strlcpy(file_path_extn_wo_variant, file_path_extn, FILE_PATH_EXTN_MAX_SIZE);
             strlcat(file_path_extn, "_", FILE_PATH_EXTN_MAX_SIZE);
             strlcat(file_path_extn, card_sub_str, FILE_PATH_EXTN_MAX_SIZE);
         }
         else
             break;
+        token_count++;
     }
 
 done:
