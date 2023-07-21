@@ -25,6 +25,10 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef _SESSION_OBJ_H_
@@ -154,6 +158,11 @@ int session_obj_set_sess_aif_cal(struct session_obj *sess_obj,
                              struct agm_cal_config *cal_config);
 int session_obj_get_tag_with_module_info(struct session_obj *sess_obj,
                              uint32_t audio_intf, void *payload, size_t *size);
+int session_dummy_get_tag_with_module_info(
+                             struct agm_key_vector_gsl *gkv,
+                             void *payload, size_t *size);
+int session_dummy_rw_acdb_tunnel(
+                             void *payload, bool is_param_set);
 size_t session_obj_hw_processed_buff_cnt(struct session_obj *sess_obj,
                              enum direction dir);
 int session_obj_set_loopback(struct session_obj *sess_obj,
