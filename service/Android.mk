@@ -27,7 +27,7 @@ LOCAL_C_INCLUDES    += $(LOCAL_PATH)/inc/private
 #if android version is R, use qtitinyalsa headers otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
 ifneq ($(filter 11 R, $(PLATFORM_VERSION)),)
-LOCAL_C_INCLUDES    += $(TOP)/vendor/qcom/opensource/tinyalsa/include
+LOCAL_C_INCLUDES    += $(call project-path-for,qcom-audio)/tinyalsa/include
 endif
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/inc/public

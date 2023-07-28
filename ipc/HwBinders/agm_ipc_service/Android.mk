@@ -8,7 +8,7 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -v -Wall
-LOCAL_C_INCLUDES    := $(TOP)/vendor/qcom/opensource/agm/ipc/HwBinders/agm_ipc_client/
+LOCAL_C_INCLUDES    := $(call project-path-for,qcom-audio)/agm/ipc/HwBinders/agm_ipc_client/
 LOCAL_SRC_FILES     := src/agm_server_wrapper.cpp
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/inc
@@ -40,7 +40,7 @@ LOCAL_VENDOR_MODULE        := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_OWNER         := qti
 
-LOCAL_C_INCLUDES           := $(TOP)/vendor/qcom/opensource/agm/ipc/HwBinders/agm_ipc_client/
+LOCAL_C_INCLUDES           := $(call project-path-for,qcom-audio)/agm/ipc/HwBinders/agm_ipc_client/
 LOCAL_SRC_FILES            := src/service.cpp
 
 LOCAL_SHARED_LIBRARIES := \
