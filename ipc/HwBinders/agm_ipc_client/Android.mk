@@ -20,4 +20,6 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_HEADER_LIBRARIES := libagm_headers
 
+LOCAL_CFLAGS += -Wno-format
+
 include $(BUILD_SHARED_LIBRARY)
