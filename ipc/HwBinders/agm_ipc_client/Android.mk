@@ -5,6 +5,7 @@ LOCAL_MODULE := libagmclient
 LOCAL_MODULE_OWNER := qti
 LOCAL_VENDOR_MODULE := true
 
+LOCAL_CFLAGS := -Wno-format
 LOCAL_SRC_FILES := \
     src/agm_client_wrapper.cpp\
     src/AGMCallback.cpp
