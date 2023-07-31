@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "cf1e0d66_2f1ecf00",
+        "filename": "plugins/tinyalsa/Android.mk",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-07-31T20:40:26Z",
+      "side": 0,
+      "message": "Changes in this file are wrong.",
+      "revId": "4204a64b389e8aab00153312cd8aa4c13e2e5cf8",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "1a6f9cec_a28fcad0",
+        "filename": "plugins/tinyalsa/test/Android.mk",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-07-31T20:40:26Z",
+      "side": 0,
+      "message": "Same here.",
+      "revId": "4204a64b389e8aab00153312cd8aa4c13e2e5cf8",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "6a4fcc32_7241eecc",
+        "filename": "service/Android.mk",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-07-31T20:40:26Z",
+      "side": 0,
+      "message": "And here too.",
+      "revId": "4204a64b389e8aab00153312cd8aa4c13e2e5cf8",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
