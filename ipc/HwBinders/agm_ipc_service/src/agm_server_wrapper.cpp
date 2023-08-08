@@ -883,6 +883,11 @@ Return<int32_t> AGM::ipc_agm_set_params_to_acdb_tunnel(
     void * payload_local = NULL;
     int32_t ret = 0;
 
+    if (payload.size() < size) {
+        ALOGE("%s: Invalid payload.size[%d] less than size %d\n", __func__, payload.size(), size);
+        return -EINVAL;
+    }
+
     payload_local = (void*) calloc(1, size);
     if (payload_local == NULL) {
         ALOGE("%s: Cannot allocate memory for payload_local\n", __func__);
