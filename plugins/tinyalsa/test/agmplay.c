@@ -25,6 +25,10 @@
 ** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 ** DAMAGE.
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** SPDX-License-Identifier: BSD-3-Clause-Clear
 **/
 
 #include <errno.h>
@@ -98,19 +102,27 @@ int main(int argc, char **argv)
     int intf_num = 1;
     uint32_t dkv = SPEAKER;
     uint32_t dppkv = DEVICEPP_RX_AUDIO_MBDRC;
-    unsigned int *device_kv = &dkv;
     unsigned int stream_kv = 0;
     unsigned int instance_kv = INSTANCE_1;
-    unsigned int *devicepp_kv = &dppkv;
     bool haptics = false;
     char **intf_name = NULL;
     char *filename;
     int more_chunks = 1, ret = 0;
+    unsigned int *devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+    unsigned int *device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+
+    if (!device_kv || !devicepp_kv) {
+        printf(" insufficient memory\n");
+        return 1;
+    }
 
     if (argc < 3) {
         usage();
         return 1;
     }
+
+    device_kv[0] = dkv;
+    devicepp_kv[0] = dppkv;
 
     filename = argv[1];
     file = fopen(filename, "rb");
@@ -178,7 +190,7 @@ int main(int argc, char **argv)
             if (*argv)
                 haptics = *argv;
         } else if (strcmp(*argv, "-dkv") == 0) {
-            device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+            device_kv = (unsigned int *) realloc(device_kv, intf_num * sizeof(unsigned int));
             if (!device_kv) {
                 printf(" insufficient memory\n");
                 return 1;
@@ -199,7 +211,7 @@ int main(int argc, char **argv)
                 instance_kv = atoi(*argv);
             }
         } else if (strcmp(*argv, "-dppkv") == 0) {
-            devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+            devicepp_kv = (unsigned int *) realloc(devicepp_kv, intf_num * sizeof(unsigned int));
             if (!devicepp_kv) {
                 printf(" insufficient memory\n");
                 return 1;
@@ -253,13 +265,13 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     struct device_config *dev_config = NULL;
     uint32_t miid = 0;
 
-    grp_config = (struct group_config *) malloc(intf_num * sizeof(struct group_config *));
+    grp_config = (struct group_config *) malloc(intf_num * sizeof(struct group_config));
     if (!grp_config) {
         printf("Failed to allocate memory for group config");
         return;
     }
 
-    dev_config = (struct device_config *) malloc(intf_num * sizeof(struct device_config *));
+    dev_config = (struct device_config *) malloc(intf_num * sizeof(struct device_config));
     if (!dev_config) {
         printf("Failed to allocate memory for dev config");
         return;
