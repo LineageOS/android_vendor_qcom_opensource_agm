@@ -51,6 +51,10 @@
  * along with this program; if not, write to
  * the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <stdint.h>
@@ -250,15 +254,25 @@ int main(int argc, char **argv)
     int ret = 0, i = 0;
     unsigned int card = 0, device = 0, frag = 0, audio_format = 0, pause = 0;
     int intf_num = 1;
-    unsigned int *device_kv = 0;
+    uint32_t dkv = SPEAKER;
+    uint32_t dppkv = DEVICEPP_RX_AUDIO_MBDRC;
     unsigned int stream_kv = 0;
     unsigned int instance_kv = INSTANCE_1;
-    unsigned int *devicepp_kv = NULL;
+    unsigned int *device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+    unsigned int *devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+
+    if (!device_kv || !devicepp_kv) {
+        printf(" insufficient memory\n");
+        return 1;
+    }
 
     if (argc < 3) {
         usage();
         return 1;
     }
+
+    device_kv[0] = dkv;
+    devicepp_kv[0] = dppkv;
 
     file = argv[1];
     /* parse command line arguments */
@@ -295,7 +309,8 @@ int main(int argc, char **argv)
         } else if (strcmp(*argv, "-i") == 0) {
             intf_name = (char**) malloc(intf_num * sizeof(char*));
             if (!intf_name) {
-                printf("invalid memory\n");
+                printf("insufficient memory\n");
+                return 1;
             }
             for (i = 0; i < intf_num ; i++){
                 argv++;
@@ -303,9 +318,10 @@ int main(int argc, char **argv)
                     intf_name[i] = *argv;
             }
         } else if (strcmp(*argv, "-dkv") == 0) {
-            device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+            device_kv = (unsigned int *) realloc(device_kv, intf_num * sizeof(unsigned int));
             if (!device_kv) {
                 printf(" insufficient memory\n");
+                return 1;
             }
             for (i = 0; i < intf_num ; i++) {
                 argv++;
@@ -323,9 +339,10 @@ int main(int argc, char **argv)
                 instance_kv = atoi(*argv);
             }
         } else if (strcmp(*argv, "-dppkv") == 0) {
-            devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+            devicepp_kv = (unsigned int *) realloc(devicepp_kv, intf_num * sizeof(unsigned int));
             if (!devicepp_kv) {
                 printf(" insufficient memory\n");
+                return 1;
             }
             for (i = 0; i < intf_num ; i++) {
                 devicepp_kv[i] = DEVICEPP_RX_AUDIO_MBDRC;
@@ -377,10 +394,21 @@ void play_samples(char *name, unsigned int card, unsigned int device, unsigned i
     char *buffer;
     int num_read, wrote;
     unsigned int channels = 0, rate = 0, bits = 0;
-    struct device_config *dev_config = (struct device_config *)malloc(intf_num*sizeof(struct device_config *));
-    struct group_config *grp_config = (struct group_config *)malloc(intf_num*sizeof(struct group_config *));
+    struct device_config *dev_config = NULL;
+    struct group_config *grp_config = NULL;
     int size, index, ret = 0;
     uint32_t miid = 0;
+
+    dev_config = (struct device_config *) malloc(intf_num * sizeof(struct device_config));
+    if (!dev_config) {
+        printf("Failed to allocate memory for dev config");
+        return;
+    }
+    grp_config = (struct group_config *) malloc(intf_num * sizeof(struct group_config));
+    if (!grp_config) {
+        printf("Failed to allocate memory for group config");
+        return;
+    }
 
     stream_kv = stream_kv ? stream_kv : COMPRESSED_OFFLOAD_PLAYBACK;
 

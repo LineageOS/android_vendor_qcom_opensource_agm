@@ -25,6 +25,10 @@
 ** WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** SPDX-License-Identifier: BSD-3-Clause-Clear
 **/
 
 #include <tinyalsa/asoundlib.h>
@@ -258,7 +262,7 @@ void play_loopback(unsigned int card, unsigned int p_device, unsigned int c_devi
         goto err_close_mixer;
     }
 
-    if (set_agm_stream_metadata(mixer, c_device, stream_kv, LOOPBACK, STREAM_PCM,
+    if (set_agm_stream_metadata(mixer, p_device, stream_kv, LOOPBACK, STREAM_PCM,
                                 0)) {
         printf("Failed to capture stream metadata\n");
         goto err_close_mixer;

@@ -25,6 +25,10 @@
 ** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 ** DAMAGE.
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** SPDX-License-Identifier: BSD-3-Clause-Clear
 **/
 
 #include <errno.h>
@@ -96,20 +100,29 @@ int main(int argc, char **argv)
     struct chunk_fmt chunk_fmt;
     unsigned int card = 100, device = 100, i=0;
     int intf_num = 1;
-    unsigned int *device_kv = 0;
+    uint32_t dkv = SPEAKER;
+    uint32_t dppkv = DEVICEPP_RX_AUDIO_MBDRC;
     unsigned int stream_kv = 0;
     unsigned int instance_kv = INSTANCE_1;
-    unsigned int *devicepp_kv = NULL;
     bool haptics = false;
     char **intf_name = NULL;
-    struct device_config config;
     char *filename;
     int more_chunks = 1, ret = 0;
+    unsigned int *devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+    unsigned int *device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+
+    if (!device_kv || !devicepp_kv) {
+        printf(" insufficient memory\n");
+        return 1;
+    }
 
     if (argc < 3) {
         usage();
         return 1;
     }
+
+    device_kv[0] = dkv;
+    devicepp_kv[0] = dppkv;
 
     filename = argv[1];
     file = fopen(filename, "rb");
@@ -164,7 +177,8 @@ int main(int argc, char **argv)
         } else if (strcmp(*argv, "-i") == 0) {
             intf_name = (char**) malloc(intf_num * sizeof(char*));
             if (!intf_name) {
-                printf("invalid memory\n");
+                printf("insufficient memory\n");
+                return 1;
             }
             for (i = 0; i < intf_num ; i++){
                 argv++;
@@ -176,9 +190,10 @@ int main(int argc, char **argv)
             if (*argv)
                 haptics = *argv;
         } else if (strcmp(*argv, "-dkv") == 0) {
-            device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+            device_kv = (unsigned int *) realloc(device_kv, intf_num * sizeof(unsigned int));
             if (!device_kv) {
                 printf(" insufficient memory\n");
+                return 1;
             }
             for (i = 0; i < intf_num ; i++) {
                 argv++;
@@ -196,9 +211,10 @@ int main(int argc, char **argv)
                 instance_kv = atoi(*argv);
             }
         } else if (strcmp(*argv, "-dppkv") == 0) {
-            devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
+            devicepp_kv = (unsigned int *) realloc(devicepp_kv, intf_num * sizeof(unsigned int));
             if (!devicepp_kv) {
                 printf(" insufficient memory\n");
+                return 1;
             }
             for (i = 0; i < intf_num ; i++) {
                 devicepp_kv[i] = DEVICEPP_RX_AUDIO_MBDRC;
@@ -217,7 +233,7 @@ int main(int argc, char **argv)
             argv++;
     }
 
-    if (*intf_name == NULL)
+    if (intf_name == NULL)
         return 1;
 
     play_sample(file, card, device, device_kv, stream_kv, instance_kv, devicepp_kv,
@@ -245,9 +261,21 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     int playback_path, playback_value;
     int size, index, ret = 0;
     int num_read;
-    struct group_config *grp_config = (struct group_config *)malloc(intf_num*sizeof(struct group_config *));
-    struct device_config *dev_config = (struct device_config *)malloc(intf_num*sizeof(struct device_config *));
+    struct group_config *grp_config = NULL;
+    struct device_config *dev_config = NULL;
     uint32_t miid = 0;
+
+    grp_config = (struct group_config *) malloc(intf_num * sizeof(struct group_config));
+    if (!grp_config) {
+        printf("Failed to allocate memory for group config");
+        return;
+    }
+
+    dev_config = (struct device_config *) malloc(intf_num * sizeof(struct device_config));
+    if (!dev_config) {
+        printf("Failed to allocate memory for dev config");
+        return;
+    }
 
     memset(&config, 0, sizeof(config));
     config.channels = fmt.num_channels;

@@ -54,6 +54,10 @@
  * along with this program; if not, write to
  * the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <stdint.h>
 #include <linux/types.h>
@@ -271,7 +275,8 @@ static void capture_samples(char *name, unsigned int card, unsigned int device,
     if (verbose)
         fprintf(finfo, "%s: entry, reading %u bytes\n", __func__, length);
         if (!name) {
-                file = STDOUT_FILENO;
+            file = STDOUT_FILENO;
+            exit(EXIT_FAILURE);
         } else {
             file = open(name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
             if (file == -1) {
@@ -469,7 +474,7 @@ static void sig_handler(int signum __attribute__ ((unused)))
 
 int main(int argc, char **argv)
 {
-    char *file = NULL;
+    char *file;
     unsigned long buffer_size = 0;
     unsigned int card = 0, device = 0, frag = 0, length = 0;
     unsigned int rate = DEFAULT_RATE, channels = DEFAULT_CHANNELS;
@@ -493,6 +498,7 @@ int main(int argc, char **argv)
 
     verbose = 0;
 
+    file = argv[1];
     /* parse command line arguments */
     argv += 2;
     while (*argv) {
