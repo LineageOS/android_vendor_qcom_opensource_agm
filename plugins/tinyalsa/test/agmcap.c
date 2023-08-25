@@ -25,6 +25,10 @@
 ** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 ** DAMAGE.
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** SPDX-License-Identifier: BSD-3-Clause-Clear
 **/
 
 #include <tinyalsa/asoundlib.h>
@@ -90,8 +94,8 @@ int main(int argc, char **argv)
 {
     FILE *file;
     struct wav_header header;
-    unsigned int card = 0;
-    unsigned int device = 0;
+    unsigned int card = 100;
+    unsigned int device = 101;
     unsigned int channels = 2;
     unsigned int rate = 44100;
     unsigned int bits = 16;
@@ -104,7 +108,7 @@ int main(int argc, char **argv)
     struct device_config config;
     enum pcm_format format;
     int ret = 0;
-    unsigned int devicepp_kv = DEVICEPP_TX_AUDIO_FLUENCE_SMECNS;
+    unsigned int devicepp_kv = 0;
     unsigned int stream_kv = 0;
     unsigned int instance_kv = INSTANCE_1;
 
