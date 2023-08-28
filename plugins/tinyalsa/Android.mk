@@ -21,6 +21,8 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils \
     liblog
 
+LOCAL_CFLAGS += -Wno-format -Wno-incompatible-pointer-types
+
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
 ifneq ($(filter 11 R, $(PLATFORM_VERSION)),)
@@ -58,6 +60,8 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libutils \
     liblog
+
+LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-variable
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
@@ -100,6 +104,8 @@ LOCAL_SHARED_LIBRARIES := \
     libutils \
     libcutils \
     liblog
+
+LOCAL_CFLAGS += -Wno-format -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function
 
 # Use flag based selection to use QTI vs open source tinycompress project
 

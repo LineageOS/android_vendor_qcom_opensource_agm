@@ -37,6 +37,7 @@ LOCAL_SRC_FILES  := \
     src/agm_memlogger.c
 
 LOCAL_HEADER_LIBRARIES := \
+    libarpal_headers \
     libspf-headers \
     libutils_headers \
     libacdb_headers \

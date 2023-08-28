@@ -45,6 +45,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <tinyalsa/pcm_plugin.h>
