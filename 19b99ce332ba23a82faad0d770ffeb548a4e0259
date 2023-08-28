@@ -34,6 +34,24 @@
       "parentUuid": "3c5cb60b_6409fc6d",
       "revId": "19b99ce332ba23a82faad0d770ffeb548a4e0259",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "d28e80ee_b531a69b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-08-28T20:55:24Z",
+      "side": 1,
+      "message": "The header is exported under libarpal_headers.",
+      "parentUuid": "2edbf2e0_e64db08f",
+      "revId": "19b99ce332ba23a82faad0d770ffeb548a4e0259",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
