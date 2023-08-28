@@ -393,7 +393,7 @@ int main(int argc, char **argv)
     int ec_aif = -1;
     unsigned int cap_time = 5;
     unsigned int device_kv = 0;
-    unsigned int devicepp_kv = DEVICEPP_TX_FLUENCE_FFECNS;
+    unsigned int devicepp_kv = DEVICEPP_TX_VOICE_FLUENCE_FFECNS;
     unsigned int stream_kv = 0;
     unsigned int instance_kv = INSTANCE_1;
 
