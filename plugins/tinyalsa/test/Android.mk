@@ -6,12 +6,13 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
-LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result -Wno-unused-variable
 LOCAL_SRC_FILES     := agmmixer.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
-    libacdb_headers
+    libacdb_headers \
+    libarpal_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
@@ -36,13 +37,14 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
-LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result -Wno-unused-variable -Wno-format-insufficient-args
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 LOCAL_SRC_FILES     := agmplay.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
-    libacdb_headers
+    libacdb_headers \
+    libarpal_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
@@ -64,13 +66,14 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
-LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result -Wno-format-insufficient-args
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 LOCAL_SRC_FILES     := agmcap.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
-    libacdb_headers
+    libacdb_headers \
+    libarpal_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
@@ -99,7 +102,8 @@ LOCAL_SRC_FILES     := agmhostless.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
-    libacdb_headers
+    libacdb_headers \
+    libarpal_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
@@ -122,7 +126,7 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
-LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result -Wno-unused-variable
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 
 LOCAL_C_INCLUDES    += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
@@ -132,7 +136,8 @@ LOCAL_SRC_FILES     := agmcompressplay.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
-    libacdb_headers
+    libacdb_headers \
+    libarpal_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
@@ -169,7 +174,8 @@ LOCAL_SRC_FILES     := agmcompresscap.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
-    libacdb_headers
+    libacdb_headers \
+    libarpal_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
@@ -202,7 +208,8 @@ LOCAL_SRC_FILES     := agm_voiceui.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
-    libacdb_headers
+    libacdb_headers \
+    libarpal_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
