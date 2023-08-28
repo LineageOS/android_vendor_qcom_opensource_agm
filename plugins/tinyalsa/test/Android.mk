@@ -6,7 +6,7 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
-LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result -Wno-unused-variable
 LOCAL_SRC_FILES     := agmmixer.c
 
 LOCAL_HEADER_LIBRARIES := \
@@ -36,7 +36,7 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
-LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result -Wno-unused-variable -Wno-format-insufficient-args
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 LOCAL_SRC_FILES     := agmplay.c
 
@@ -64,7 +64,7 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
-LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result -Wno-format-insufficient-args
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 LOCAL_SRC_FILES     := agmcap.c
 
@@ -122,7 +122,7 @@ LOCAL_MODULE_OWNER  := qti
 LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
-LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result -Wno-unused-variable
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 
 LOCAL_C_INCLUDES    += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
