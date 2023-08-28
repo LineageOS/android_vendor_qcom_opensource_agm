@@ -36,7 +36,7 @@ typedef enum {
 */
 
 enum AllKeyIds{
-	STREAM_TYPE = 0xA1000000,    /**< @h2xmle_name{Stream} */
+	STREAMRX = 0xA1000000,       /**< @h2xmle_name{Stream} */
 	DEVICERX = 0xA2000000,       /**< @h2xmle_name{DeviceRX} */
 	DEVICETX = 0xA3000000,       /**< @h2xmle_name{DeviceTX} */
 	VOLUME = 0xA4000000,         /**< @h2xmle_name{Volume} */
@@ -50,20 +50,23 @@ enum AllKeyIds{
 	DEVICEPP_RX = 0xAC000000,    /**< @h2xmle_name{DevicePP_Rx} */
 	DEVICEPP_TX = 0xAD000000,    /**< @h2xmle_name{DevicePP_Tx} */
 	MEDIAFMTID = 0xae000000,
+	STREAMTX = 0xb1000000,
 	EQUALIZER_SWITCH = 0xb2000000,
 	VIRTUALIZER_SWITCH = 0xb9000000,
 	REVERB_SWITCH = 0xb8000000,
 	PBE_SWITCH = 0xb6000000,
 	BASS_BOOST_SWITCH = 0xb7000000,
 	STREAM_SLOWTALK = 0xbb000000,
-	STREAM_MUXDEMUX = 0xbd000000
+	STREAM_CONFIG = 0xbc000000,
+	STREAM_MUXDEMUX = 0xbd000000,
+	TAG_KEY_SLOT_MASK = 0xe0000000
 };
 
 /**
-	@h2xmlk_key {STREAM_TYPE}
+	@h2xmlk_key {STREAMRX}
 	@h2xmlk_description {Type of Stream}
 */
-enum Key_Stream {
+enum Key_StreamRX {
 	PCM_LL_PLAYBACK = 0xA1000001, /**< @h2xmle_name {PCM_LL_Playback}*/
 	PCM_RECORD = 0xA1000002,      /**< @h2xmle_name {PCM_Record}*/
 	PCM_LOOPBACK = 0xA1000003,    /**< @h2xmle_name {PCM_Loopback}*/
@@ -73,6 +76,8 @@ enum Key_Stream {
 	VOICE_UI_EC_REF_PATH = 0xA1000007,/**< @h2xmle_name {Voice_UI_EC_Ref_Path}*/
 	VOIP_TX_EC_REF_PATH = 0xA1000008,   /**< @h2xmle_name {Voip_Tx_EC_Ref_Path}*/
 	PCM_RECORD_EC_REF_PATH = 0xA1000009,/**< @h2xmle_name {PCM_Record_EC_Ref_Path}*/
+	COMPRESSED_OFFLOAD_PLAYBACK = 0xa100000a,
+	HAPTICS_PLAYBACK = 0xa1000015,
 };
 
 
@@ -92,13 +97,16 @@ enum Key_Instance {
 */
 enum Key_DeviceRX {
 	SPEAKER = 0xA2000001, /**< @h2xmle_name {Speaker}*/
+	HANDSET = 0xa2000004,
+	HAPTICS_DEVICE = 0xa2000009,
 };
 /**
 	@h2xmlk_key {DEVICETX}
 	@h2xmlk_description {Tx Device}
 */
 enum Key_DeviceTX {
-	HANDSETMIC = 0xA3000001, /**< @h2xmle_name {HandsetMic}*/
+	HANDSETMIC = 0xA3000004, /**< @h2xmle_name {HandsetMic}*/
+	HANDSETMIC_VA = 0xa3000006
 };
 
 /**
@@ -106,19 +114,24 @@ enum Key_DeviceTX {
 	@h2xmlk_description {Rx Device Post/Pre Processing Chain}
 */
 enum Key_DevicePP_RX {
-	LL_DEFAULT_PP = 0xAC000001, /**< @h2xmle_name {Audio_LL_Default_PP} @h2xmlk_description {Low Latency Default Playback}*/
+	DEVICEPP_RX_DEFAULT = 0xAC000001, /**< @h2xmle_name {Audio_LL_Default_PP} @h2xmlk_description {Low Latency Default Playback}*/
+	DEVICEPP_RX_AUDIO_MBDRC = 0xac000002,
 };
 /**
 	@h2xmlk_key {DEVICEPP_TX}
 	@h2xmlk_description {Tx Device Post/Pre Processing Chain}
 */
 enum Key_DevicePP_TX {
-	VOICE_FLUENCE_FFECNS  = 0xAD000001, /**< @h2xmle_name {Voice_Fluence_FFECNS} @h2xmlk_description {Used in Voice UI use-cases}*/
-	AUDIO_FLUENCE_SMECNS  = 0xAD000002, /**< @h2xmle_name {Audio_Fluence_SMECNS} @h2xmlk_description {Single Mic ECNS }*/
-	AUDIO_FLUENCE_ENDFIRE = 0xAD000003, /**< @h2xmle_name {Audio_Fluence_Endfire} @h2xmlk_description {EndFire_ECNS - Typically used for dual mic capture scenarios}*/
-	AUDIO_FLUENCE_PRO     = 0xAD000004, /**< @h2xmle_name {Audio_Fluence_Pro} @h2xmlk_description {Multi MIC scenarios ; at least 3 or more Micss}*/
+	DEVICEPP_TX_VOICE_FLUENCE_FFECNS  = 0xAD000001, /**< @h2xmle_name {Voice_Fluence_FFECNS} @h2xmlk_description {Used in Voice UI use-cases}*/
+	DEVICEPP_TX_AUDIO_FLUENCE_SMECNS  = 0xAD000002, /**< @h2xmle_name {Audio_Fluence_SMECNS} @h2xmlk_description {Single Mic ECNS }*/
+	DEVICEPP_TX_AUDIO_FLUENCE_ENDFIRE = 0xAD000003, /**< @h2xmle_name {Audio_Fluence_Endfire} @h2xmlk_description {EndFire_ECNS - Typically used for dual mic capture scenarios}*/
+	DEVICEPP_TX_AUDIO_FLUENCE_PRO     = 0xAD000004, /**< @h2xmle_name {Audio_Fluence_Pro} @h2xmlk_description {Multi MIC scenarios ; at least 3 or more Micss}*/
 };
 
+
+enum Key_StreamConfig {
+	STREAM_CFG_VUI_SVA = 0xbc000001,
+};
 
 /**
 	@h2xmlk_key {VOLUME}
@@ -209,11 +222,12 @@ enum Key_Fluence {
 	@h2xmlk_description {Graph Keys}
 */
 enum Graph_Keys {
-	gk_Stream = STREAM_TYPE,
+	gk_StreamRX = STREAMRX,
 	gk_DeviceRX = DEVICERX,
 	gk_DeviceTX = DEVICETX,
 	gk_DevicePP_RX = DEVICEPP_RX,
 	gk_DevicePP_TX = DEVICEPP_TX,
+	gk_StreamTX = STREAMTX,
 	gk_Instance = INSTANCE,
 };
 /**
@@ -338,7 +352,7 @@ enum TAG_STREAM_BASS_BOOST_Keys {
 	tk1_BASS_BOOST_Switch = BASS_BOOST_SWITCH,
 };
 
-#define TAG_PSPD_MFC  0xc0000019
+#define PER_STREAM_PER_DEVICE_MFC  0xc0000019
 
 // Same enum names as TAG_DEVICE_PP_MFC_Keys
 /*enum TAG_PSPD_MFC_Keys {
@@ -363,6 +377,12 @@ enum TAG_MODULE_CHANNELS_Keys {
 
 enum TAG_STREAM_MUXDEMUX_Keys {
 	tk1_Stream_MuxDemux= STREAM_MUXDEMUX,
+};
+
+#define TAG_DEVICE_MUX  0xc0000040
+
+enum TAG_DEVICE_MUX_Keys {
+	tk1_SlotMask= TAG_KEY_SLOT_MASK,
 };
 
 /**
