@@ -7,10 +7,12 @@ LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-variable
 LOCAL_SRC_FILES     := agmmixer.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
+    libarpal_headers \
     libacdb_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
@@ -37,11 +39,13 @@ LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-variable -Wno-format-insufficient-args
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 LOCAL_SRC_FILES     := agmplay.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
+    libarpal_headers \
     libacdb_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
@@ -65,11 +69,13 @@ LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-format-insufficient-args
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 LOCAL_SRC_FILES     := agmcap.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
+    libarpal_headers \
     libacdb_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
@@ -99,6 +105,7 @@ LOCAL_SRC_FILES     := agmhostless.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
+    libarpal_headers \
     libacdb_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
@@ -123,6 +130,7 @@ LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-variable
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 
 LOCAL_C_INCLUDES    += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
@@ -132,6 +140,7 @@ LOCAL_SRC_FILES     := agmcompressplay.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
+    libarpal_headers \
     libacdb_headers
 
 # Use flag based selection to use QTI vs open source tinycompress project
@@ -169,6 +178,7 @@ LOCAL_SRC_FILES     := agmcompresscap.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
+    libarpal_headers \
     libacdb_headers
 
 # Use flag based selection to use QTI vs open source tinycompress project
@@ -197,11 +207,14 @@ LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
+LOCAL_CFLAGS        += -Wno-unused-variable -Wno-pointer-sign -Wno-varargs
+LOCAL_CFLAGS        += -Wno-incompatible-function-pointer-types
 LOCAL_CFLAGS        += -DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"
 LOCAL_SRC_FILES     := agm_voiceui.c
 
 LOCAL_HEADER_LIBRARIES := \
     libagm_headers \
+    libarpal_headers \
     libacdb_headers
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
