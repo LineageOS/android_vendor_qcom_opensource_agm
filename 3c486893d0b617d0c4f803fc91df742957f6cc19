@@ -22,6 +22,30 @@
       },
       "revId": "3c486893d0b617d0c4f803fc91df742957f6cc19",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "96d1bda7_a1462510",
+        "filename": "plugins/tinyalsa/test/Android.mk",
+        "patchSetId": 6
+      },
+      "lineNbr": 211,
+      "author": {
+        "id": 14048
+      },
+      "writtenOn": "2023-09-06T17:33:55Z",
+      "side": 1,
+      "message": "agmvoiceui was not being built on moto sm8475. But I verified that it builds with the latest patchset here.",
+      "parentUuid": "ad5d663d_c0e7307a",
+      "range": {
+        "startLine": 210,
+        "startChar": 0,
+        "endLine": 211,
+        "endChar": 63
+      },
+      "revId": "3c486893d0b617d0c4f803fc91df742957f6cc19",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
