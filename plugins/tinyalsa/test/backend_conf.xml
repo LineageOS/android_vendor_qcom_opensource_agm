@@ -36,6 +36,7 @@
     <device name="CODEC_DMA-LPAIF_WSA-RX-0" rate="48000" ch="1" bits="16" />
     <device name="CODEC_DMA-LPAIF_WSA-RX-1" rate="48000" ch="1" bits="16" />
     <device name="CODEC_DMA-LPAIF_RXTX-RX-0" rate="48000" ch="1" bits="16" />
+    <device name="CODEC_DMA-LPAIF_RXTX-RX-1" rate="48000" ch="1" bits="16" />
     <device name="TDM-LPAIF_AXI-RX-PRIMARY" rate="48000" ch="2" bits="16" />
     <device name="SLIM-DEV1-RX-0" rate="48000" ch="2" bits="16" />
     <device name="DISPLAY_PORT-RX" rate="48000" ch="2" bits="16" />

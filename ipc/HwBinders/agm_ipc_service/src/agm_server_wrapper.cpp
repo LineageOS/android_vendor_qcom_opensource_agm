@@ -844,6 +844,11 @@ Return<int32_t> AGM::ipc_agm_set_params_to_acdb_tunnel(
     void * payload_local = NULL;
     int32_t ret = 0;
 
+    if (payload.size() < size) {
+        ALOGE("%s: Invalid payload.size[%d] less than size %d\n", __func__, payload.size(), size);
+        return -EINVAL;
+    }
+
     payload_local = (void*) calloc(1, size);
     if (payload_local == NULL) {
         ALOGE("%s: Cannot allocate memory for payload_local\n", __func__);
@@ -862,6 +867,18 @@ Return<int32_t> AGM::ipc_agm_session_register_for_events(uint32_t session_id,
     ALOGV("%s : session_id = %d\n", __func__, session_id);
     struct agm_event_reg_cfg *evt_reg_cfg_local;
     int32_t ret = 0;
+
+    if (evt_reg_cfg.size() != 1) {
+        ALOGE("%s evt_reg_cfg needs to be of size 1\n", __func__);
+        return -EINVAL;
+    }
+
+    if (evt_reg_cfg.data()->event_config_payload.size() !=
+        evt_reg_cfg.data()->event_config_payload_size) {
+        ALOGE("%s: event_config_payload_size value mismatch\n", __func__);
+        return -EINVAL;
+    }
+
     evt_reg_cfg_local = (struct agm_event_reg_cfg*)
               calloc(1,(sizeof(struct agm_event_reg_cfg) +
               (evt_reg_cfg.data()->event_config_payload_size)*sizeof(uint8_t)));
