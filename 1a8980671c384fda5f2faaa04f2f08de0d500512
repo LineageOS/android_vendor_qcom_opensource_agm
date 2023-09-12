@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "449af5dc_d2e04be0",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-09-12T08:59:25Z",
+      "side": 1,
+      "message": "Can you please verify, already merged onto 8550 branch?",
+      "revId": "1a8980671c384fda5f2faaa04f2f08de0d500512",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
