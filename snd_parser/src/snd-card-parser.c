@@ -653,8 +653,10 @@ int snd_card_def_get_nodes_for_type(void *card_node, int type,
     list_for_each_safe(dev_node, temp, devs_list)
         num_devs++;
 
-    if (num_nodes > num_devs)
+    if (num_nodes > num_devs) {
+        pthread_rwlock_unlock(&snd_rwlock);
         return -EINVAL;
+    }
 
     list_for_each_safe(dev_node, temp, devs_list) {
         dev_def = node_to_item(dev_node, struct snd_dev_def, list_node);
