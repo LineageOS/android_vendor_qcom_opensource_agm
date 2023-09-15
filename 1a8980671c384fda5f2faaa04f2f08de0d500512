@@ -33,6 +33,24 @@
       "message": "Depends on https://review.lineageos.org/c/LineageOS/android_vendor_qcom_opensource_arpal-lx/+/366222 which needs further verification that those kalama values are okay on waipio. Compress cap still fails to compile as is, though. More Wno-error flags are needed.",
       "revId": "1a8980671c384fda5f2faaa04f2f08de0d500512",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "24df3aa6_38d40d41",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-09-15T21:35:05Z",
+      "side": 1,
+      "message": "Interesting. Take your time then.",
+      "parentUuid": "41a917dd_23e919d6",
+      "revId": "1a8980671c384fda5f2faaa04f2f08de0d500512",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
