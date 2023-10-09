@@ -83,14 +83,6 @@ static char *amp_be_ctl_name_extn[] = {
 };
 
 enum {
-    STATIC_CTL_SET_ACDB_TUNNEL = 0,
-};
-
-static char *static_acdb_ctl_name_extn[] = {
-    "setACDBTunnel",
-};
-
-enum {
     BE_GROUP_CTL_NAME_MEDIA_CONFIG = 0,
 };
 
@@ -202,7 +194,6 @@ struct amp_priv {
     struct amp_dev_info tx_be_devs;
     struct amp_dev_info rx_pcm_devs;
     struct amp_dev_info tx_pcm_devs;
-    struct amp_dev_info acdb_tunnels;
 
     struct amp_be_group_info group_be_devs;
 
@@ -318,11 +309,6 @@ static void amp_free_group_be_dev_info(struct amp_priv *amp_priv)
         free(grp_info->idx_arr);
         grp_info->idx_arr = NULL;
     }
-}
-
-static void amp_free_acdb_dev_info(struct amp_priv *amp_priv)
-{
-    amp_free_dev_info(&amp_priv->acdb_tunnels);
 }
 
 static void amp_free_pcm_dev_info(struct amp_priv *amp_priv)
@@ -722,42 +708,7 @@ static int amp_get_pcm_info(struct amp_priv *amp_priv)
     rx_adi->dev_enum.texts = rx_adi->names;
     tx_adi->dev_enum.items = tx_adi->count;
     tx_adi->dev_enum.texts = tx_adi->names;
-    goto done;
 
-err_alloc_rx_tx:
-    amp_free_pcm_dev_info(amp_priv);
-
-done:
-    if (pcm_node_list)
-        free(pcm_node_list);
-
-    return ret;
-}
-
-static int amp_get_acdb_info(struct amp_priv *amp_priv)
-{
-    struct amp_dev_info *acdb_adi = &amp_priv->acdb_tunnels;
-    void **pcm_node_list = NULL;
-    int total_pcms, ret = 0;
-
-    total_pcms = 1;
-    acdb_adi->count = 1;
-    pcm_node_list = calloc(total_pcms, sizeof(*pcm_node_list));
-    if (!pcm_node_list) {
-        AGM_LOGE("%s: alloc for pcm_node_list failed\n", __func__);
-        return -ENOMEM;
-    }
-
-    /* Allocate rx and tx structures */
-    acdb_adi->names = calloc(acdb_adi->count, sizeof(*acdb_adi->names));
-    acdb_adi->idx_arr = calloc(acdb_adi->count, sizeof(*acdb_adi->idx_arr));
-    if (!acdb_adi->names ||!acdb_adi->idx_arr) {
-        ret = -ENOMEM;
-        goto err_alloc_rx_tx;
-    }
-
-    acdb_adi->dev_enum.items = acdb_adi->count;
-    acdb_adi->dev_enum.texts = acdb_adi->names;
     goto done;
 
 err_alloc_rx_tx:
@@ -1295,27 +1246,6 @@ static int amp_pcm_calibration_put(struct mixer_plugin *plugin,
     return ret;
 }
 
-static int amp_pcm_set_acdb_tunnel_get(struct mixer_plugin *plugin __unused,
-                struct snd_control *ctl __unused, struct snd_ctl_tlv *ev __unused)
-{
-    /* get of set_param not implemented */
-    return 0;
-}
-
-static int amp_pcm_set_acdb_tunnel_put(struct mixer_plugin *plugin,
-                struct snd_control *ctl, struct snd_ctl_tlv *tlv)
-{
-    void *payload;
-    int ret = 0;
-    size_t tlv_size;
-
-    payload = &tlv->tlv[0];
-    tlv_size = tlv->length;
-    ret = agm_set_params_to_acdb_tunnel(payload, tlv_size);
-
-    return ret;
-}
-
 static int amp_pcm_set_param_get(struct mixer_plugin *plugin __unused,
                 struct snd_control *ctl __unused, struct snd_ctl_tlv *ev __unused)
 {
@@ -1472,12 +1402,12 @@ static int amp_pcm_tag_info_get(struct mixer_plugin *plugin,
         be_idx = be_adi->idx_arr[pcm_control];
     }
 
-    get_size = tlv_size;
-    ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
-            payload, &get_size);
-    if (ret || get_size == 0 || tlv_size < get_size)
-        AGM_LOGE("%s: failed with err %d, tlv_size %zu, get_size %zu for %s\n",
-                __func__, ret, tlv_size, get_size, ctl->name);
+	get_size = tlv_size;
+	ret = agm_session_aif_get_tag_module_info(pcm_idx, be_idx,
+			payload, &get_size);
+	if (ret || get_size == 0 || tlv_size < get_size)
+		AGM_LOGE("%s: failed with err %d, tlv_size %zu, get_size %zu for %s\n",
+				__func__, ret, tlv_size, get_size, ctl->name);
 
     return ret;
 }
@@ -1647,8 +1577,6 @@ static struct snd_value_tlv_bytes pcm_setparamtag_bytes =
     SND_VALUE_TLV_BYTES(256 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_setparamtagacdb_bytes =
     SND_VALUE_TLV_BYTES(256 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
-static struct snd_value_tlv_bytes pcm_setacdbtunnel_bytes =
-    SND_VALUE_TLV_BYTES(256 * 1024, amp_pcm_set_acdb_tunnel_get, amp_pcm_set_acdb_tunnel_put);
 static struct snd_value_tlv_bytes pcm_setparam_bytes =
     SND_VALUE_TLV_BYTES(512 * 1024, amp_pcm_set_param_get, amp_pcm_set_param_put);
 static struct snd_value_tlv_bytes pcm_getparam_bytes =
@@ -1902,18 +1830,6 @@ static void amp_create_pcm_flush_ctl(struct amp_priv *amp_priv,
 
     INIT_SND_CONTROL_INTEGER(ctl, ctl_name, amp_pcm_flush_get,
             amp_pcm_flush_put, flush_param_int, pval, pdata);
-
-}
-
-/* static mixer control for ACDB parameter set */
-static void amp_create_acdb_tunnel_set_ctl(struct amp_priv *amp_priv,
-                int ctl_idx, int pval, void *pdata)
-{
-    struct snd_control *ctl = AMP_PRIV_GET_CTL_PTR(amp_priv, ctl_idx);
-
-    INIT_SND_CONTROL_TLV_BYTES(ctl,
-            static_acdb_ctl_name_extn[STATIC_CTL_SET_ACDB_TUNNEL],
-            pcm_setacdbtunnel_bytes, pval, pdata);
 }
 
 /* BE related mixer control creations here */
@@ -2136,16 +2052,6 @@ static int amp_form_pcm_ctls(struct amp_priv *amp_priv, int ctl_idx, int ctl_cnt
     return 0;
 }
 
-static int amp_form_acdb_ctls(struct amp_priv *amp_priv, int ctl_idx)
-{
-    struct amp_dev_info *acdb_adi = &amp_priv->acdb_tunnels;
-
-    amp_create_acdb_tunnel_set_ctl(amp_priv, ctl_idx, acdb_adi->idx_arr[0],
-                                    acdb_adi);
-
-    return 0;
-}
-
 static ssize_t amp_read_event(struct mixer_plugin *plugin,
                               struct ctl_event *ev, size_t size)
 {
@@ -2283,10 +2189,6 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     if (ret)
         goto err_get_pcm_info;
 
-    ret = amp_get_acdb_info(amp_priv);
-    if (ret)
-        goto err_get_acdb_info;
-
     /* Get total count of controls to be registered */
     be_ctl_cnt = amp_get_be_ctl_count(amp_priv);
     total_ctl_cnt += be_ctl_cnt;
@@ -2294,8 +2196,7 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     total_ctl_cnt += be_grp_ctl_cnt;
     pcm_ctl_cnt = amp_get_pcm_ctl_count(amp_priv);
     total_ctl_cnt += pcm_ctl_cnt;
-    /* add one static mixer control for acdb param set */
-    total_ctl_cnt += 1;
+
     /*
      * Create the controls to be registered
      * When changing this code, be careful to make sure to create
@@ -2320,10 +2221,6 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     if (ret)
         goto err_ctls_alloc;
 
-    ret = amp_form_acdb_ctls(amp_priv, be_ctl_cnt + be_grp_ctl_cnt + pcm_ctl_cnt);
-    if (ret)
-        goto err_ctls_alloc;
-
     /* Register the controls */
     if (total_ctl_cnt > 0) {
         amp_priv->ctl_count = total_ctl_cnt;
@@ -2345,9 +2242,6 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
 
 err_ctls_alloc:
     amp_free_ctls(amp_priv);
-    amp_free_acdb_dev_info(amp_priv);
-
-err_get_acdb_info:
     amp_free_pcm_dev_info(amp_priv);
 
 err_get_pcm_info:
