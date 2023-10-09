@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,7 +27,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ** Changes from Qualcomm Innovation Center are provided under the following license:
-** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted (subject to the limitations in the
@@ -1192,143 +1193,6 @@ int graph_set_cal(struct graph_obj *graph_obj,
      pthread_mutex_unlock(&graph_obj->lock);
 
      return ret;
-}
-
-int graph_set_acdb_param(void *payload)
-{
-    int ret = 0;
-    struct agm_acdb_tunnel_param *payloadACDBTunnelInfo = NULL;
-    uint32_t i = 0;
-    uint32_t *ptr = NULL;
-    uint8_t *ptr_to_param = NULL;
-    size_t actual_size = 0;
-    uint32_t tag = 0;
-    uint32_t miid = 0;
-    struct agm_key_vector_gsl gkv = {0, NULL};
-    struct agm_key_vector_gsl kv = {0, NULL};
-    struct apm_module_param_data_t* header;
-    size_t size = 0;
-    struct gsl_tag_module_info *tag_info;
-    struct gsl_tag_module_info_entry *tag_entry;
-    uint32_t offset = 0;
-    uint32_t total_parsed_size = 0;
-    uint8_t tag_pool[TAGGED_MOD_SIZE_BYTES] = { 0 };
-
-    AGM_LOGD("enter");
-
-    if (!payload) {
-        AGM_LOGE("payload is nullptr");
-        return -EINVAL;
-    }
-
-    payloadACDBTunnelInfo = (struct agm_acdb_tunnel_param *)payload;
-    AGM_LOGD("istkv=%x num_gkvs=0x%x num_kvs=0x%x blob_size=0x%x",
-        payloadACDBTunnelInfo->isTKV,
-        payloadACDBTunnelInfo->num_gkvs,
-        payloadACDBTunnelInfo->num_kvs,
-        payloadACDBTunnelInfo->blob_size);
-
-    ptr = payloadACDBTunnelInfo->blob;
-    for (i = 0; i < payloadACDBTunnelInfo->blob_size / 4; i++) {
-        AGM_LOGV("%d data = 0x%x", i, *ptr++);
-    }
-
-    ptr = payloadACDBTunnelInfo->blob + sizeof(struct agm_key_value) *
-            (payloadACDBTunnelInfo->num_gkvs + payloadACDBTunnelInfo->num_kvs);
-    header = (struct apm_module_param_data_t *)ptr;
-    ptr_to_param = header;
-
-    // tag is stored at miid. Convertion happens next.
-    tag = *ptr;
-    AGM_LOGD("tag to be translated is 0x%x", tag);
-
-    gkv.num_kvs = payloadACDBTunnelInfo->num_gkvs;
-    gkv.kv = payloadACDBTunnelInfo->blob;
-
-    ret = gsl_get_tags_with_module_info(&gkv, NULL, &size);
-    if (ret) {
-        AGM_LOGE("failed to get tag info size = %d size=0x%x", ret, size);
-        return ret;
-    }
-
-    ret = gsl_get_tags_with_module_info(&gkv, tag_pool, &size);
-    if (ret) {
-        AGM_LOGE("failed to get tag pool ret = %d size=0x%x", ret, size);
-        return ret;
-    }
-
-    tag_info = (struct gsl_tag_module_info *)tag_pool;
-    AGM_LOGD("num of tags is %d\n", tag_info->num_tags);
-    ret = -1;
-    tag_entry = (struct gsl_tag_module_info_entry *)(&tag_info->tag_module_entry[0]);
-
-    offset = 0;
-    for (i = 0; i < tag_info->num_tags; i++) {
-        tag_entry += offset/sizeof(struct gsl_tag_module_info_entry);
-
-        AGM_LOGD("tag id[%d] = 0x%x, num_modules = 0x%x\n", i,
-                    tag_entry->tag_id, tag_entry->num_modules);
-        offset = sizeof(struct gsl_tag_module_info_entry) +
-                    (tag_entry->num_modules *
-                    sizeof(struct gsl_module_id_info_entry));
-        if (tag_entry->tag_id == tag) {
-            struct gsl_module_id_info_entry *mod_info_entry;
-
-            if (tag_entry->num_modules) {
-                 mod_info_entry = &tag_entry->module_entry[0];
-                 miid = mod_info_entry->module_iid;
-                 AGM_LOGI("MIID is 0x%x\n", miid);
-                 ret = 0;
-                 break;
-            }
-        }
-    }
-
-    AGM_LOGI("originally tag = 0x%x", header->module_instance_id);
-    header->module_instance_id = miid;
-    AGM_LOGI("translated miid is = 0x%x", header->module_instance_id);
-    kv.num_kvs = payloadACDBTunnelInfo->num_kvs;
-    kv.kv = payloadACDBTunnelInfo->blob +
-        payloadACDBTunnelInfo->num_gkvs * sizeof(struct agm_key_value);
-
-    AGM_LOGD("blob size = %d", payloadACDBTunnelInfo->blob_size);
-    actual_size = payloadACDBTunnelInfo->blob_size -
-        (payloadACDBTunnelInfo->num_gkvs + payloadACDBTunnelInfo->num_kvs) *
-                sizeof(struct agm_key_value);
-    AGM_LOGD("actual size = 0x%x", actual_size);
-    AGM_LOGI("num kvs = %d", kv.num_kvs);
-    ptr = kv.kv;
-    for (i = 0; i < kv.num_kvs; i++) {
-        AGM_LOGI("kv %d %x", i, *ptr++);
-        AGM_LOGI("kv %d %x", i, *ptr++);
-    }
-
-    // for multiple param, we have to fill the miid in each line item.
-    offset = sizeof(struct apm_module_param_data_t) + header->param_size;
-    ALIGN_PAYLOAD(offset, 8);
-    total_parsed_size = offset;
-    while (total_parsed_size < actual_size) {
-        AGM_LOGI("multiple param: offset=0x%x", offset);
-        header = (struct apm_module_param_data_t*)((uint8_t *)header + offset);
-        header->module_instance_id = miid;
-        offset = sizeof(struct apm_module_param_data_t) + header->param_size;
-        ALIGN_PAYLOAD(offset, 8);
-        total_parsed_size += offset;
-        AGM_LOGI("total parsed size=0x%x param_size=0x%x offset=0x%x",
-            total_parsed_size, header->param_size, offset);
-    }
-
-    ptr = ptr_to_param;
-    for (i = 0; i < actual_size / 4; i++) {
-        AGM_LOGV("%d data to acdb = 0x%x", i, *ptr++);
-    }
-
-    if (payloadACDBTunnelInfo->isTKV)
-        ret = gsl_set_tag_data_to_acdb(&gkv, tag, &kv, ptr_to_param, actual_size);
-    else
-        ret = gsl_set_cal_data_to_acdb(&gkv, &kv, ptr_to_param, actual_size);
-
-    return ar_err_get_lnx_err_code(ret);
 }
 
 int graph_write(struct graph_obj *graph_obj, struct agm_buff *buffer, size_t *size)
