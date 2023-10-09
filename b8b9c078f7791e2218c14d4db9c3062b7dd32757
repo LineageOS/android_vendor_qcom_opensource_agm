@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ace575ae_17799247",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 24438
+      },
+      "writtenOn": "2023-10-09T15:46:06Z",
+      "side": 1,
+      "message": "otherwise AGMIPC spits out an error like this\nhttps://cdn.discordapp.com/attachments/895959760841609276/1160308580684152882/image.png?ex\u003d65343093\u0026is\u003d6521bb93\u0026hm\u003d7883f7f5b0e7c395352f7e149a4e97ada5e12dbf7edd01b3b0dd5611f62f46ae\u0026",
+      "revId": "b8b9c078f7791e2218c14d4db9c3062b7dd32757",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
