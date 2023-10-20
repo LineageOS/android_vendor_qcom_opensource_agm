@@ -165,6 +165,22 @@ void metadata_update_cal(struct agm_meta_data_gsl *meta_data,
 {
     int i, j;
 
+    if (!meta_data || !ckv) {
+        AGM_LOGE("Invalid params\n");
+        return;
+    }
+
+    if (!(meta_data->ckv.kv)) {
+        AGM_LOGE("metadata->ckv.kv is NULL, num_kvs=%d\n",
+                                    meta_data->ckv.num_kvs);
+        return;
+    }
+    if (!(ckv->kv)) {
+        AGM_LOGE("ckv->kv is NULL, num_kvs=%d\n",
+                                    ckv->num_kvs);
+        return;
+    }
+
     for (i = 0; i < meta_data->ckv.num_kvs; i++) {
         for (j = 0; j < ckv->num_kvs; j++) {
             if (meta_data->ckv.kv[i].key == ckv->kv[j].key) {

@@ -1,6 +1,5 @@
 /*
 ** Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
-** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -26,6 +25,10 @@
 ** WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** SPDX-License-Identifier: BSD-3-Clause-Clear
 **/
 
 #define LOG_TAG "AGM: device"
@@ -34,7 +37,6 @@
 #include <pthread.h>
 #include <sched.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -63,9 +65,6 @@
 #define TRUE 1
 #define FALSE 0
 
-#define DEVICE_ENABLE 1
-#define DEVICE_DISABLE 0
-
 #define BUF_SIZE 1024
 #define FILE_PATH_EXTN_MAX_SIZE 80
 #define MAX_RETRY_CNT 20
@@ -82,9 +81,6 @@ static snd_ctl_t *mixer;
 #else
 static struct mixer *mixer = NULL;
 #endif
-
-#define SYSFS_FD_PATH "/sys/kernel/aud_dev/state"
-static int sysfs_fd = -1;
 
 #define MAX_BUF_SIZE                 2048
 /**
@@ -148,36 +144,6 @@ int get_pcm_bits_per_sample(enum agm_media_format fmt_id)
               break;
      }
      return bits_per_sample;
-}
-
-static void update_sysfs_fd (int8_t pcm_id, int8_t state)
-{
-    char buf[MAX_USR_INPUT]={0};
-    snprintf(buf, MAX_USR_INPUT,"%d %d", pcm_id, state);
-    if (sysfs_fd >= 0)
-        write(sysfs_fd, buf, MAX_USR_INPUT);
-    else {
-        /*AGM service and sysfs file creation are async events.
-         *Also when the syfs node is first created the default
-         *user attribute for the sysfs file is root.
-         *To change the same we need to execute a command from
-         *init scripts, which again are async and there is no
-         *deterministic way of scheduling this command only after
-         *the sysfs node is created. And all this should happen before
-         *we try to open the file from agm context, otherwise the open
-         *call would fail with permission denied error.
-         *Hence we try to open the file first time when we access it instead
-         *of doing it from agm_init.
-         *This gives the system enough time for the file attributes to
-         *be changed.
-         */
-        sysfs_fd = open(SYSFS_FD_PATH, O_WRONLY);
-        if (sysfs_fd >= 0) {
-            write(sysfs_fd, buf, MAX_USR_INPUT);
-        } else {
-            AGM_LOGE("invalid file handle\n");
-        }
-    }
 }
 
 int device_get_snd_card_id()
@@ -297,8 +263,6 @@ int device_open(struct device_obj *dev_obj)
                  __func__, pcm_name, rate, channels, format);
         goto done;
     }
-
-    update_sysfs_fd(obj->pcm_id, DEVICE_ENABLE);
     obj->pcm = pcm;
     obj->state = DEV_OPENED;
     obj->refcnt.open++;
@@ -413,7 +377,6 @@ int device_open(struct device_obj *dev_obj)
         ret = -EIO;
         goto done;
     }
-    update_sysfs_fd(obj->pcm_id, DEVICE_ENABLE);
     obj->pcm = pcm;
     obj->state = DEV_OPENED;
     obj->refcnt.open++;
@@ -587,7 +550,6 @@ int device_close(struct device_obj *dev_obj)
     }
 
     if (--obj->refcnt.open == 0) {
-        update_sysfs_fd(obj->pcm_id, DEVICE_DISABLE);
 #ifdef DEVICE_USES_ALSALIB
         ret = snd_pcm_close(obj->pcm);
 #else
@@ -1174,9 +1136,6 @@ void device_deinit()
 
     list_remove(&device_group_data_list);
     list_remove(&device_list);
-    if (sysfs_fd >= 0)
-        close(sysfs_fd);
-    sysfs_fd = -1;
 
 #ifdef DEVICE_USES_ALSALIB
     if (mixer)
@@ -1196,6 +1155,7 @@ static void split_snd_card_name(const char * in_snd_card_name, char* file_path_e
     char *snd_card_name = NULL;
     char *tmp = NULL;
     char *card_sub_str = NULL;
+    int token_count = 0;
 
     snd_card_name = strdup(in_snd_card_name);
     if (snd_card_name == NULL) {
@@ -1211,12 +1171,14 @@ static void split_snd_card_name(const char * in_snd_card_name, char* file_path_e
 
     while ((card_sub_str = strtok_r(NULL, "-", &tmp))) {
         if (strncmp(card_sub_str, "snd", strlen("snd"))) {
-            strlcpy(file_path_extn_wo_variant, file_path_extn, FILE_PATH_EXTN_MAX_SIZE);
+            if(token_count == 1)
+               strlcpy(file_path_extn_wo_variant, file_path_extn, FILE_PATH_EXTN_MAX_SIZE);
             strlcat(file_path_extn, "_", FILE_PATH_EXTN_MAX_SIZE);
             strlcat(file_path_extn, card_sub_str, FILE_PATH_EXTN_MAX_SIZE);
         }
         else
             break;
+        token_count++;
     }
 
 done:

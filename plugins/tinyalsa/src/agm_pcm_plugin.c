@@ -710,8 +710,11 @@ static snd_pcm_sframes_t agm_pcm_get_avail(struct pcm_plugin *plugin)
 {
     struct agm_pcm_priv *priv = plugin->priv;
     snd_pcm_sframes_t avail = 0;
+    enum direction dir;
 
-    if (plugin->mode & PCM_OUT) {
+    dir = (plugin->mode & PCM_IN) ? TX : RX;
+
+    if (dir == RX) {
         avail = priv->pos_buf->hw_ptr +
             priv->total_size_frames -
             priv->pos_buf->appl_ptr;
@@ -720,7 +723,7 @@ static snd_pcm_sframes_t agm_pcm_get_avail(struct pcm_plugin *plugin)
             avail += priv->pos_buf->boundary;
         else if ((snd_pcm_uframes_t)avail >= priv->pos_buf->boundary)
             avail -= priv->pos_buf->boundary;
-    } else if (plugin->mode & PCM_IN) {
+    } else if (dir == TX) {
         __builtin_sub_overflow(priv->pos_buf->hw_ptr, priv->pos_buf->appl_ptr, &avail);
         if (avail < 0)
             avail += priv->pos_buf->boundary;
