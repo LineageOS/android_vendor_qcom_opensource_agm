@@ -22,6 +22,7 @@ LOCAL_SHARED_LIBRARIES := \
     liblog
 
 LOCAL_CFLAGS += -Wno-format -Wno-incompatible-pointer-types
+LOCAL_CFLAGS += -Wno-enum-conversion
 
 #if android version is R, refer to qtitinyxx otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
