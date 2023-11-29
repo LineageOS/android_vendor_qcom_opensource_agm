@@ -16,6 +16,24 @@
       "message": "Do you guys already have new compatible blobs?",
       "revId": "4112730a254eb6c4303ee7288d7e665d22739e1d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "23589883_d5d3d5b8",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 31578
+      },
+      "writtenOn": "2023-11-29T15:59:28Z",
+      "side": 1,
+      "message": "Sony sm8550 is not building AGM libs from source because the blobs are so old that it is not even compatible with old sources.",
+      "parentUuid": "3f26e5fd_f0600b2c",
+      "revId": "4112730a254eb6c4303ee7288d7e665d22739e1d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
