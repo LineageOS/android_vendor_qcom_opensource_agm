@@ -34,6 +34,24 @@
       "parentUuid": "3f26e5fd_f0600b2c",
       "revId": "4112730a254eb6c4303ee7288d7e665d22739e1d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "bd7a6192_7df3829c",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19165
+      },
+      "writtenOn": "2023-12-23T11:23:22Z",
+      "side": 1,
+      "message": "We do have now with the U release for rtwo (based on AUDIO.LA.8.0.r1-09200-KAILUA.0 for audio).",
+      "parentUuid": "23589883_d5d3d5b8",
+      "revId": "4112730a254eb6c4303ee7288d7e665d22739e1d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
