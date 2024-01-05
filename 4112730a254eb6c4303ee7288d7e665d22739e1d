@@ -52,6 +52,23 @@
       "parentUuid": "23589883_d5d3d5b8",
       "revId": "4112730a254eb6c4303ee7288d7e665d22739e1d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c24d4e77_73661a9d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2024-01-05T16:07:44Z",
+      "side": 1,
+      "message": "fixes rtwo audio crashes with U blobs",
+      "revId": "4112730a254eb6c4303ee7288d7e665d22739e1d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
