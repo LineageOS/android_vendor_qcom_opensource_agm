@@ -227,14 +227,14 @@ static unsigned int agm_pcm_frames_to_bytes(struct agm_media_config *config,
         unsigned int frames)
 {
     return frames * config->channels *
-        (agm_format_to_bits(config->format) >> 3);
+        (agm_format_to_bits((enum pcm_format)config->format) >> 3);
 }
 
 static unsigned int agm_pcm_bytes_to_frames(unsigned int bytes,
         struct agm_media_config *config)
 {
     unsigned int frame_bits = config->channels *
-        agm_format_to_bits(config->format);
+        agm_format_to_bits((enum pcm_format)config->format);
 
     return bytes * 8 / frame_bits;
 }
@@ -589,7 +589,7 @@ static int agm_pcm_writei_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
 
     buff = x->buf;
     count = x->frames * (priv->media_config->channels *
-            agm_format_to_bits(priv->media_config->format) / 8);
+            agm_format_to_bits((enum pcm_format)priv->media_config->format) / 8);
 
     ret = agm_session_write(handle, buff, &count);
     errno = ret;
@@ -611,7 +611,7 @@ static int agm_pcm_readi_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
 
     buff = x->buf;
     count = x->frames * (priv->media_config->channels *
-            agm_format_to_bits(priv->media_config->format) / 8);
+            agm_format_to_bits((enum pcm_format)priv->media_config->format) / 8);
     ret = agm_session_read(handle, buff, &count);
     errno = ret;
 
