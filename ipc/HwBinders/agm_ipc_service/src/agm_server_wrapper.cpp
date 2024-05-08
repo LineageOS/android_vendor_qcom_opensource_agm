@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -834,6 +834,31 @@ Return<int32_t> AGM::ipc_agm_set_params_with_tag_to_acdb(uint32_t session_id,
 
     ret = agm_set_params_with_tag_to_acdb(session_id, aif_id, payload_local, size_local);
     free(payload_local);
+    return ret;
+}
+
+Return<int32_t> AGM::ipc_agm_set_params_to_acdb_tunnel(
+                                     const hidl_vec<uint8_t>& payload,
+                                     uint32_t size) {
+    size_t size_local = (size_t) size;
+    void * payload_local = NULL;
+    int32_t ret = 0;
+
+    if (payload.size() < size) {
+        ALOGE("%s: Invalid payload.size[%d] less than size %d\n", __func__, payload.size(), size);
+        return -EINVAL;
+    }
+
+    payload_local = (void*) calloc(1, size);
+    if (payload_local == NULL) {
+        ALOGE("%s: Cannot allocate memory for payload_local\n", __func__);
+        return -ENOMEM;
+    }
+
+    memcpy(payload_local, payload.data(), size);
+    ret = agm_set_params_to_acdb_tunnel(payload_local, size_local);
+    free(payload_local);
+
     return ret;
 }
 

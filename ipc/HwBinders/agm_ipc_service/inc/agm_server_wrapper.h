@@ -27,7 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -176,6 +176,9 @@ struct AGM : public IAGM {
                             const hidl_vec<AgmTagConfig>& tag_config) override;
     Return<int32_t> ipc_agm_set_params_with_tag_to_acdb(uint32_t session_id,
                             uint32_t aif_id,
+                            const hidl_vec<uint8_t>& payload,
+                            uint32_t size) override;
+    Return<int32_t> ipc_agm_set_params_to_acdb_tunnel(
                             const hidl_vec<uint8_t>& payload,
                             uint32_t size) override;
     Return<int32_t> ipc_agm_session_register_for_events(uint32_t session_id,

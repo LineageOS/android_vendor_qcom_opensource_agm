@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -638,6 +638,20 @@ int agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id,
         memcpy(payload_hidl.data(), payload, size_hidl);
         return agm_client->ipc_agm_set_params_with_tag_to_acdb(session_id,
                                     aif_id, payload_hidl, size_hidl);
+    }
+    return -EINVAL;
+}
+
+int agm_set_params_to_acdb_tunnel(void *payload, size_t size)
+{
+    if (!agm_server_died) {
+        android::sp<IAGM> agm_client = get_agm_server();
+
+        uint32_t size_hidl = (uint32_t) size;
+        hidl_vec<uint8_t> payload_hidl;
+        payload_hidl.resize(size_hidl);
+        memcpy(payload_hidl.data(), payload, size_hidl);
+        return agm_client->ipc_agm_set_params_to_acdb_tunnel(payload_hidl, size_hidl);
     }
     return -EINVAL;
 }
