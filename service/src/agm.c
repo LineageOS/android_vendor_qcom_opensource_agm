@@ -27,7 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -489,6 +489,50 @@ int agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id,
     }
 
 done:
+    return ret;
+}
+
+int agm_set_params_to_acdb_tunnel(void *payload, size_t size)
+{
+    int ret = 0;
+    struct agm_acdb_tunnel_param *payloadACDBTunnelInfo = NULL;
+    uint32_t k = 0;
+    uint32_t *ptr = NULL;
+    uint32_t tag = 0;
+
+    AGM_LOGD("enter\n");
+
+    if (!payload) {
+        AGM_LOGE("payload is nullptr");
+        return -EINVAL;
+    }
+
+    payloadACDBTunnelInfo = (struct agm_acdb_tunnel_param *)payload;
+    AGM_LOGD("payload size is 0x%x", size);
+    AGM_LOGD("tag=%x istkv=%x num_gkvs=0x%x num_kvs=0x%x blob_size=0x%x",
+        payloadACDBTunnelInfo->tag,
+        payloadACDBTunnelInfo->isTKV,
+        payloadACDBTunnelInfo->num_gkvs,
+        payloadACDBTunnelInfo->num_kvs,
+        payloadACDBTunnelInfo->blob_size);
+
+    ptr = payloadACDBTunnelInfo->blob;
+    for (k = 0; k < payloadACDBTunnelInfo->blob_size / 4; k++) {
+        AGM_LOGV("%d data = 0x%x", k, *ptr++);
+    }
+
+    ptr = payloadACDBTunnelInfo->blob + sizeof(struct agm_key_value) *
+            (payloadACDBTunnelInfo->num_gkvs + payloadACDBTunnelInfo->num_kvs);
+    // tag is stored at miid. Convertion happens next.
+    AGM_LOGI("tag = 0x%x", *ptr);
+
+    ret = session_dummy_rw_acdb_tunnel(payload, TRUE);
+    if (ret) {
+         AGM_LOGE("Error get tag list");
+         goto error;
+    }
+
+error:
     return ret;
 }
 
