@@ -1,4 +1,22 @@
 {
-  "comments": [],
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ed813a00_7354e06d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 28158
+      },
+      "writtenOn": "2024-05-22T13:37:16Z",
+      "side": 1,
+      "message": "breaks boot on oplus sm8450 family (udon and wly confirmed)",
+      "revId": "5655ea46b94413671cf3b9af14651191c4449dc1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ],
   "submitRequirementResults": []
 }
