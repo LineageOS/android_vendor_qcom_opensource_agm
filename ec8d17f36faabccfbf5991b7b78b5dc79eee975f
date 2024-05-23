@@ -33,6 +33,24 @@
       "message": "None of these devices is officially shipping",
       "revId": "ec8d17f36faabccfbf5991b7b78b5dc79eee975f",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "1ca2c900_69ba17bf",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 28158
+      },
+      "writtenOn": "2024-05-23T09:58:35Z",
+      "side": 1,
+      "message": "I thought the entire point of a community project was supporting as many devices as possible, ingot could workaround it by using 13 blobs on the basis of your original commit, if you insist on keeping the change we could do two different variants of the AGM repository, what are your thoughts on that?",
+      "parentUuid": "7dd363a1_a27f7a3c",
+      "revId": "ec8d17f36faabccfbf5991b7b78b5dc79eee975f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
