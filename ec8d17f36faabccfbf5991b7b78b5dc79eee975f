@@ -16,6 +16,23 @@
       "message": "The commit has broken boot on multiple sm8450 devices including but not limited to OnePlus 11R, OnePlus 10 Pro and Realme GT 2 Pro",
       "revId": "ec8d17f36faabccfbf5991b7b78b5dc79eee975f",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "7dd363a1_a27f7a3c",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2024-05-23T09:11:50Z",
+      "side": 1,
+      "message": "None of these devices is officially shipping",
+      "revId": "ec8d17f36faabccfbf5991b7b78b5dc79eee975f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
