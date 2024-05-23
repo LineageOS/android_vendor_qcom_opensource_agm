@@ -51,6 +51,24 @@
       "parentUuid": "7dd363a1_a27f7a3c",
       "revId": "ec8d17f36faabccfbf5991b7b78b5dc79eee975f",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "3a0a783e_946d4f5d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2024-05-23T18:22:50Z",
+      "side": 1,
+      "message": "\u003eI thought the entire point of a community project was supporting as many devices as possible\n\nIt\u0027s hard to call the devices that aren\u0027t shipping supported...\n\n\u003eif you insist on keeping the change we could do two different variants of the AGM repository, what are your thoughts on that?\n\nmeh.\n\n```diff\ndiff --git a/ipc/HwBinders/interfaces/AGMIPC/1.0/IAGM.hal b/ipc/HwBinders/interfaces/AGMIPC/1.0/IAGM.hal\nindex 3696176..2566c19 100644\n--- a/ipc/HwBinders/interfaces/AGMIPC/1.0/IAGM.hal\n+++ b/ipc/HwBinders/interfaces/AGMIPC/1.0/IAGM.hal\n@@ -104,9 +104,6 @@ interface IAGM\n     ipc_agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id,\n                     vec\u003cuint8_t\u003e payload, uint32_t size)\n                     generates (int32_t ret);\n-    ipc_agm_set_params_to_acdb_tunnel(\n-                    vec\u003cuint8_t\u003e payload, uint32_t size)\n-                    generates (int32_t ret);\n     ipc_agm_session_register_for_events(uint32_t session_id,\n                     vec\u003cAgmEventRegCfg\u003e evt_reg_cfg) generates (int32_t ret);\n     ipc_agm_session_open(uint32_t session_id, AgmSessionMode sess_mode)\n@@ -169,5 +166,8 @@ interface IAGM\n                                uint32_t num_groups_ret);\n     ipc_agm_session_write_datapath_params(uint32_t session_id, vec\u003cAgmBuff\u003e buff)\n                     generates (int32_t ret);\n+    ipc_agm_set_params_to_acdb_tunnel(\n+                    vec\u003cuint8_t\u003e payload, uint32_t size)\n+                    generates (int32_t ret);\n \n };\n```\n\nif this alone solves the issue, you can try to add buildconfig flag for selecting AGMIPC interface with this diff applies.",
+      "parentUuid": "1ca2c900_69ba17bf",
+      "revId": "ec8d17f36faabccfbf5991b7b78b5dc79eee975f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
