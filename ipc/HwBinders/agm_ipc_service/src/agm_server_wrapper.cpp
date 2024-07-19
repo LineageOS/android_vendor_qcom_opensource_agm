@@ -27,8 +27,8 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2022-2023, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -956,13 +956,14 @@ Return<void> AGM::ipc_agm_session_open(uint32_t session_id,
         goto exit;
     }
 
-    pthread_mutex_lock(&session_handle->handle_lock);
     ret = agm_session_open(session_id, session_mode, &handle);
     *handle_ret.data() = handle;
-    if (!ret)
+    if (!ret) {
+        pthread_mutex_lock(&session_handle->handle_lock);
         add_session_handle_to_list_l(session_id, handle);
+        pthread_mutex_unlock(&session_handle->handle_lock);
+    }
 
-    pthread_mutex_unlock(&session_handle->handle_lock);
 exit:
     _hidl_cb(ret, handle_ret);
     ALOGV("%s : handle received is : %llx",__func__, (unsigned long long) handle);
