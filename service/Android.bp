@@ -7,6 +7,7 @@ cc_library_headers {
 cc_library_shared {
     name: "libagm",
     defaults: [
+        "android_hardware_qtiaudio_config_defaults",
         "qtiaudio_dynamic_log_defaults",
     ],
     owner: "qti",
