@@ -6,6 +6,9 @@ cc_library_headers {
 
 cc_library_shared {
     name: "libagmclient",
+    defaults: [
+        "android_hardware_qtiaudio_config_defaults",
+    ],
     owner: "qti",
     vendor: true,
 

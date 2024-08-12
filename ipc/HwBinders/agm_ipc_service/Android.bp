@@ -1,5 +1,8 @@
 cc_library_shared {
     name: "vendor.qti.hardware.AGMIPC@1.0-impl",
+    defaults: [
+        "android_hardware_qtiaudio_config_defaults",
+    ],
     owner: "qti",
     vendor: true,
 

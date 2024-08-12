@@ -1,6 +1,7 @@
 cc_library_shared {
     name: "libagm_pcm_plugin",
     defaults: [
+        "android_hardware_qtiaudio_config_defaults",
         "qtiaudio_dynamic_log_defaults",
     ],
     owner: "qti",
@@ -28,6 +29,7 @@ cc_library_shared {
 cc_library_shared {
     name: "libagm_mixer_plugin",
     defaults: [
+        "android_hardware_qtiaudio_config_defaults",
         "qtiaudio_dynamic_log_defaults",
     ],
     owner: "qti",
@@ -53,6 +55,7 @@ cc_library_shared {
 cc_library_shared {
     name: "libagm_compress_plugin",
     defaults: [
+        "android_hardware_qtiaudio_config_defaults",
         "qtiaudio_dynamic_log_defaults",
     ],
     owner: "qti",
