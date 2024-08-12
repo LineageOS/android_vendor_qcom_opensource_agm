@@ -5,6 +5,10 @@ LOCAL_MODULE        := vendor.qti.hardware.AGMIPC@1.0-impl
 LOCAL_MODULE_OWNER  := qti
 LOCAL_VENDOR_MODULE := true
 
+ifeq ($(SOONG_CONFIG_android_hardware_audio_run_64bit), true)
+LOCAL_MULTILIB := 64
+endif
+
 LOCAL_CFLAGS        += -v -Wall
 LOCAL_C_INCLUDES    := $(call project-path-for,qcom-audio)/agm/ipc/HwBinders/agm_ipc_client/
 LOCAL_SRC_FILES     := src/agm_server_wrapper.cpp
