@@ -33,6 +33,24 @@
       "message": "This breaks ingot or any other device using this HAL, since it modifies the AGMIPC interface. It will need to be conditional in some way",
       "revId": "b41278cbcecc4ea9c3444055e71addb5a60f883d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "feb60453_04cab1e4",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 17257
+      },
+      "writtenOn": "2024-08-14T23:07:55Z",
+      "side": 1,
+      "message": "we can also just blob it",
+      "parentUuid": "dd3bcc5c_66bf5532",
+      "revId": "b41278cbcecc4ea9c3444055e71addb5a60f883d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
