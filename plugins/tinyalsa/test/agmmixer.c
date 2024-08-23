@@ -153,7 +153,7 @@ static unsigned int alsa_to_sndrv_format(enum pcm_format fmt)
     };
 }
 
-static enum pcm_format get_pcm_format(char *str)
+static enum pcm_format get_pcm_format(const char *str)
 {
     if (!strncmp(str, "PCM_FORMAT_S16_LE", strlen("PCM_FORMAT_S16_LE"))) {
         return PCM_FORMAT_S16_LE;
