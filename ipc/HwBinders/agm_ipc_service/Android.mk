@@ -60,4 +60,15 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_HEADER_LIBRARIES := libagmclient_headers
 
 include $(BUILD_EXECUTABLE)
+
+else
+
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := libagmserver_headers
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/inc
+LOCAL_VENDOR_MODULE := true
+
+include $(BUILD_HEADER_LIBRARY)
+
 endif
