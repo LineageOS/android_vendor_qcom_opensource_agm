@@ -104,9 +104,6 @@ interface IAGM
     ipc_agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id,
                     vec<uint8_t> payload, uint32_t size)
                     generates (int32_t ret);
-    ipc_agm_set_params_to_acdb_tunnel(
-                    vec<uint8_t> payload, uint32_t size)
-                    generates (int32_t ret);
     ipc_agm_session_register_for_events(uint32_t session_id,
                     vec<AgmEventRegCfg> evt_reg_cfg) generates (int32_t ret);
     ipc_agm_session_open(uint32_t session_id, AgmSessionMode sess_mode)
@@ -169,5 +166,7 @@ interface IAGM
                                uint32_t num_groups_ret);
     ipc_agm_session_write_datapath_params(uint32_t session_id, vec<AgmBuff> buff)
                     generates (int32_t ret);
-
+    ipc_agm_set_params_to_acdb_tunnel(
+                    vec<uint8_t> payload, uint32_t size)
+                    generates (int32_t ret);
 };
