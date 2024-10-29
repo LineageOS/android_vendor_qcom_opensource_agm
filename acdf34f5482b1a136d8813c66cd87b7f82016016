@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "d3b27f6c_19b3fabb",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2024-10-29T17:38:13Z",
+      "side": 1,
+      "message": "you\u0027re namespacing more than just the interfaces...",
+      "revId": "acdf34f5482b1a136d8813c66cd87b7f82016016",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
