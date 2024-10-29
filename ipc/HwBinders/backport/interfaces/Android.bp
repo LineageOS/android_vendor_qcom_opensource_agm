@@ -1,0 +1,11 @@
+soong_namespace {
+}
+
+subdirs = [
+    "*"
+]
+
+hidl_package_root {
+    name: "vendor.qti.hardware.AGMIPC",
+    path: "hardware/qcom-caf/sm8450/audio/agm/ipc/HwBinders/backport/interfaces/AGMIPC",
+}
