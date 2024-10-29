@@ -16,6 +16,24 @@
       "message": "also you still need some boardconfig flag to include this namespace",
       "revId": "dac9430a617a0f9c8e3442dc8728521c1ea07410",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e71610c4_70f53b2b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2024-10-29T18:06:50Z",
+      "side": 1,
+      "message": "which should not be per device but global",
+      "parentUuid": "ede60270_eed0cc3a",
+      "revId": "dac9430a617a0f9c8e3442dc8728521c1ea07410",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
