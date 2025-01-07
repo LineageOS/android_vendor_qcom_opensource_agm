@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c669d2f0_fd4347a9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2025-01-07T20:16:43Z",
+      "side": 1,
+      "message": "You also need to change IAGM_without_set_params.hal here or in the previous change",
+      "revId": "3044da964f38a904e91cc12b28c7808f0eb8c812",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
