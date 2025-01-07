@@ -12,6 +12,7 @@ soong_config_string_variable {
     name: "hal_variant",
     values: [
         "without_set_params",
+        "with_get_params",
     ],
 }
 
@@ -30,6 +31,9 @@ agm_hidl_interface {
             },
             without_set_params: {
                 srcs: ["IAGM_without_set_params.hal"],
+            },
+            with_get_params: {
+                srcs: ["IAGM_with_get_params.hal"],
             },
         },
     },
