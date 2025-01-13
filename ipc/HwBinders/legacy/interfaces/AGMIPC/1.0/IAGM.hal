@@ -169,4 +169,8 @@ interface IAGM
     ipc_agm_set_params_to_acdb_tunnel(
                     vec<uint8_t> payload, uint32_t size)
                     generates (int32_t ret);
+    ipc_agm_get_params_from_acdb_tunnel(
+                    vec<uint8_t> payload, uint32_t size)
+                    generates (int32_t ret, vec<uint8_t> payload_ret,
+                               uint32_t size_ret);
 };
