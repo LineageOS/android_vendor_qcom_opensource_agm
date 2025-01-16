@@ -698,6 +698,8 @@ static int agm_pcm_close(struct pcm_plugin *plugin)
     if (priv->buf_info) {
         if (priv->buf_info->data_buf_fd != -1)
             close(priv->buf_info->data_buf_fd);
+        if (priv->buf_info->pos_buf_fd != -1)
+            close(priv->buf_info->pos_buf_fd);
         free(priv->buf_info);
     }
     free(plugin->priv);
@@ -818,6 +820,8 @@ static void* agm_pcm_mmap(struct pcm_plugin *plugin, void *addr __unused, size_t
             pos->pos_buf_addr = mmap(0, priv->buf_info->pos_buf_size,
                     PROT_READ | PROT_WRITE, MAP_SHARED,
                     priv->buf_info->pos_buf_fd, 0);
+            if (pos->pos_buf_addr == MAP_FAILED)
+                return MAP_FAILED;
 
             priv->pos_buf = pos;
 
