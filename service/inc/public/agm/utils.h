@@ -28,31 +28,7 @@
 **/
 
 #ifndef __UTILS_H__
-// Numbers inferred from define list in utils.c
-#define AR_EOK 0
-#define AR_EFAILED 1
-#define AR_EBADPARAM 2
-#define AR_EUNSUPPORTED 3
-#define AR_EVERSION 4
-#define AR_EUNEXPECTED 5
-#define AR_EPANIC 6
-#define AR_ENORESOURCE 7
-#define AR_EHANDLE 8
-#define AR_EALREADY 9
-#define AR_ENOTREADY 10
-#define AR_EPENDING 11
-#define AR_EBUSY 12
-#define AR_EABORTED 13
-#define AR_ECONTINUE 14
-#define AR_EIMMEDIATE 15
-#define AR_ENOTIMPL 16
-#define AR_ENEEDMORE 17
-#define AR_ENOMEMORY 18
-#define AR_ENOTEXIST 19
-#define AR_ETERMINATED 20
-#define AR_ETIMEOUT 21
-#define AR_EIODATA 22
-#define AR_ESUBSYSRESET 23
+#include "ar_osal_error.h"
 
 #ifdef FEATURE_IPQ_OPENWRT
 #include <audio_utils/log.h>
