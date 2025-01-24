@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "6d6f0a5d_00c58bb3",
+        "filename": "ipc/HwBinders/agm_ipc_service/Android.mk",
+        "patchSetId": 1
+      },
+      "lineNbr": 21,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2025-01-24T08:43:23Z",
+      "side": 1,
+      "message": "I guess this is missing? https://github.com/Audioreach/audioreach-graphservices/blob/a72f3dbe227497dd234de9368963c5bfeb023ea1/gsl/Android.mk#L4",
+      "range": {
+        "startLine": 21,
+        "startChar": 4,
+        "endLine": 21,
+        "endChar": 13
+      },
+      "revId": "db92248be214f30d990b226324dd7750ea6cbc92",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
