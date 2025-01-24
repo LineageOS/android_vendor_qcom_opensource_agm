@@ -18,6 +18,8 @@ LOCAL_CFLAGS        := -D_ANDROID_ -DAGM_DEBUG_METADATA -DAGM_USE_CUTILS
 LOCAL_CFLAGS        += -Wno-tautological-compare -Wno-macro-redefined -Wall
 LOCAL_CFLAGS        += -D_GNU_SOURCE -DACDB_PATH=\"/vendor/etc/acdbdata/\"
 LOCAL_CFLAGS        += -DACDB_DELTA_FILE_PATH="/data/vendor/audio/acdbdata/delta"
+LOCAL_CFLAGS        += -Wno-incompatible-pointer-types
+LOCAL_CFLAGS        += -Wno-pointer-integer-compare
 
 LOCAL_C_INCLUDES    := $(LOCAL_PATH)/inc/public
 LOCAL_C_INCLUDES    += $(LOCAL_PATH)/inc/private
