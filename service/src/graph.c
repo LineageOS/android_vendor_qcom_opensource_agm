@@ -74,6 +74,7 @@
 #include <agm/graph_module.h>
 #include <agm/metadata.h>
 #include <agm/utils.h>
+#include <sys/stat.h>
 
 #ifdef DYNAMIC_LOG_ENABLED
 #include <log_xml_parser.h>
@@ -346,6 +347,8 @@ int graph_init()
     const char *delta_file_path;
     char file_path_extn[FILE_PATH_EXTN_MAX_SIZE] = {0};
     bool snd_card_found = false;
+    const char *odm_acdb_path = "/odm/etc/acdbdata";
+    struct stat st = {0};
 
 #ifndef ACDB_PATH
 #  error "Define -DACDB_PATH="PATH" in the makefile to compile"
@@ -364,6 +367,11 @@ int graph_init()
         ret = -ENOENT;
         goto err;
     }
+
+    if (stat(odm_acdb_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+        snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s", odm_acdb_path);
+    }
+
     AGM_LOGI("acdb file path: %s\n", acdb_path);
 
     ret = get_acdb_files_from_directory(acdb_path, &acdb_files);
