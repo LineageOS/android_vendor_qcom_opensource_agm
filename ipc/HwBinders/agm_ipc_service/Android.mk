@@ -30,7 +30,9 @@ LOCAL_SHARED_LIBRARIES := \
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_AGM_HIDL)),true)
   LOCAL_CFLAGS += -DAGM_HIDL_ENABLED
 endif
-LOCAL_HEADER_LIBRARIES := libagmclient_headers
+LOCAL_HEADER_LIBRARIES := \
+    libagm_headers \
+    libagmclient_headers
 
 include $(BUILD_SHARED_LIBRARY)
 
