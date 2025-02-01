@@ -13,6 +13,9 @@ LOCAL_CFLAGS        += -v -Wall
 LOCAL_CFLAGS        += -D_ANDROID_
 LOCAL_SRC_FILES     := src/agm_server_wrapper.cpp
 
+LOCAL_C_INCLUDES := \
+    $(call project-path-for,qcom-audio)/agm/service/inc/public
+
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/inc
 
 LOCAL_SHARED_LIBRARIES := \
