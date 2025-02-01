@@ -7,6 +7,7 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/inc/public
 include $(BUILD_HEADER_LIBRARY)
 
 # Build libagm
+ifneq ($(TARGET_PROVIDES_LIBAGM),true)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE        := libagm
@@ -75,4 +76,4 @@ ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DEVICE_PREPARE_SEQ)), true)
 endif
 
 include $(BUILD_SHARED_LIBRARY)
-
+endif
