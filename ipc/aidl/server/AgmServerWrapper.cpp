@@ -4,7 +4,6 @@
  */
 
 
-#define NDEBUG 0
 #define LOG_TAG "AgmIpc::Server"
 
 #include <unistd.h>
