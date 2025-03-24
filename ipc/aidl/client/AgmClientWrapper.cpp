@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-#define NDEBUG 0
 #define LOG_TAG "AgmIpc::Client"
 
 #include <agm/agm_api.h>
