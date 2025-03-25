@@ -40,6 +40,7 @@ LOCAL_HEADER_LIBRARIES := \
     libspf-headers \
     libutils_headers \
     libacdb_headers \
+    libarpal_headers \
     libarmemlog_headers
 
 LOCAL_SHARED_LIBRARIES := \
