@@ -43,6 +43,7 @@ cc_library_shared {
     export_include_dirs: ["inc/public"],
 
     header_libs: [
+        "libarpal_headers",
         "libspf-headers",
         "libutils_headers",
     ],
