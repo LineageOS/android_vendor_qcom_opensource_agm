@@ -33,7 +33,6 @@ LOCAL_SRC_FILES  := \
     src/device.c \
     src/utils.c \
     src/device_hw_ep.c \
-    src/agm_memlogger.c
 
 LOCAL_HEADER_LIBRARIES := \
     libspf-headers \
@@ -47,8 +46,14 @@ LOCAL_SHARED_LIBRARIES := \
     liblx-osal \
     libaudioroute \
     libats \
-    libarmemlog \
     libcutils
+
+ifneq ($(QCPATH),)
+LOCAL_SRC_FILES += src/agm_memlogger.c
+LOCAL_SHARED_LIBRARIES += libarmemlog
+else
+LOCAL_CFLAGS += -DPAL_MEMLOG_UNSUPPORTED
+endif
 
 #if android version is R, use qtitinyalsa lib otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
