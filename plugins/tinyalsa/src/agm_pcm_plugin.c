@@ -44,6 +44,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <tinyalsa/pcm_plugin.h>
@@ -928,7 +929,7 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
     struct agm_media_config *media_config;
     struct agm_buffer_config *buffer_config;
     uint64_t handle;
-    enum agm_session_mode sess_mode = AGM_SESSION_DEFAULT;
+    int sess_mode = AGM_SESSION_DEFAULT;
     int ret = 0, session_id = device;
     void *card_node, *pcm_node;
 
