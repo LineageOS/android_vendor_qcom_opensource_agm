@@ -69,6 +69,24 @@
       "parentUuid": "f89da49a_b01d782b",
       "revId": "404dbc81c484744c2ae026e197adc8b5fbf94942",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c745cce7_56f03ed1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2025-03-30T19:56:13Z",
+      "side": 1,
+      "message": "ah, let\u0027s abandon it then.",
+      "parentUuid": "70e389b5_327ce50a",
+      "revId": "404dbc81c484744c2ae026e197adc8b5fbf94942",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
