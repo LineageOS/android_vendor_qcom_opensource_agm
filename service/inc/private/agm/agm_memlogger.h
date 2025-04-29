@@ -5,9 +5,24 @@
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
+#ifndef AGM_MEMLOG_UNSUPPORTED
 #include "mem_logger.h"
 #include "graph_queue.h"
 #include "spf_reset_queue.h"
+#else
+typedef enum {
+    GRAPH_OPEN,
+    GRAPH_CLOSE,
+    GRAPH_START,
+    GRAPH_STOP,
+    GRAPH_PAUSE,
+    GRAPH_RESUME,
+} graph_queue_state;
+typedef enum {
+    SPF_RESET_DOWN,
+    SPF_RESET_UP,
+} spf_reset_state;
+#endif
 #include "gsl_intf.h"
 
 #ifndef AGM_MEMLOG_UNSUPPORTED

@@ -25,11 +25,13 @@ cc_library_shared {
         "-Wno-macro-redefined",
         "-Wno-pointer-integer-compare",
         "-Wno-tautological-compare",
-    ],
+    ] + select(soong_config_variable("qtiaudio", "feature_agm_memlogger"), {
+        "true": [],
+        default: ["-DAGM_MEMLOG_SUPPORTED"],
+    }),
 
     srcs: [
         "src/agm.c",
-        "src/agm_memlogger.c",
         "src/device.c",
         "src/device_hw_ep.c",
         "src/graph.c",
@@ -37,7 +39,10 @@ cc_library_shared {
         "src/metadata.c",
         "src/session_obj.c",
         "src/utils.c",
-    ],
+    ] + select(soong_config_variable("qtiaudio", "feature_agm_memlogger"), {
+        "true": ["src/agm_memlogger.c"],
+        default: [],
+    }),
 
     local_include_dirs: [
         "inc/private",
@@ -46,11 +51,13 @@ cc_library_shared {
     export_include_dirs: ["inc/public"],
 
     header_libs: [
-        "libarmemlog_headers",
         "libarpal_headers",
         "libspf-headers",
         "libutils_headers",
-    ],
+    ] + select(soong_config_variable("qtiaudio", "feature_agm_memlogger"), {
+        "true": ["libarmemlog_headers"],
+        default: [],
+    }),
 
     shared_libs: [
         "libar-gsl",
