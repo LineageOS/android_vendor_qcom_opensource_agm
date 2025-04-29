@@ -5,6 +5,7 @@
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
+#ifndef AGM_MEMLOG_UNSUPPORTED
 #include "mem_logger.h"
 #include "graph_queue.h"
 #include "spf_reset_queue.h"
@@ -34,5 +35,10 @@ void agm_memlog_spf_reset_enqueue(spf_reset_state qState);
 /// @param client_data the data the client passes
 /// @return an error code representing status
 uint32_t agm_memlog_spf_reset_cb(enum gsl_global_event_ids event_id, void *event_payload, size_t event_payload_sz, void *client_data);
+#else
+#define agm_memlog_init(...) (0)
+#define agm_memlog_deinit(...) (0)
+#define agm_memlog_graph_enqueue(...) (0)
+#endif
 
 #endif
