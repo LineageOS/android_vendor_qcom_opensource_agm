@@ -26,7 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ** Changes from Qualcomm Innovation Center are provided under the following license:
-** Copyright (c) 2022-2023, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+** Copyright (c) 2022-2023, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted (subject to the limitations in the
@@ -784,11 +784,16 @@ int graph_close(struct graph_obj *graph_obj)
     list_for_each_safe(node, temp_node, &graph_obj->tagged_mod_list) {
         list_remove(node);
         temp_mod = node_to_item(node, module_info_t, list);
-        if (temp_mod->gkv) {
-            free(temp_mod->gkv->kv);
-            free(temp_mod->gkv);
-        }
-        free(temp_mod);
+        if(temp_mod != NULL)
+        {
+            if (temp_mod->gkv && temp_mod->gkv->kv) {
+                free(temp_mod->gkv->kv);
+                free(temp_mod->gkv);
+            }
+            free(temp_mod);
+         } else {
+             AGM_LOGE("temp_mod IS NULL");
+         }
     }
     pthread_mutex_unlock(&graph_obj->lock);
     pthread_mutex_destroy(&graph_obj->lock);

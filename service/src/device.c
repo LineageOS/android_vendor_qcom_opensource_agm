@@ -104,6 +104,24 @@ static int sysfs_fd = -1;
 
 #define MAX_USR_INPUT 9
 
+#define AGM_PCM_RATE_5512  (5512)
+#define AGM_PCM_RATE_8000  (8000)
+#define AGM_PCM_RATE_11025 (11025)
+#define AGM_PCM_RATE_16000 (16000)
+#define AGM_PCM_RATE_22050 (2205)
+#define AGM_PCM_RATE_32000 (32000)
+#define AGM_PCM_RATE_44100 (44100)
+#define AGM_PCM_RATE_48000 (48000)
+#define AGM_PCM_RATE_64000 (64000)
+#define AGM_PCM_RATE_88200 (88200)
+#define AGM_PCM_RATE_96000 (96000)
+#define AGM_PCM_RATE_176400 (176400)
+#define AGM_PCM_RATE_192000 (192000)
+#define AGM_PCM_RATE_352800 (352800)
+#define AGM_PCM_RATE_384000 (384000)
+
+#define AGM_DEFAULT_PCM_RATE (AGM_PCM_RATE_48000)
+
 /** Sound card state */
 typedef enum snd_card_status_t {
     SND_CARD_STATUS_OFFLINE = 0,
@@ -311,6 +329,30 @@ enum pcm_format agm_to_pcm_format(enum agm_media_format format)
     };
 }
 
+bool device_pcm_is_rate_supported(unsigned int rate)
+{
+    switch(rate) {
+    case AGM_PCM_RATE_5512:
+    case AGM_PCM_RATE_8000:
+    case AGM_PCM_RATE_11025:
+    case AGM_PCM_RATE_16000:
+    case AGM_PCM_RATE_22050:
+    case AGM_PCM_RATE_32000:
+    case AGM_PCM_RATE_44100:
+    case AGM_PCM_RATE_48000:
+    case AGM_PCM_RATE_64000:
+    case AGM_PCM_RATE_88200:
+    case AGM_PCM_RATE_96000:
+    case AGM_PCM_RATE_176400:
+    case AGM_PCM_RATE_192000:
+    case AGM_PCM_RATE_352800:
+    case AGM_PCM_RATE_384000:
+        return true;
+    default:
+        return false;
+    };
+}
+
 int device_open(struct device_obj *dev_obj)
 {
     int ret = 0;
@@ -349,6 +391,12 @@ int device_open(struct device_obj *dev_obj)
 
     config.channels = media_config->channels;
     config.rate = media_config->rate;
+    if (!device_pcm_is_rate_supported(config.rate)) {
+        AGM_LOGD("Unsupported PCM rate %d changing to default rate %d\n",
+              config.rate, AGM_DEFAULT_PCM_RATE);
+        config.rate = AGM_DEFAULT_PCM_RATE;
+    }
+
     config.format = agm_to_pcm_format(media_config->format);
     config.period_size = (MAX_PERIOD_BUFFER)/(config.channels *
                           (get_pcm_bits_per_sample(media_config->format)/8));
@@ -1084,11 +1132,13 @@ int device_init()
 {
     int ret = 0;
 
+#ifndef CARD_STATE_UNSUPPORTED
     ret = wait_for_snd_card_to_online();
     if (ret) {
         AGM_LOGE("Not found any SND card online\n");
         return ret;
     }
+#endif
 
     ret = parse_snd_card();
     if (ret)

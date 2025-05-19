@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -47,6 +47,7 @@
 #define GSL_EVENT_SRC_MODULE_ID_GSL 0x2001 // DO NOT CHANGE
 
 //forward declarations
+static struct session_pool *sess_pool;
 static int session_close(struct session_obj *sess_obj);
 static int session_set_loopback(struct session_obj *sess_obj,
                            uint32_t session_id, bool enable);
@@ -619,23 +620,27 @@ static void graph_event_cb(struct agm_event_cb_params *event_params,
 
     pthread_mutex_lock(&sess_obj->cb_pool_lock);
     list_for_each_safe(node, next, &sess_obj->cb_pool) {
-        sess_cb = node_to_item(node, struct session_cb, node);
-        if (sess_cb && sess_cb->cb) {
-            /* Filter callbacks based on event_id and event_type */
-            if (sess_cb->evt_type == AGM_EVENT_DATA_PATH &&
-                event_params->source_module_id == GSL_EVENT_SRC_MODULE_ID_GSL &&
-                (event_params->event_id == AGM_EVENT_EOS_RENDERED ||
-                event_params->event_id == AGM_EVENT_READ_DONE ||
-                event_params->event_id == AGM_EVENT_WRITE_DONE)) {
-                sess_cb->cb(sess_obj->sess_id,
+        if (node != NULL) {
+            sess_cb = node_to_item(node, struct session_cb, node);
+            if (sess_cb && sess_cb->cb) {
+                /* Filter callbacks based on event_id and event_type */
+                if (sess_cb->evt_type == AGM_EVENT_DATA_PATH &&
+                    event_params->source_module_id == GSL_EVENT_SRC_MODULE_ID_GSL &&
+                    (event_params->event_id == AGM_EVENT_EOS_RENDERED ||
+                    event_params->event_id == AGM_EVENT_READ_DONE ||
+                    event_params->event_id == AGM_EVENT_WRITE_DONE)) {
+                    sess_cb->cb(sess_obj->sess_id,
                                    (struct agm_event_cb_params *)event_params,
-                                    sess_cb->client_data);
-            } else if (sess_cb->evt_type == AGM_EVENT_MODULE &&
-                       event_params->source_module_id != GSL_EVENT_SRC_MODULE_ID_GSL) {
-                sess_cb->cb(sess_obj->sess_id,
-                                   (struct agm_event_cb_params *)event_params,
-                                    sess_cb->client_data);
+                                       sess_cb->client_data);
+                 } else if (sess_cb->evt_type == AGM_EVENT_MODULE &&
+                           event_params->source_module_id != GSL_EVENT_SRC_MODULE_ID_GSL) {
+                     sess_cb->cb(sess_obj->sess_id,
+                                       (struct agm_event_cb_params *)event_params,
+                                        sess_cb->client_data);
+                }
             }
+        } else {
+               AGM_LOGE("%s node is  NULL", __func__);
         }
     }
     pthread_mutex_unlock(&sess_obj->cb_pool_lock);

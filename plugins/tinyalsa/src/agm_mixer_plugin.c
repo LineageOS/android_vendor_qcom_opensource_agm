@@ -2243,6 +2243,13 @@ MIXER_PLUGIN_OPEN_FN(agm_mixer_plugin)
     int be_grp_ctl_cnt = 0;
 
     AGM_LOGI("%s: enter, card %u\n", __func__, card);
+#ifdef AGM_NO_IPC
+    ret = agm_init();
+    if (ret) {
+        AGM_LOGE("%s: agm init failed\n", __func__);
+        return ret;
+    }
+#endif
 
     amp = calloc(1, sizeof(*amp));
     if (!amp) {

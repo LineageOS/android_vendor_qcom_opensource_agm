@@ -26,7 +26,7 @@
 <!-- OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN    -->
 <!-- IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                             -->
 
-<!-- Changes from Qualcomm Innovation Center are provided under the following license:    -->
+<!-- Changes from Qualcomm Innovation Center, Inc. are provided under the following license:    -->
 <!--                                                                                      -->
 <!-- Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.             -->
 <!-- SPDX-License-Identifier: BSD-3-Clause-Clear                                          -->
@@ -42,6 +42,7 @@
     <device name="DISPLAY_PORT-RX" rate="48000" ch="2" bits="16" />
     <device name="USB_AUDIO-RX" rate="48000" ch="2" bits="16" />
     <device name="CODEC_DMA-LPAIF_RXTX-TX-3" rate="48000" ch="1" bits="16" />
+    <device name="CODEC_DMA-LPAIF_RXTX-TX-4" rate="48000" ch="1" bits="16" />
     <device name="CODEC_DMA-LPAIF_VA-TX-0" rate="48000" ch="1" bits="16" />
     <device name="CODEC_DMA-LPAIF_VA-TX-1" rate="48000" ch="1" bits="16" />
     <device name="MI2S-LPAIF_AXI-TX-PRIMARY" rate="48000" ch="1" bits="16" />

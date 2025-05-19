@@ -251,10 +251,12 @@ static int get_backend_info(char* filename, char *intf_name, void *config, int t
     }
     if (type == DEVICE) {
         dev_cfg = (struct device_config *)config;
+        memset(dev_cfg, 0, sizeof(*dev_cfg));
         strlcpy(dev_cfg->name, intf_name, sizeof(dev_cfg->name));
         XML_SetElementHandler(parser, start_tag, NULL);
     } else {
         grp_cfg = (struct group_config *)config;
+        memset(grp_cfg, 0, sizeof(*grp_cfg));
         strlcpy(grp_cfg->name, intf_name, sizeof(grp_cfg->name));
         XML_SetElementHandler(parser, start_group_tag, NULL);
     }

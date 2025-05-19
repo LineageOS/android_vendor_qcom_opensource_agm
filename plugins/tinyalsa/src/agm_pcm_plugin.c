@@ -812,8 +812,10 @@ static void* agm_pcm_mmap(struct pcm_plugin *plugin, void *addr __unused, size_t
             pos->pos_buf_addr = mmap(0, priv->buf_info->pos_buf_size,
                     PROT_READ | PROT_WRITE, MAP_SHARED,
                     priv->buf_info->pos_buf_fd, 0);
-            if (pos->pos_buf_addr == MAP_FAILED)
+            if (pos->pos_buf_addr == MAP_FAILED) {
+                free(pos);
                 return MAP_FAILED;
+            }
 
             priv->pos_buf = pos;
 

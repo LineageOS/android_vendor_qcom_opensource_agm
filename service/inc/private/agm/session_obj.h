@@ -109,8 +109,6 @@ struct session_pool {
     pthread_mutex_t lock;
 };
 
-struct session_pool *sess_pool;
-
 int session_obj_init();
 int session_obj_deinit();
 int session_obj_valid_check(uint64_t hndl);
