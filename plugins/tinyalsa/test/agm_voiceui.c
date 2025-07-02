@@ -114,7 +114,7 @@ static void event_wait_thread_loop(void *context)
         ret = mixer_read_event(mixer, &mixer_event);
         if (ret >= 0) {
             printf("Event Received %s\n",  mixer_event.data.elem.id.name);
-            read_event_data(mixer, mixer_event.data.elem.id.name);
+            read_event_data(mixer, (char *)mixer_event.data.elem.id.name);
         } else {
             printf("%s: mixer_read failed, ret = %d\n", __func__, ret);
         }
@@ -327,7 +327,7 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
         goto err_close_mixer;
     }
 
-    param_buf = merge_payload(miid, 3, &param_size, "/vendor/etc/sound_model",
+    param_buf = merge_payload(miid, 3, (int *)&param_size, "/vendor/etc/sound_model",
         "/vendor/etc/wakeup_config", "/vendor/etc/buffer_config");
 
     if (agm_mixer_set_param(mixer, device, STREAM_PCM, param_buf, param_size)) {
