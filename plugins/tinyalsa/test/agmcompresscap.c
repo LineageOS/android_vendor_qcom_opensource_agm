@@ -571,7 +571,7 @@ int main(int argc, char **argv)
     ret = get_device_media_config(BACKEND_CONF_FILE, intf_name, &config);
     if (ret) {
         printf("Invalid input, entry not found for %s\n", intf_name);
-        fclose(file);
+        fclose((struct __sFILE *)file);
         return ret;
     }
 

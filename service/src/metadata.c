@@ -171,12 +171,12 @@ void metadata_update_cal(struct agm_meta_data_gsl *meta_data,
     }
 
     if (!(meta_data->ckv.kv)) {
-        AGM_LOGE("metadata->ckv.kv is NULL, num_kvs=%d\n",
+        AGM_LOGE("metadata->ckv.kv is NULL, num_kvs=%zu\n",
                                     meta_data->ckv.num_kvs);
         return;
     }
     if (!(ckv->kv)) {
-        AGM_LOGE("ckv->kv is NULL, num_kvs=%d\n",
+        AGM_LOGE("ckv->kv is NULL, num_kvs=%zu\n",
                                     ckv->num_kvs);
         return;
     }
@@ -221,7 +221,7 @@ struct agm_meta_data_gsl* metadata_merge(int num, ...)
 
     if ((merged->gkv.num_kvs > MAX_KVPAIR_PROPS) || (merged->ckv.num_kvs > MAX_KVPAIR_PROPS)
                                              || (merged->sg_props.num_values > MAX_KVPAIR_PROPS)) {
-        AGM_LOGE("Num GKVs %d Num CKVs %d Num Props %d more than expected: %d", merged->gkv.num_kvs,
+        AGM_LOGE("Num GKVs %zu Num CKVs %zu Num Props %d more than expected: %d", merged->gkv.num_kvs,
                                 merged->ckv.num_kvs, merged->sg_props.num_values, MAX_KVPAIR_PROPS);
         free(merged);
         return NULL;
@@ -300,7 +300,7 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size,
     }
     min_req_len += sizeof(uint32_t);
     if (size < min_req_len) {
-        AGM_LOGE("size should be atleast %d size for GKV\n", sizeof(uint32_t));
+        AGM_LOGE("size should be at least %lu size for GKV\n", (unsigned long)sizeof(uint32_t));
         ret = -EINVAL;
         goto done;
 
@@ -308,7 +308,7 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size,
 
     dest->gkv.num_kvs = NUM_GKV(metadata);
     if (dest->gkv.num_kvs > MAX_KVPAIR_PROPS) {
-        AGM_LOGE("Num GKVs %d more than expected: %d",dest->gkv.num_kvs, MAX_KVPAIR_PROPS);
+        AGM_LOGE("Num GKVs %zu more than expected: %d",dest->gkv.num_kvs, MAX_KVPAIR_PROPS);
         ret = -EINVAL;
         goto free_metadata;
     }
@@ -336,7 +336,7 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size,
 
     dest->ckv.num_kvs = NUM_CKV(metadata);
     if (dest->ckv.num_kvs > MAX_KVPAIR_PROPS) {
-        AGM_LOGE("Num CKVs %d more than expected: %d",dest->ckv.num_kvs, MAX_KVPAIR_PROPS);
+        AGM_LOGE("Num CKVs %zu more than expected: %d",dest->ckv.num_kvs, MAX_KVPAIR_PROPS);
         ret = -EINVAL;
         goto free_metadata;
     }
