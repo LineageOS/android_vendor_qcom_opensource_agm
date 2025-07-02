@@ -1224,32 +1224,32 @@ int graph_rw_acdb_param(void *payload, bool is_param_write)
         payloadACDBTunnelInfo->num_kvs,
         payloadACDBTunnelInfo->blob_size);
 
-    ptr = payloadACDBTunnelInfo->blob;
+    ptr = (uint32_t *)payloadACDBTunnelInfo->blob;
     for (i = 0; i < payloadACDBTunnelInfo->blob_size / 4; i++) {
         AGM_LOGV("%d data = 0x%x", i, *ptr++);
     }
 
-    ptr = payloadACDBTunnelInfo->blob + sizeof(struct agm_key_value) *
-            (payloadACDBTunnelInfo->num_gkvs + payloadACDBTunnelInfo->num_kvs);
+    ptr = (uint32_t *)(payloadACDBTunnelInfo->blob + sizeof(struct agm_key_value) *
+            (payloadACDBTunnelInfo->num_gkvs + payloadACDBTunnelInfo->num_kvs));
     header = (struct apm_module_param_data_t *)ptr;
-    ptr_to_param = header;
+    ptr_to_param = (uint8_t *)header;
 
     // tag is stored at miid. Convertion happens next.
     tag = *ptr;
     AGM_LOGD("tag to be translated is 0x%x", tag);
 
     gkv.num_kvs = payloadACDBTunnelInfo->num_gkvs;
-    gkv.kv = payloadACDBTunnelInfo->blob;
+    gkv.kv = (struct agm_key_value *)payloadACDBTunnelInfo->blob;
 
-    ret = gsl_get_tags_with_module_info(&gkv, NULL, &size);
+    ret = gsl_get_tags_with_module_info((const struct gsl_key_vector *)&gkv, NULL, &size);
     if (ret) {
-        AGM_LOGE("failed to get tag info size = %d size=0x%x", ret, size);
+        AGM_LOGE("failed to get tag info size = %d size=0x%x", ret, (unsigned int)size);
         return ret;
     }
 
-    ret = gsl_get_tags_with_module_info(&gkv, tag_pool, &size);
+    ret = gsl_get_tags_with_module_info((const struct gsl_key_vector *)&gkv, tag_pool, &size);
     if (ret) {
-        AGM_LOGE("failed to get tag pool ret = %d size=0x%x", ret, size);
+        AGM_LOGE("failed to get tag pool ret = %d size=0x%x", ret, (unsigned int)size);
         return ret;
     }
 
@@ -1284,8 +1284,8 @@ int graph_rw_acdb_param(void *payload, bool is_param_write)
     header->module_instance_id = miid;
     AGM_LOGI("translated miid is = 0x%x", header->module_instance_id);
     kv.num_kvs = payloadACDBTunnelInfo->num_kvs;
-    kv.kv = payloadACDBTunnelInfo->blob +
-        payloadACDBTunnelInfo->num_gkvs * sizeof(struct agm_key_value);
+    kv.kv = (struct agm_key_value *)(payloadACDBTunnelInfo->blob +
+        payloadACDBTunnelInfo->num_gkvs * sizeof(struct agm_key_value));
 
     AGM_LOGD("blob size = %d", payloadACDBTunnelInfo->blob_size);
     __builtin_add_overflow(payloadACDBTunnelInfo->num_gkvs * sizeof(struct agm_key_value),
@@ -1293,8 +1293,8 @@ int graph_rw_acdb_param(void *payload, bool is_param_write)
             &temp_sum);
     __builtin_sub_overflow(payloadACDBTunnelInfo->blob_size, temp_sum, &actual_size);
     AGM_LOGD("actual size = 0x%x", actual_size);
-    AGM_LOGI("num kvs = %d", kv.num_kvs);
-    ptr = kv.kv;
+    AGM_LOGI("num kvs = %zu", kv.num_kvs);
+    ptr = (uint32_t *)(kv.kv);
     for (i = 0; i < kv.num_kvs; i++) {
         AGM_LOGI("kv %d %x", i, *ptr++);
         AGM_LOGI("kv %d %x", i, *ptr++);
@@ -1315,16 +1315,16 @@ int graph_rw_acdb_param(void *payload, bool is_param_write)
             total_parsed_size, header->param_size, offset);
     }
 
-    ptr = ptr_to_param;
+    ptr = (uint32_t *)ptr_to_param;
     for (i = 0; i < actual_size / 4; i++) {
         AGM_LOGV("%d data to acdb = 0x%x", i, *ptr++);
     }
 
     if (is_param_write) {
         if (payloadACDBTunnelInfo->isTKV)
-            ret = gsl_set_tag_data_to_acdb(&gkv, tag, &kv, ptr_to_param, actual_size);
+            ret = gsl_set_tag_data_to_acdb((struct gsl_key_vector *)&gkv, tag, (struct gsl_key_vector *)&kv, ptr_to_param, actual_size);
         else
-            ret = gsl_set_cal_data_to_acdb(&gkv, &kv, ptr_to_param, actual_size);
+            ret = gsl_set_cal_data_to_acdb((struct gsl_key_vector *)&gkv, (struct gsl_key_vector *)&kv, ptr_to_param, actual_size);
     } else {
         if (payloadACDBTunnelInfo->isTKV)
             ret = graph_get_tckv_data_from_acdb(&gkv, tag, &kv, ptr_to_param, &actual_size);
@@ -2207,13 +2207,13 @@ int graph_get_tckv_data_from_acdb(
     if (tag) {
         AGM_LOGI("Tag for tkv is 0x%x", tag);
         ret = gsl_get_tag_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
-                    tag, (struct gsl_key_vector *)tag_key_vect, 1, param_list,
-                    NULL, payload_size);
+                    tag, (struct gsl_key_vector *)tag_key_vect, 1, (uint8_t *)param_list,
+                    NULL, (uint32_t *)payload_size);
     } else {
         AGM_LOGI("This is ckv");
         ret = gsl_get_cal_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
-                    (struct gsl_key_vector *)tag_key_vect, 1, param_list,
-                    NULL, payload_size);
+                    (struct gsl_key_vector *)tag_key_vect, 1, (uint8_t *)param_list,
+                    NULL, (uint32_t *)payload_size);
     }
 
     if (ret) {
@@ -2239,13 +2239,13 @@ int graph_get_tckv_data_from_acdb(
     if (tag) {
         AGM_LOGE("This is tag data.");
         ret = gsl_get_tag_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
-                    tag, (struct gsl_key_vector *)tag_key_vect, 1, param_list,
-                    get_payload, payload_size);
+                    tag, (struct gsl_key_vector *)tag_key_vect, 1, (uint8_t *)param_list,
+                    get_payload, (uint32_t *)payload_size);
     } else {
         AGM_LOGE("This is ckv data.");
         ret = gsl_get_cal_data_from_acdb((struct gsl_key_vector *)graph_key_vect,
-                    (struct gsl_key_vector *)tag_key_vect, 1, param_list,
-                    get_payload, payload_size);
+                    (struct gsl_key_vector *)tag_key_vect, 1, (uint8_t *)param_list,
+                    get_payload, (uint32_t *)payload_size);
     }
 
     if (ret) {
@@ -2326,7 +2326,7 @@ static void print_graph_alias(const struct agm_meta_data_gsl *meta_data_kv)
         return;
     }
 
-    ret = gsl_get_graph_alias(&meta_data_kv->gkv, acdb_string, &acdb_string_len);
+    ret = gsl_get_graph_alias((const struct gsl_key_vector *)&meta_data_kv->gkv, acdb_string, &acdb_string_len);
     if (ret) {
         AGM_LOGD("gsl_get_graph_alias failed: ret = %d\n", ret);
         return;

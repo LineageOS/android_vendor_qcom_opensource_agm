@@ -227,14 +227,14 @@ static unsigned int agm_pcm_frames_to_bytes(struct agm_media_config *config,
         unsigned int frames)
 {
     return frames * config->channels *
-        (agm_format_to_bits(config->format) >> 3);
+        (agm_format_to_bits((enum pcm_format)config->format) >> 3);
 }
 
 static unsigned int agm_pcm_bytes_to_frames(unsigned int bytes,
         struct agm_media_config *config)
 {
     unsigned int frame_bits = config->channels *
-        agm_format_to_bits(config->format);
+        agm_format_to_bits((enum pcm_format)config->format);
 
     return bytes * 8 / frame_bits;
 }
@@ -348,7 +348,7 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
         // Update new_hw_ptr
         __builtin_uaddl_overflow(hw_base, pos, &new_hw_ptr);
         __builtin_umull_overflow(priv->pos_buf->boundary,
-                                 priv->pos_buf->crossed_boundary_cnt, &boundary);
+                                 priv->pos_buf->crossed_boundary_cnt, (unsigned long *)&boundary);
         __builtin_uaddl_overflow(new_hw_ptr, boundary, &new_hw_ptr);
 
         // Set delta_wall_clk_us only if cached wall clk is non-zero
@@ -589,7 +589,7 @@ static int agm_pcm_writei_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
 
     buff = x->buf;
     count = x->frames * (priv->media_config->channels *
-            agm_format_to_bits(priv->media_config->format) / 8);
+            agm_format_to_bits((enum pcm_format)priv->media_config->format) / 8);
 
     ret = agm_session_write(handle, buff, &count);
     errno = ret;
@@ -611,7 +611,7 @@ static int agm_pcm_readi_frames(struct pcm_plugin *plugin, struct snd_xferi *x)
 
     buff = x->buf;
     count = x->frames * (priv->media_config->channels *
-            agm_format_to_bits(priv->media_config->format) / 8);
+            agm_format_to_bits((enum pcm_format)priv->media_config->format) / 8);
     ret = agm_session_read(handle, buff, &count);
     errno = ret;
 
@@ -1008,7 +1008,7 @@ PCM_PLUGIN_OPEN_FN(agm_pcm_plugin)
     priv->card_node = card_node;
     priv->session_id = session_id;
     priv->mmap_status = false;
-    snd_card_def_get_int(pcm_node, "session_mode", &sess_mode);
+    snd_card_def_get_int(pcm_node, "session_mode", (int *)&sess_mode);
 
     ret = agm_session_open(session_id, sess_mode, &handle);
     if (ret) {
