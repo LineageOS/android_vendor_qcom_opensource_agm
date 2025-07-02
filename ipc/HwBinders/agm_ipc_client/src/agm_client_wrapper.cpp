@@ -313,7 +313,7 @@ int agm_session_suspend(uint64_t handle){
 
 int agm_session_open(uint32_t session_id, enum agm_session_mode sess_mode ,
                      uint64_t *handle) {
-    ALOGD("%s called with handle = %x , *handle = %x\n", __func__, handle, *handle);
+    ALOGD("%s called with handle = %p , *handle = %llx\n", __func__, (void *) handle, (unsigned long long) *handle);
     int ret = -EINVAL;
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
@@ -327,7 +327,7 @@ int agm_session_open(uint32_t session_id, enum agm_session_mode sess_mode ,
             ALOGE("%s: HIDL call failed. ret=%d\n", __func__, ret);
         }
     }
-    ALOGD("%s Received handle = %p , *handle = %llx\n", __func__, handle, (unsigned long long) *handle);
+    ALOGD("%s Received handle = %p , *handle = %llx\n", __func__,(void *) handle, (unsigned long long) *handle);
     return ret;
 }
 
@@ -853,7 +853,7 @@ int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
 int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_type type,
                                      uint32_t silence)
 {
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %lu \n", __func__, handle);
     if (!agm_server_died) {
         android::sp<IAGM> agm_client = get_agm_server();
         AgmGaplessSilenceType type_hidl = (AgmGaplessSilenceType) type;
@@ -915,7 +915,7 @@ int agm_session_set_non_tunnel_mode_config(uint64_t handle,
 
 int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, size_t *consumed_size)
 {
-    ALOGV("%s called with handle = %x \n", __func__, handle);
+    ALOGV("%s called with handle = %lu \n", __func__, handle);
     int32_t ret = -EINVAL;
 
     if (!agm_server_died) {
