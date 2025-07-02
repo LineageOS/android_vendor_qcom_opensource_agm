@@ -220,7 +220,7 @@ int agm_session_suspend(uint64_t handle) {
 }
 
 int agm_session_open(uint32_t session_id, enum agm_session_mode sess_mode, uint64_t *handle) {
-    ALOGV("%s  handle = %x , *handle = %x", __func__, handle, *handle);
+    ALOGV("%s  handle = %p , *handle = %llx", __func__, (void *) handle, (unsigned long long) *handle);
     auto client = getAgm();
     RETURN_IF_AGM_SERVICE_NOT_REGISTERED(client);
 
@@ -230,7 +230,7 @@ int agm_session_open(uint32_t session_id, enum agm_session_mode sess_mode, uint6
 
     *handle = convertAidlHandleToLegacy(aidlHandle);
     auto ret = statusTFromBinderStatus(aidlStatus);
-    ALOGV("%s Received handle = %p, ret %d", __func__, (unsigned long long)*handle, ret);
+    ALOGV("%s Received  handle = %p , *handle = %llx, ret %d", __func__,(void *) handle, (unsigned long long)*handle, ret);
 
     return ret;
 }
@@ -264,7 +264,7 @@ int agm_session_read(uint64_t handle, void *buf, size_t *byte_count) {
 }
 
 int agm_session_write(uint64_t handle, void *buf, size_t *byte_count) {
-    ALOGV("%s  handle = %llx, bytes %d ", __func__, (unsigned long long)handle, *byte_count);
+    ALOGV("%s  handle = %llx, bytes %zu ", __func__, (unsigned long long)handle, *byte_count);
 
     auto client = getAgm();
 
@@ -303,7 +303,7 @@ size_t agm_get_hw_processed_buff_cnt(uint64_t handle, enum direction dir) {
 }
 
 int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info) {
-    ALOGV("%s: Enter: noOfAif %d, aifListEmpty %d", __func__, *num_aif_info, (aif_list == NULL));
+    ALOGV("%s: Enter: noOfAif %zu, aifListEmpty %d", __func__, *num_aif_info, (aif_list == NULL));
     auto client = getAgm();
     RETURN_IF_AGM_SERVICE_NOT_REGISTERED(client);
 
@@ -316,7 +316,7 @@ int agm_get_aif_info_list(struct aif_info *aif_list, size_t *num_aif_info) {
 
     *num_aif_info = (size_t)aidlAifList.size();
     auto ret = statusTFromBinderStatus(aidlStatus);
-    ALOGV("%s: Exit size %d ret %d ", __func__, *num_aif_info);
+    ALOGV("%s: Exit size %zu ret %d ", __func__, *num_aif_info, ret);
     return ret;
 }
 
@@ -335,17 +335,17 @@ int agm_session_aif_get_tag_module_info(uint32_t session_id, uint32_t aif_id, vo
         *size = aidlModuleInfoList.size();
     }
     auto ret = statusTFromBinderStatus(status);
-    ALOGV("%s session_id =%d, aif_id = %d ret %d, size %d ", __func__, session_id, aif_id, ret,
+    ALOGV("%s session_id =%d, aif_id = %d ret %d, size %zu ", __func__, session_id, aif_id, ret,
           *size);
     return ret;
 }
 
 int agm_session_get_params(uint32_t session_id, void *payload, size_t size) {
-    ALOGV("%s  sessionId %d  size %d ", __func__, session_id, size);
+    ALOGV("%s  sessionId %d  size %zu ", __func__, session_id, size);
     auto client = getAgm();
 
     if (size <= 0) {
-        ALOGE("%s  sessionId %d : Invalid input size %d ", __func__, session_id, size);
+        ALOGE("%s  sessionId %d : Invalid input size %zu ", __func__, session_id, size);
         return -EINVAL;
     }
 
@@ -355,7 +355,7 @@ int agm_session_get_params(uint32_t session_id, void *payload, size_t size) {
     auto status = client->ipc_agm_session_get_params(session_id, aidlPayload, &aidlReturn);
 
     if (aidlReturn.empty()) {
-        ALOGE("%s  sessionId %d : Invalid input size %d ", __func__, session_id, size);
+        ALOGE("%s  sessionId %d : Invalid input size %zu ", __func__, session_id, size);
         return -ENOMEM;
     }
 
@@ -420,7 +420,7 @@ int agm_set_params_with_tag_to_acdb(uint32_t session_id, uint32_t aif_id, void *
 }
 
 int agm_set_params_to_acdb_tunnel(void *payload, size_t size) {
-    ALOGV("%s size = %d", __func__, size);
+    ALOGV("%s size = %zu", __func__, size);
     auto client = getAgm();
     RETURN_IF_AGM_SERVICE_NOT_REGISTERED(client);
 
@@ -430,7 +430,7 @@ int agm_set_params_to_acdb_tunnel(void *payload, size_t size) {
 }
 
 int agm_get_params_from_acdb_tunnel(void *payload, size_t *size) {
-    ALOGV("%s size = %d", __func__, size);
+    ALOGV("%s size = %p", __func__, size);
     auto client = getAgm();
     RETURN_IF_AGM_SERVICE_NOT_REGISTERED(client);
 
@@ -547,7 +547,7 @@ int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
 
 int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_type type,
                                      uint32_t silence) {
-    ALOGV("%s  handle = %x", __func__, handle);
+    ALOGV("%s  handle = %lu", __func__, handle);
     auto client = getAgm();
     RETURN_IF_AGM_SERVICE_NOT_REGISTERED(client);
 
@@ -580,7 +580,7 @@ int agm_session_set_non_tunnel_mode_config(uint64_t handle,
 }
 
 int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, size_t *consumed_size) {
-    ALOGV("%s  handle = %x", __func__, handle);
+    ALOGV("%s  handle = %lu", __func__, handle);
 
     auto client = getAgm();
     RETURN_IF_AGM_SERVICE_NOT_REGISTERED(client);
@@ -632,7 +632,7 @@ int agm_get_group_aif_info_list(struct aif_info *aif_list, size_t *num_groups) {
     }
 
     *num_groups = (size_t)aidlAifList.size();
-    ALOGV("%s: Exit size %d  ", __func__, *num_groups);
+    ALOGV("%s: Exit size %zu  ", __func__, *num_groups);
     return statusTFromBinderStatus(aidlStatus);
 }
 

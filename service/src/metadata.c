@@ -171,12 +171,12 @@ void metadata_update_cal(struct agm_meta_data_gsl *meta_data,
     }
 
     if (!(meta_data->ckv.kv)) {
-        AGM_LOGE("metadata->ckv.kv is NULL, num_kvs=%d\n",
+        AGM_LOGE("metadata->ckv.kv is NULL, num_kvs=%zu\n",
                                     meta_data->ckv.num_kvs);
         return;
     }
     if (!(ckv->kv)) {
-        AGM_LOGE("ckv->kv is NULL, num_kvs=%d\n",
+        AGM_LOGE("ckv->kv is NULL, num_kvs=%zu\n",
                                     ckv->num_kvs);
         return;
     }
@@ -220,7 +220,7 @@ struct agm_meta_data_gsl* metadata_merge(int num, ...)
     va_end(valist);
 
     if ((merged->gkv.num_kvs > MAX_KVPAIR) || (merged->ckv.num_kvs > MAX_KVPAIR)) {
-        AGM_LOGE("Num GKVs %d Num CKVs %d more than expected: %d", merged->gkv.num_kvs,
+        AGM_LOGE("Num GKVs %zu Num CKVs %zu more than expected: %d", merged->gkv.num_kvs,
                                                       merged->ckv.num_kvs, MAX_KVPAIR);
         free(merged);
         return NULL;
@@ -298,7 +298,7 @@ int metadata_copy(struct agm_meta_data_gsl *dest, uint32_t size __unused,
     }
 
     if ((NUM_GKV(metadata) > MAX_KVPAIR) || (NUM_CKV(metadata) > MAX_KVPAIR)) {
-        AGM_LOGE("Num GKVs %d Num CKVs %d more than expected: %d", NUM_GKV(metadata),
+        AGM_LOGE("Num GKVs %u Num CKVs %u more than expected: %d", NUM_GKV(metadata),
                                                       NUM_CKV(metadata), MAX_KVPAIR);
         ret = -EINVAL;
         return ret;

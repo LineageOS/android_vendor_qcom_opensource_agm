@@ -34,7 +34,7 @@ AgmCallback::~AgmCallback() {
 ::ndk::ScopedAStatus AgmCallback::eventCallback(
         const ::aidl::vendor::qti::hardware::agm::AgmEventCallbackParameter &in_eventParam) {
     ALOGV("%s size %d event %x, module %08x, mSession %d ", __func__,
-          in_eventParam.eventPayload.size(), in_eventParam.eventId, in_eventParam.sourceModuleId,
+          (int)in_eventParam.eventPayload.size(), in_eventParam.eventId, in_eventParam.sourceModuleId,
           mSessionId);
 
     int payloadSize = in_eventParam.eventPayload.size();
