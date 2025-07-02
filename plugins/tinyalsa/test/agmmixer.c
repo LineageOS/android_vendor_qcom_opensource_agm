@@ -240,7 +240,7 @@ void start_tag(void *userdata, const XML_Char *tag_name, const XML_Char **attr)
     if (attr[8]) {
         if (strcmp(attr[8], "format") == 0) {
             printf("PCM format found\n");
-            fmt = get_pcm_format(attr[9]);
+            fmt = get_pcm_format((char *)attr[9]);
             if (fmt != PCM_FORMAT_INVALID && fmt < PCM_FORMAT_MAX)
                 config->format = fmt;
         }
@@ -292,7 +292,7 @@ void start_group_tag(void *userdata, const XML_Char *tag_name, const XML_Char **
     if (attr[10]) {
         if (strcmp(attr[10], "format") == 0) {
             printf("PCM format found\n");
-            fmt = get_pcm_format(attr[11]);
+            fmt = get_pcm_format((char *)attr[11]);
             if (fmt != PCM_FORMAT_INVALID && fmt < PCM_FORMAT_MAX)
                 config->format = fmt;
         }

@@ -27,18 +27,18 @@ std::unordered_map<uint64_t, std::weak_ptr<IAGMCallback>> ClientInfo::sCallbackR
 std::mutex ClientInfo::sCallbackRegistryMutex;
 
 void SessionInfo::dump() {
-    ALOGV("session Id %d handle %llx, aif size %d", mSessionId, mHandle, mAifIds.size());
+    ALOGV("session Id %d handle %llx, aif size %zu", mSessionId, (unsigned long long)mHandle, mAifIds.size());
 }
 
 SessionInfo::~SessionInfo() {
-    ALOGV("%s session Id %d handle %llx, noOfAifs %d fdPairs %d", __func__, mSessionId, mHandle,
+    ALOGV("%s session Id %d handle %llx, noOfAifs %zu fdPairs %zu", __func__, mSessionId, (unsigned long long)mHandle,
           mAifIds.size(), mInOutFdPairs.size());
 }
 
 void SessionInfo::forceCloseSession() {
     std::lock_guard<std::mutex> guard(mLock);
     if (mHandle) {
-        ALOGV("force closing session with handle %llx", mHandle);
+        ALOGV("force closing session with handle %llx", (unsigned long long)mHandle);
         agm_session_close(mHandle);
     }
 
@@ -55,20 +55,20 @@ void SessionInfo::forceCloseSession() {
 
 void SessionInfo::connectSessionAif(uint32_t aifId, bool state) {
     std::lock_guard<std::mutex> guard(mLock);
-    ALOGV("%s session %d aifId %d state %d aif size %d ", __func__, mSessionId, aifId, state,
+    ALOGV("%s session %d aifId %d state %d aif size %zu ", __func__, mSessionId, aifId, state,
           mAifIds.size());
     if (state) {
         mAifIds.insert(aifId);
     } else {
         mAifIds.erase(aifId);
     }
-    ALOGV("%s session %d aifId %d state %d aif size %d ", __func__, mSessionId, aifId, state,
+    ALOGV("%s session %d aifId %d state %d aif size %zu ", __func__, mSessionId, aifId, state,
           mAifIds.size());
 }
 
 void SessionInfo::addSharedMemoryFdPairs(int inputFd, int dupFd) {
     std::lock_guard<std::mutex> guard(mLock);
-    ALOGV("%s session %d Fds[input %d - dup %d] size %d", __func__, mSessionId, inputFd, dupFd,
+    ALOGV("%s session %d Fds[input %d - dup %d] size %zu", __func__, mSessionId, inputFd, dupFd,
           mInOutFdPairs.size());
     mInOutFdPairs.push_back(std::make_pair(inputFd, dupFd));
 }
@@ -84,7 +84,7 @@ int SessionInfo::removeSharedMemoryFdPairs(int dupFd) {
             break;
         }
     }
-    ALOGV("%s session %d Fds[input %d - dup %d] size %d", __func__, mSessionId, inputFd, dupFd,
+    ALOGV("%s session %d Fds[input %d - dup %d] size %zu", __func__, mSessionId, inputFd, dupFd,
           mInOutFdPairs.size());
     return inputFd;
 }
@@ -96,7 +96,7 @@ void ClientInfo::setAgmServerWrapper(AgmServerWrapper *wrapper) {
 
 void ClientInfo::onDeath(void *cookie) {
     ClientInfo *client = static_cast<ClientInfo *>(cookie);
-    ALOGI("Client died (pid): %llu", client->getPid());
+    ALOGI("Client died (pid): %llx", (unsigned long long)client->getPid());
     client->onDeath();
 }
 
@@ -108,7 +108,7 @@ void ClientInfo::registerCallback(const std::shared_ptr<IAGMCallback> &callback,
                                   int32_t in_sessionId, int32_t in_eventType,
                                   int64_t in_clientData) {
     std::lock_guard<std::mutex> guard(mCallbackLock);
-    ALOGV("%s, adding callback for session %d size %d ", __func__, in_sessionId,
+    ALOGV("%s, adding callback for session %d size %zu ", __func__, in_sessionId,
           mCallbackInfo.size());
     agm_session_register_cb(in_sessionId, &ClientInfo::onCallback, (enum event_type)in_eventType,
                             (void *)callback.get());
@@ -135,7 +135,7 @@ void ClientInfo::unregisterCallback(int32_t in_sessionId, int32_t in_eventType,
                                     int64_t in_clientData) {
     // remove based on sessionid, eventType, clientData from CallbackInfos.
     std::lock_guard<std::mutex> guard(mCallbackLock);
-    ALOGV("%s, before removing callback for session %d size %d ", __func__, in_sessionId,
+    ALOGV("%s, before removing callback for session %d size %zu ", __func__, in_sessionId,
           mCallbackInfo.size());
     auto itr = std::find_if(mCallbackInfo.begin(), mCallbackInfo.end(),
                             [=](const std::shared_ptr<CallbackInfo> &callback) {
@@ -160,13 +160,13 @@ void ClientInfo::unregisterCallback(int32_t in_sessionId, int32_t in_eventType,
                                nullptr);
     }
 
-    ALOGV("%s, removing callback for session %d size %d ", __func__, in_sessionId,
+    ALOGV("%s, removing callback for session %d size %zu ", __func__, in_sessionId,
           mCallbackInfo.size());
 }
 
 void ClientInfo::clearCallbacks() {
     std::lock_guard<std::mutex> guard(mCallbackLock);
-    ALOGV("client going out of scope clear callback of size %d", mCallbackInfo.size());
+    ALOGV("client going out of scope clear callback of size %zu", mCallbackInfo.size());
     for (const auto &callback : mCallbackInfo) {
         // unregister at agm level..
         agm_session_register_cb(callback->getSessionId(), NULL,
@@ -178,7 +178,7 @@ void ClientInfo::clearCallbacks() {
 
 void ClientInfo::clearSessions() {
     std::lock_guard<std::mutex> guard(mSessionLock);
-    ALOGI("%s session size %d ", __func__, mSessionsInfoMap.size());
+    ALOGI("%s session size %zu ", __func__, mSessionsInfoMap.size());
     for (const auto &session : mSessionsInfoMap) {
         session.second->forceCloseSession();
     }
@@ -198,25 +198,25 @@ void ClientInfo::addSessionHandle(uint32_t sessionId, uint64_t handle) {
 
     auto sessionInfo = getSessionInfo_l(sessionId);
     sessionInfo->setHandle(handle);
-    ALOGI("%s sessionId %d handle %llx ", __func__, sessionId, handle);
+    ALOGI("%s sessionId %d handle %llx ", __func__, sessionId, (unsigned long long)handle);
 }
 
 void ClientInfo::removeSessionHandle(uint64_t handle) {
     std::lock_guard<std::mutex> guard(mSessionLock);
-    ALOGV("%s,  removeSessionhandle %llx in session of size %d ", __func__, handle,
+    ALOGV("%s,  removeSessionhandle %llx in session of size %zu ", __func__, (unsigned long long)handle,
           mSessionsInfoMap.size());
     auto itr = mSessionsInfoMap.begin();
     for (; itr != mSessionsInfoMap.end();) {
         auto sessionInfo = itr->second;
         if (handle == sessionInfo->getHandle()) {
-            ALOGI("%s removing handle %llx for session %d", __func__, handle, itr->first);
+            ALOGI("%s removing handle %llx for session %d", __func__, (unsigned long long)handle, itr->first);
             mSessionsInfoMap.erase(itr); // TODO current behavior is similar to HIDL, on close ->
                                          // remove sessionhandle
             break;
         }
         itr++;
     }
-    ALOGV("%s, Exit: removeSessionhandle %llx in session of size %d ", __func__, handle,
+    ALOGV("%s, Exit: removeSessionhandle %llx in session of size %zu ", __func__, (unsigned long long)handle,
           mSessionsInfoMap.size());
 }
 
@@ -229,7 +229,7 @@ void ClientInfo::connectSessionAif(uint32_t sessionId, uint32_t aifId, bool stat
 
 void ClientInfo::cleanup() {
     // Do a cleanup related to client going out of scope.
-    ALOGI("%s client %d callbacks %d sessions %d ", __func__, mPid,
+    ALOGI("%s client %d callbacks %zu sessions %zu ", __func__, mPid,
           mCallbackInfo.size(), mSessionsInfoMap.size());
     clearCallbacks();
     clearSessions();
@@ -237,7 +237,7 @@ void ClientInfo::cleanup() {
 
 void ClientInfo::addSharedMemoryFdPairs(uint64_t handle, int inputFd, int dupFd) {
     std::lock_guard<std::mutex> guard(mSessionLock);
-    ALOGV("%s handle %llx, inputFd %d dupFd %d sessionSize %d", __func__, handle, inputFd, dupFd,
+    ALOGV("%s handle %llx, inputFd %d dupFd %d sessionSize %zu", __func__, (unsigned long long)handle, inputFd, dupFd,
           mSessionsInfoMap.size());
     for (auto &sessionInfo : mSessionsInfoMap) {
         auto &sessionInfoObj = sessionInfo.second;
@@ -259,7 +259,7 @@ int ClientInfo::removeSharedMemoryFdPairs(uint32_t sessionId, int dupFd) {
             break;
         }
     }
-    ALOGV("%s sessionId %d, inputFd %d dupFd %d sessionSize %d", __func__, sessionId, inputFd,
+    ALOGV("%s sessionId %d, inputFd %d dupFd %d sessionSize %zu", __func__, sessionId, inputFd,
           dupFd, mSessionsInfoMap.size());
     return inputFd;
 }
@@ -314,7 +314,7 @@ void AgmServerWrapper::addSessionHandle(uint32_t sessionId, uint64_t handle) {
 
 void AgmServerWrapper::removeSessionHandle(uint64_t handle) {
     std::lock_guard<std::mutex> guard(mLock);
-    ALOGV("%s, caller handle %llx", __func__, handle);
+    ALOGV("%s, caller handle %llx", __func__, (unsigned long long)handle);
 
     auto client = getClient_l();
     client->removeSessionHandle(handle);
@@ -322,7 +322,7 @@ void AgmServerWrapper::removeSessionHandle(uint64_t handle) {
 
 void AgmServerWrapper::addSharedMemoryFdPairs(uint64_t handle, int inputFd, int dupFd) {
     std::lock_guard<std::mutex> guard(mLock);
-    ALOGV("%s, caller handle %llx inputFd %d dupFd %d", __func__, handle, inputFd, dupFd);
+    ALOGV("%s, caller handle %llx inputFd %d dupFd %d", __func__, (unsigned long long)handle, inputFd, dupFd);
 
     auto client = getClient_l();
     client->addSharedMemoryFdPairs(handle, inputFd, dupFd);
@@ -374,7 +374,7 @@ std::shared_ptr<ClientInfo> AgmServerWrapper::getClient_l() {
     if (mClients.count(pid) == 0) {
         mClients[pid] = std::make_shared<ClientInfo>(pid);
         ClientInfo::setAgmServerWrapper(this);
-        ALOGI("%s new client pid %d total clients %d ", __func__, pid, mClients.size());
+        ALOGI("%s new client pid %d, total clients %zu ", __func__, pid, mClients.size());
     }
     return mClients[pid];
 }
@@ -454,7 +454,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_session_get_params(
         int32_t in_sessionId, const std::vector<uint8_t> &in_buffer,
         std::vector<uint8_t> *_aidl_return) {
-    ALOGV("%s sessionId %d, size %d ", __func__, in_sessionId, in_buffer.size());
+    ALOGV("%s sessionId %d, size %zu ", __func__, in_sessionId, in_buffer.size());
 
     auto agmLegacyPayload = VALUE_OR_RETURN(allocate<uint8_t>(in_buffer.size()));
 
@@ -465,7 +465,7 @@ AgmServerWrapper::~AgmServerWrapper() {
         _aidl_return->resize(in_buffer.size());
 
         if (_aidl_return->size() != in_buffer.size()) {
-            ALOGE("%s could not resize: required size %d, resized size %d ", __func__,
+            ALOGE("%s could not resize: required size %zu, resized size %zu ", __func__,
                     in_buffer.size(), _aidl_return->size());
             return status_tToBinderResult(-ENOMEM);
         }
@@ -490,7 +490,7 @@ AgmServerWrapper::~AgmServerWrapper() {
     }
 
     ALOGV("%s handle received is : %llx, ret %d, rethandle %llx", __func__,
-          (unsigned long long)handle, ret, *_aidl_return);
+          (unsigned long long)handle, ret, (unsigned long long)*_aidl_return);
     return status_tToBinderResult(ret);
 }
 
@@ -607,7 +607,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_session_set_metadata(
         int32_t in_sessionId, const std::vector<uint8_t> &in_metadata) {
-    ALOGV("%s sessionId %d,  size %d ", __func__, in_sessionId, in_metadata.size());
+    ALOGV("%s sessionId %d,  size %zu ", __func__, in_sessionId, in_metadata.size());
     auto metadataLegacy = VALUE_OR_RETURN(allocate<uint8_t>(in_metadata.size()));
     memcpy(metadataLegacy.get(), in_metadata.data(), in_metadata.size());
     return status_tToBinderResult(
@@ -644,7 +644,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_session_set_params(
         int32_t in_sessionId, const std::vector<uint8_t> &in_payload) {
     size_t payloadSize = in_payload.size();
-    ALOGV("%s : sessionId = %d size = %d", __func__, in_sessionId, payloadSize);
+    ALOGV("%s : sessionId = %d size = %zu", __func__, in_sessionId, payloadSize);
 
     auto legacyPayload = VALUE_OR_RETURN(allocate<void>(payloadSize));
     memcpy(legacyPayload.get(), in_payload.data(), payloadSize);
@@ -656,7 +656,7 @@ AgmServerWrapper::~AgmServerWrapper() {
                                                              const std::vector<uint8_t> &in_buff,
                                                              int32_t *_aidl_return) {
     size_t count = (size_t)in_buff.size();
-    ALOGV("%s called with handle = %llx ", __func__, (unsigned long long)in_handle, count);
+    ALOGV("%s called with handle = %llx, ref_count %zu ", __func__, (unsigned long long)in_handle, count);
 
     auto buffer = VALUE_OR_RETURN(allocate<void>(count));
     memcpy(buffer.get(), in_buff.data(), count);
@@ -759,7 +759,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_aif_set_metadata(
         int32_t in_aifId, const std::vector<uint8_t> &in_metadata) {
-    ALOGV("%s called with aif_id = %d,  size %d", __func__, in_aifId, in_metadata.size());
+    ALOGV("%s called with aif_id = %d,  size %zu", __func__, in_aifId, in_metadata.size());
 
     auto agmLegacyMetadata = VALUE_OR_RETURN(allocate<uint8_t>(in_metadata.size()));
     memcpy(agmLegacyMetadata.get(), in_metadata.data(), in_metadata.size());
@@ -770,7 +770,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_aif_set_params(
         int32_t in_aifId, const std::vector<uint8_t> &in_payload) {
-    ALOGV("%s %d aifId %d size %d", __func__, in_aifId, in_payload.size());
+    ALOGV(" %s: aifId %d size %zu", __func__, in_aifId, in_payload.size());
 
     auto agmLegacyPayload = VALUE_OR_RETURN(allocate<uint8_t>(in_payload.size()));
     memcpy(agmLegacyPayload.get(), in_payload.data(), in_payload.size());
@@ -808,7 +808,7 @@ AgmServerWrapper::~AgmServerWrapper() {
     int32_t ret = agm_session_aif_get_tag_module_info(in_sessionId, in_aifId, agmLegacyPayload,
                                                       &payloadSize);
 
-    ALOGV("%s: got size %d, ret %d ", __func__, payloadSize, ret);
+    ALOGV("%s: got size %zu, ret %d ", __func__, payloadSize, ret);
     _aidl_return->resize(payloadSize);
 
     if (agmLegacyPayload) memcpy(_aidl_return->data(), agmLegacyPayload, payloadSize);
@@ -820,7 +820,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_session_aif_set_cal(
         int32_t in_sessionId, int32_t in_aifId, const AgmCalConfig &in_calConfig) {
     auto numKvPairs = in_calConfig.kv.size();
-    ALOGV("%s : sessionId = %d, aifId = %d calKeys %d", __func__, in_sessionId, in_aifId,
+    ALOGV("%s : sessionId = %d, aifId = %d calKeys %zu", __func__, in_sessionId, in_aifId,
           numKvPairs);
 
     RETURN_IF_KVPAIR_EXCEEDS_RANGE(numKvPairs);
@@ -843,7 +843,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_session_aif_set_params(
         int32_t in_sessionId, int32_t in_aifId, const std::vector<uint8_t> &in_payload) {
     size_t payloadSize = in_payload.size();
-    ALOGV("%s : sessionId = %d, aif_id =%d, size = %d", __func__, in_sessionId, in_aifId,
+    ALOGV("%s : sessionId = %d, aif_id =%d, size = %zu", __func__, in_sessionId, in_aifId,
           payloadSize);
 
     auto legacyPayload = VALUE_OR_RETURN(allocate<void>(payloadSize));
@@ -865,7 +865,7 @@ AgmServerWrapper::~AgmServerWrapper() {
     struct aif_info *agmLegacyAifInfoList = agmLegacyAifInfoListUPtr.get();
     size_t numberOfAifs = (size_t)in_numAifInfo;
     int32_t ret = agm_get_aif_info_list(agmLegacyAifInfoList, &numberOfAifs);
-    ALOGV("%s got agmAifs = %d, ret %d  ", __func__, numberOfAifs, ret);
+    ALOGV("%s got agmAifs = %zu, ret %d  ", __func__, numberOfAifs, ret);
 
     *_aidl_return = LegacyToAidl::convertAifInfoListToAidl(agmLegacyAifInfoList, numberOfAifs);
     return ScopedAStatus::ok();
@@ -897,7 +897,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_get_hw_processed_buff_cnt(int64_t in_handle,
                                                                          Direction in_direction) {
-    ALOGV("%s handle %llx", __func__, in_handle);
+    ALOGV("%s handle %llx", __func__, (unsigned long long)in_handle);
     enum direction legacyDir = (enum direction)(in_direction);
     return status_tToBinderResult(agm_get_hw_processed_buff_cnt(in_handle, legacyDir));
 }
@@ -905,7 +905,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_get_params_from_acdb_tunnel(
         const std::vector<uint8_t> &in_payload, std::vector<uint8_t> *_aidl_return) {
     size_t payloadSize = in_payload.size();
-    ALOGV("%s :size = %d", __func__, payloadSize);
+    ALOGV("%s :size = %zu", __func__, payloadSize);
 
     auto legacyPayload = VALUE_OR_RETURN(allocate<void>(payloadSize));
     memcpy(legacyPayload.get(), in_payload.data(), payloadSize);
@@ -929,7 +929,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_set_gapless_session_metadata(
         int64_t in_handle, AgmGaplessSilenceType in_type, int32_t in_silence) {
-    ALOGV("%s handle %x", __func__, in_handle);
+    ALOGV("%s handle %llx", __func__, (unsigned long long)in_handle);
     enum agm_gapless_silence_type agmLegacySilenceType =
             static_cast<agm_gapless_silence_type>(in_type);
     return status_tToBinderResult(
@@ -939,7 +939,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_set_params_to_acdb_tunnel(
         const std::vector<uint8_t> &in_payload) {
     size_t payloadSize = in_payload.size();
-    ALOGV("%s :size = %d", __func__, payloadSize);
+    ALOGV("%s :size = %zu", __func__, payloadSize);
     auto legacyPayload = VALUE_OR_RETURN(allocate<void>(payloadSize));
 
     memcpy(legacyPayload.get(), in_payload.data(), payloadSize);
@@ -966,7 +966,7 @@ AgmServerWrapper::~AgmServerWrapper() {
 ::ndk::ScopedAStatus AgmServerWrapper::ipc_agm_set_params_with_tag_to_acdb(
         int32_t in_sessionId, int32_t in_aifId, const std::vector<uint8_t> &in_payload) {
     size_t payloadSize = in_payload.size();
-    ALOGV("%s : sessionId = %d size = %d", __func__, in_sessionId, payloadSize);
+    ALOGV("%s : sessionId = %d size = %zu", __func__, in_sessionId, payloadSize);
     auto legacyPayload = VALUE_OR_RETURN(allocate<void>(payloadSize));
     memcpy(legacyPayload.get(), in_payload.data(), payloadSize);
     return status_tToBinderResult(agm_set_params_with_tag_to_acdb(
