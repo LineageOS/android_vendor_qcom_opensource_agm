@@ -1,0 +1,36 @@
+cc_library_static {
+    name: "libagmaidltypeconverter",
+    vendor: true,
+
+    tidy: true,
+
+    cflags: [
+        "-v",
+        "-Wall",
+        "-Wextra",
+        "-Wthread-safety",
+    ],
+
+    srcs: [
+        "src/AgmAidlToLegacy.cpp",
+        "src/AgmLegacyToAidl.cpp",
+    ],
+
+    export_include_dirs: ["inc"],
+
+    local_include_dirs: ["inc"],
+
+    header_libs: ["libagm_headers"],
+
+    shared_libs: [
+        "libar-gsl",
+        "libbase",
+        "libbinder_ndk",
+        "libcutils",
+        "liblog",
+        "libutils",
+        "vendor.qti.hardware.agm-V1-ndk",
+    ],
+
+    static_libs: ["libaidlcommonsupport"],
+}
