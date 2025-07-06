@@ -1,0 +1,81 @@
+cc_library_shared {
+    name: "libagm_pcm_plugin",
+    defaults: [
+        "qtiaudio_dynamic_log_defaults",
+    ],
+    owner: "qti",
+    vendor: true,
+
+    cflags: ["-Wall"],
+
+    srcs: ["src/agm_pcm_plugin.c"],
+
+    header_libs: [
+        "libagm_headers",
+        "libarosal_headers",
+    ],
+
+    shared_libs: [
+        "libagmclient",
+        "libcutils",
+        "liblog",
+        "libsndcardparser",
+        "libtinyalsa",
+        "libutils",
+    ],
+}
+
+cc_library_shared {
+    name: "libagm_mixer_plugin",
+    defaults: [
+        "qtiaudio_dynamic_log_defaults",
+    ],
+    owner: "qti",
+    vendor: true,
+
+    srcs: ["src/agm_mixer_plugin.c"],
+
+    header_libs: [
+        "libagm_headers",
+        "libarosal_headers",
+    ],
+
+    shared_libs: [
+        "libagmclient",
+        "libcutils",
+        "liblog",
+        "libsndcardparser",
+        "libtinyalsa",
+        "libutils",
+    ],
+}
+
+cc_library_shared {
+    name: "libagm_compress_plugin",
+    defaults: [
+        "qtiaudio_dynamic_log_defaults",
+    ],
+    owner: "qti",
+    vendor: true,
+
+    srcs: ["src/agm_compress_plugin.c"],
+
+    include_dirs: [
+        "external/tinycompress/include",
+    ],
+
+    header_libs: [
+        "libagm_headers",
+        "libarosal_headers",
+    ],
+
+    shared_libs: [
+        "libagmclient",
+        "libcutils",
+        "liblog",
+        "libsndcardparser",
+        "libtinyalsa",
+        "libtinycompress",
+        "libutils",
+    ],
+}
