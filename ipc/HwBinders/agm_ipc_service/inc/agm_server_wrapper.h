@@ -68,7 +68,7 @@
 #include <vector>
 #include <cutils/list.h>
 #include <agm/agm_api.h>
-#include "inc/AGMCallback.h"
+#include <AGMCallback.h>
 
 namespace vendor {
 namespace qti {

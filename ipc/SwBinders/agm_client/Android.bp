@@ -1,0 +1,19 @@
+cc_binary {
+    name: "agmclient",
+    srcs: ["src/agm_client_wrapper.cpp"],
+
+    defaults: [
+        "qtiaudio_dynamic_log_defaults",
+    ],
+
+    shared_libs: [
+        "libagmproxy",
+        "libbinder",
+        "libcutils",
+        "libdl",
+        "liblog",
+        "libutils",
+    ],
+
+    cflags: ["-Wall"],
+}
