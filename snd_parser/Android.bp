@@ -1,0 +1,22 @@
+cc_library_shared {
+    name: "libsndcardparser",
+    owner: "qti",
+    vendor: true,
+
+    cflags: [
+        "-DCARD_DEF_FILE=\"/vendor/etc/card-defs.xml\"",
+        "-Wall",
+        "-Wno-unused-parameter",
+    ],
+
+    srcs: ["src/snd-card-parser.c"],
+
+    export_include_dirs: ["inc"],
+
+    header_libs: ["libagm_headers"],
+
+    shared_libs: [
+        "libcutils",
+        "libexpat",
+    ],
+}
