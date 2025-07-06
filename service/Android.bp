@@ -1,0 +1,62 @@
+cc_library_headers {
+    name: "libagm_headers",
+    vendor: true,
+    export_include_dirs: ["inc/public"],
+}
+
+cc_library_shared {
+    name: "libagm",
+    owner: "qti",
+
+    defaults: [
+        "android_hardware_audio_config_defaults",
+        "qtiaudio_dynamic_log_defaults",
+    ],
+
+    vendor: true,
+
+    cflags: [
+        "-DACDB_DELTA_FILE_PATH=\"/data/vendor/audio/acdbdata/delta\"",
+        "-DACDB_PATH=\"/vendor/etc/acdbdata/\"",
+        "-D_ANDROID_",
+        "-D_GNU_SOURCE",
+        "-Wall",
+        "-Wno-incompatible-pointer-types",
+        "-Wno-macro-redefined",
+        "-Wno-pointer-integer-compare",
+        "-Wno-tautological-compare",
+    ],
+
+    local_include_dirs: [
+        "inc/private",
+        "inc/public",
+    ],
+
+    export_include_dirs: ["inc/public"],
+
+    srcs: [
+        "src/agm.c",
+        "src/device.c",
+        "src/device_hw_ep.c",
+        "src/graph.c",
+        "src/graph_module.c",
+        "src/metadata.c",
+        "src/session_obj.c",
+        "src/utils.c",
+    ],
+
+    header_libs: [
+        "libarpal_headers",
+        "libspf-headers",
+        "libutils_headers",
+    ],
+
+    shared_libs: [
+        "libar-gsl",
+        "libats",
+        "libaudioroute",
+        "liblog",
+        "liblx-osal",
+        "libtinyalsa",
+    ],
+}

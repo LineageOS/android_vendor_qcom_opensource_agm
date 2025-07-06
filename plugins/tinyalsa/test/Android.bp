@@ -1,0 +1,186 @@
+cc_library_shared {
+    name: "libagmmixer",
+    owner: "qti",
+
+    vendor: true,
+
+    cflags: [
+        "-Wno-unused-parameter",
+        "-Wno-unused-result",
+        "-Wno-unused-variable",
+    ],
+    srcs: ["agmmixer.c"],
+
+    header_libs: [
+        "libagm_headers",
+        "libarpal_headers",
+    ],
+
+    shared_libs: [
+        "libexpat",
+        "libtinyalsa",
+    ],
+}
+
+cc_binary {
+    name: "agmplay",
+    owner: "qti",
+
+    vendor: true,
+
+    cflags: [
+        "-Wno-unused-parameter",
+        "-Wno-unused-result",
+
+        "-DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"",
+        "-Wno-format-insufficient-args",
+        "-Wno-unused-variable",
+    ],
+    srcs: ["agmplay.c"],
+
+    header_libs: [
+        "libagm_headers",
+        "libarpal_headers",
+    ],
+
+    shared_libs: [
+        "libagmmixer",
+        "libtinyalsa",
+    ],
+}
+
+cc_binary {
+    name: "agmcap",
+    owner: "qti",
+
+    vendor: true,
+
+    cflags: [
+        "-DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"",
+        "-Wno-format-insufficient-args",
+        "-Wno-unused-parameter",
+        "-Wno-unused-result",
+    ],
+    srcs: ["agmcap.c"],
+
+    header_libs: [
+        "libagm_headers",
+        "libarpal_headers",
+    ],
+
+    shared_libs: [
+        "libagmmixer",
+        "libtinyalsa",
+    ],
+}
+
+cc_binary {
+    name: "agmhostless",
+    owner: "qti",
+
+    vendor: true,
+
+    cflags: [
+        "-DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"",
+        "-Wno-unused-parameter",
+        "-Wno-unused-result",
+    ],
+    srcs: ["agmhostless.c"],
+
+    header_libs: [
+        "libagm_headers",
+        "libarpal_headers",
+    ],
+
+    shared_libs: [
+        "libagmmixer",
+        "libtinyalsa",
+    ],
+}
+
+cc_binary {
+    name: "agmcompressplay",
+    owner: "qti",
+
+    vendor: true,
+
+    cflags: [
+        "-DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"",
+        "-Wno-unused-parameter",
+        "-Wno-unused-result",
+        "-Wno-unused-variable",
+    ],
+
+    include_dirs: [
+        "external/tinycompress/include",
+    ],
+    srcs: ["agmcompressplay.c"],
+
+    header_libs: [
+        "libagm_headers",
+        "libarpal_headers",
+    ],
+
+    shared_libs: [
+        "libagmmixer",
+        "libtinyalsa",
+        "libtinycompress",
+    ],
+}
+
+cc_binary {
+    name: "agmcompresscap",
+    owner: "qti",
+
+    vendor: true,
+
+    cflags: [
+        "-DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"",
+        "-Wno-unused-parameter",
+        "-Wno-unused-result",
+    ],
+
+    include_dirs: [
+        "external/tinycompress/include",
+    ],
+    srcs: ["agmcompresscap.c"],
+
+    header_libs: [
+        "libagm_headers",
+        "libarpal_headers",
+    ],
+
+    shared_libs: [
+        "libagmmixer",
+        "libtinyalsa",
+        "libtinycompress",
+    ],
+}
+
+cc_binary {
+    name: "agmvoiceui",
+    owner: "qti",
+
+    vendor: true,
+
+    cflags: [
+        "-DBACKEND_CONF_FILE=\"/vendor/etc/backend_conf.xml\"",
+        "-Wno-incompatible-function-pointer-types",
+        "-Wno-pointer-sign",
+        "-Wno-unused-parameter",
+        "-Wno-unused-result",
+        "-Wno-unused-variable",
+        "-Wno-varargs",
+    ],
+    srcs: ["agm_voiceui.c"],
+
+    header_libs: [
+        "libagm_headers",
+        "libarpal_headers",
+    ],
+
+    shared_libs: [
+        "libagmmixer",
+        "libtinyalsa",
+    ],
+}
