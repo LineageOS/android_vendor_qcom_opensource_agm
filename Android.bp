@@ -1,0 +1,27 @@
+soong_config_module_type {
+    name: "qtiaudio_dynamic_log_default",
+    module_type: "cc_defaults",
+    config_namespace: "qtiaudio",
+    bool_variables: [
+        "feature_dynamic_log",
+    ],
+    properties: [
+        "cflags",
+        "header_libs",
+        "include_dirs",
+        "shared_libs",
+    ],
+}
+
+qtiaudio_dynamic_log_default {
+    name: "qtiaudio_dynamic_log_defaults",
+
+    soong_config_variables: {
+        feature_dynamic_log: {
+            cflags: ["-DDYNAMIC_LOG_ENABLED"],
+            header_libs: [],
+            include_dirs: [],
+            shared_libs: [],
+        },
+    },
+}

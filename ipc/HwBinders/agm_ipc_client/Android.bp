@@ -1,0 +1,35 @@
+cc_library_headers {
+    name: "libagmclient_headers",
+    vendor: true,
+    export_include_dirs: ["inc"],
+}
+
+cc_library_shared {
+    name: "libagmclient",
+    owner: "qti",
+    vendor: true,
+
+    cflags: select(soong_config_variable("qtiaudio", "feature_agm_hidl"), {
+        "true": ["-DAGM_HIDL_ENABLED"],
+        default: [],
+    }),
+
+    srcs: [
+        "src/AGMCallback.cpp",
+        "src/agm_client_wrapper.cpp",
+    ],
+
+    local_include_dirs: ["inc"],
+
+    header_libs: ["libagm_headers"],
+
+    shared_libs: [
+        "libbase",
+        "libcutils",
+        "libhardware",
+        "libhidlbase",
+        "liblog",
+        "libutils",
+        "vendor.qti.hardware.AGMIPC@1.0",
+    ],
+}

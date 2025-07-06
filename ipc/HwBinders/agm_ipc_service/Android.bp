@@ -1,0 +1,59 @@
+cc_library_shared {
+    name: "vendor.qti.hardware.AGMIPC@1.0-impl",
+    owner: "qti",
+    vendor: true,
+
+    cflags: [
+        "-Wall",
+        "-v",
+    ] + select(soong_config_variable("qtiaudio", "feature_agm_hidl"), {
+        "true": ["-DAGM_HIDL_ENABLED"],
+        default: [],
+    }),
+
+    srcs: ["src/agm_server_wrapper.cpp"],
+
+    export_include_dirs: ["inc"],
+
+    header_libs: ["libagmclient_headers"],
+
+    shared_libs: [
+        "libagm",
+        "libar-gsl",
+        "libbase",
+        "libcutils",
+        "libhardware",
+        "libhidlbase",
+        "liblog",
+        "libutils",
+        "vendor.qti.hardware.AGMIPC@1.0",
+    ],
+}
+
+cc_binary {
+    name: "vendor.qti.hardware.AGMIPC@1.0-service",
+    init_rc: ["vendor.qti.hardware.AGMIPC@1.0-service.rc"],
+    owner: "qti",
+    vendor: true,
+    relative_install_path: "hw",
+
+    srcs: ["src/service.cpp"],
+
+    header_libs: [
+        "libagm_headers",
+        "libagmclient_headers",
+    ],
+
+    shared_libs: [
+        "libagm",
+        "libbase",
+        "libcutils",
+        "libdl",
+        "libhardware",
+        "libhidlbase",
+        "liblog",
+        "libutils",
+        "vendor.qti.hardware.AGMIPC@1.0",
+        "vendor.qti.hardware.AGMIPC@1.0-impl",
+    ],
+}
