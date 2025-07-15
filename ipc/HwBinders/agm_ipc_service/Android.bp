@@ -19,7 +19,10 @@ cc_library_shared {
 
     export_include_dirs: ["inc"],
 
-    header_libs: ["libagmclient_headers"],
+    header_libs: [
+        "libagm_headers",
+        "libagmclient_headers"
+    ],
 
     shared_libs: [
         "libagm",
