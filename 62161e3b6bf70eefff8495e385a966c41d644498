@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "7cedee85_e2a9fc0b",
+        "filename": "service/Android.bp",
+        "patchSetId": 5
+      },
+      "lineNbr": 29,
+      "author": {
+        "id": 33843
+      },
+      "writtenOn": "2025-08-01T17:31:10Z",
+      "side": 1,
+      "message": "Shouldn\u0027t this be \u0027UN\u0027SUPPORTED?",
+      "range": {
+        "startLine": 29,
+        "startChar": 20,
+        "endLine": 29,
+        "endChar": 41
+      },
+      "revId": "62161e3b6bf70eefff8495e385a966c41d644498",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
