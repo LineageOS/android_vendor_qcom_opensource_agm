@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 
 #define LOG_TAG "AgmIpc::Server"
 
+#include <unistd.h>
 #include <agm/AgmAidlToLegacy.h>
 #include <agm/AgmLegacyToAidl.h>
 #include <agm/Utils.h>
@@ -16,6 +17,7 @@
 #include <aidlcommonsupport/NativeHandle.h>
 #include <cutils/ashmem.h>
 #include <cutils/native_handle.h>
+#include <cutils/android_filesystem_config.h>
 #include "gsl_intf.h"
 using ndk::ScopedAStatus;
 
@@ -336,10 +338,17 @@ void AgmServerWrapper::removeClient(int pid) {
 
 std::shared_ptr<ClientInfo> AgmServerWrapper::getClient_l() {
     int pid = AIBinder_getCallingPid();
+    int uid = AIBinder_getCallingUid();
+    // AHAL, C2 calls don't use AgmIPC, so directly use HAL pid here.
+    // For others, use pid from binder.
+    if (uid == AID_AUDIOSERVER || uid == AID_MEDIA_CODEC) {
+       pid = getpid();
+    }
+
     if (mClients.count(pid) == 0) {
-        ALOGV("%s new client pid %d, total clients %d ", __func__, pid, mClients.size());
         mClients[pid] = std::make_shared<ClientInfo>(pid);
         ClientInfo::setAgmServerWrapper(this);
+        ALOGI("%s new client pid %d total clients %d ", __func__, pid, mClients.size());
     }
     return mClients[pid];
 }
