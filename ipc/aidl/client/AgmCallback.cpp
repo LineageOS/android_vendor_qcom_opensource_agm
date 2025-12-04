@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- */
+*  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+*  SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
 
 #define LOG_TAG "AgmIpc::ClientCallback"
 
@@ -67,11 +67,13 @@ AgmCallback::~AgmCallback() {
     struct agm_event_read_write_done_payload agmLegacyReadWriteDonePayload;
     struct agm_buff *buffer = &agmLegacyReadWriteDonePayload.buff;
 
+    buffer->metadata = nullptr;
+
     // memset(&agmLegacyReadWriteDonePayload, 0, sizeof(struct agm_event_read_write_done_payload));
     agmLegacyEventParams = (struct agm_event_cb_params *)calloc(
             1, (sizeof(struct agm_event_cb_params) +
                 sizeof(struct agm_event_read_write_done_payload)));
-    if (!agmLegacyEventParams) {
+    if (nullptr == agmLegacyEventParams) {
         ALOGE("Not enough memory for agmLegacyEventParams");
         return status_tToBinderResult(-ENOMEM);
     }
@@ -96,10 +98,10 @@ AgmCallback::~AgmCallback() {
     buffer->alloc_info.alloc_size = in_rwDonePayload.payload.buffer.externalAllocInfo.allocatedSize;
     buffer->alloc_info.offset = in_rwDonePayload.payload.buffer.externalAllocInfo.offset;
 
-    if (!in_rwDonePayload.payload.buffer.metadata.empty()) {
+    if (false == in_rwDonePayload.payload.buffer.metadata.empty()) {
         buffer->metadata_size = in_rwDonePayload.payload.buffer.metadata.size();
         buffer->metadata = (uint8_t *)calloc(1, buffer->metadata_size);
-        if (!buffer->metadata) {
+        if (nullptr == buffer->metadata) {
             ALOGE("Not enough memory for buffer->metadata");
             free(agmLegacyEventParams);
             return status_tToBinderResult(-ENOMEM);
@@ -111,7 +113,7 @@ AgmCallback::~AgmCallback() {
            sizeof(agmLegacyReadWriteDonePayload));
 
     mCallback(mSessionId, agmLegacyEventParams, mClientData);
-    if (buffer->metadata) free(buffer->metadata);
+    if (nullptr != buffer->metadata) free(buffer->metadata);
     free(agmLegacyEventParams);
     return ::ndk::ScopedAStatus::ok();
 }

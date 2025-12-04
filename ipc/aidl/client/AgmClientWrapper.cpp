@@ -553,7 +553,7 @@ int agm_session_get_buf_info(uint32_t session_id, struct agm_buf_info *buf_info,
 
 int agm_set_gapless_session_metadata(uint64_t handle, enum agm_gapless_silence_type type,
                                      uint32_t silence) {
-    ALOGV("%s  handle = %lu", __func__, handle);
+    ALOGV("%s  handle = %llx", __func__, (unsigned long long)handle);
     auto client = getAgm();
     RETURN_IF_AGM_SERVICE_NOT_REGISTERED(client);
 
@@ -589,7 +589,7 @@ int agm_session_set_non_tunnel_mode_config(uint64_t handle,
 }
 
 int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, size_t *consumed_size) {
-    ALOGV("%s  handle = %lu", __func__, handle);
+    ALOGV("%s  handle = %llx", __func__, (unsigned long long)handle);
 
     auto client = getAgm();
     RETURN_IF_AGM_SERVICE_NOT_REGISTERED(client);
