@@ -26,10 +26,9 @@
 ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
- * Changes from Qualcomm Technologies, Inc. are provided under the following license:
- *
- * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *  Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
  *
 **/
 #define LOG_TAG "PLUGIN: compress"
@@ -153,7 +152,7 @@ void agm_compress_event_cb(uint32_t session_id __unused,
         priv->bytes_avail += priv->buffer_config.size;
         if (priv->bytes_avail > priv->total_buf_size) {
             AGM_LOGE("%s: Error: bytes_avail %lld, total size = %llu\n",
-                   __func__, priv->bytes_avail, (unsigned long long) priv->total_buf_size);
+                   __func__, (long long) priv->bytes_avail, (unsigned long long) priv->total_buf_size);
             pthread_mutex_unlock(&priv->lock);
             return;
         }
