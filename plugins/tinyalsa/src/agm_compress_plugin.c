@@ -27,7 +27,6 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
  * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
@@ -153,7 +152,7 @@ void agm_compress_event_cb(uint32_t session_id __unused,
         priv->bytes_avail += priv->buffer_config.size;
         if (priv->bytes_avail > priv->total_buf_size) {
             AGM_LOGE("%s: Error: bytes_avail %lld, total size = %llu\n",
-                   __func__, priv->bytes_avail, (unsigned long long) priv->total_buf_size);
+                   __func__, (long long) priv->bytes_avail, (unsigned long long) priv->total_buf_size);
             pthread_mutex_unlock(&priv->lock);
             return;
         }
