@@ -220,11 +220,11 @@ void add_fd_to_list(uint64_t sess_handle, int input_fd, int dup_fd)
                                      list);
             if (session_handle->handle == sess_handle) {
                 if (session_handle->shared_mem_fd_list.size() > MAX_CACHE_SIZE) {
-                    ALOGE("%s cache limit exceeded handle %llx [input %d - dup %d] ",
+                    ALOGE("%s cache limit exceeded handle %lx [input %d - dup %d] ",
                             __func__ , sess_handle, input_fd, dup_fd );
                 }
                 session_handle->shared_mem_fd_list.push_back(std::make_pair(input_fd, dup_fd));
-                ALOGV("sess_handle %x, session_id:%d input_fd %d, dup fd %d", session_handle->handle,
+                ALOGV("sess_handle %lx, session_id:%d input_fd %d, dup fd %d", session_handle->handle,
                        session_handle->session_id, input_fd, dup_fd);
             }
          }
@@ -345,7 +345,7 @@ static void add_session_handle_to_list_l(uint32_t session_id, uint64_t handle)
         return;
     }
     session_handle->handle = handle;
-    ALOGV("%s: Adding session id %d and handle %x to client handle list \n", __func__, session_id, handle);
+    ALOGV("%s: Adding session id %d and handle %lx to client handle list \n", __func__, session_id, handle);
 }
 
 namespace vendor {
@@ -416,7 +416,7 @@ void ipc_callback (uint32_t session_id,
             if (hndle->session_id == session_id) {
                 std::vector<std::pair<int, int>>::iterator it;
                 for (int i = 0; i < hndle->shared_mem_fd_list.size(); i++) {
-                     ALOGV("fd_list [input - dup ] [%d %d] list size %d \n",
+                     ALOGV("fd_list [input - dup ] [%d %d] list size %zu \n",
                            hndle->shared_mem_fd_list[i].first, hndle->shared_mem_fd_list[i].second,
                            hndle->shared_mem_fd_list.size());
                      if (hndle->shared_mem_fd_list[i].second == rw_done_payload->buff.alloc_info.alloc_handle) {
@@ -424,7 +424,7 @@ void ipc_callback (uint32_t session_id,
                          it = (hndle->shared_mem_fd_list.begin() + i);
                          if (it != hndle->shared_mem_fd_list.end())
                              hndle->shared_mem_fd_list.erase(it);
-                         ALOGV("input fd %d  payload fd %d\n", input_fd,
+                         ALOGV("input fd %d  payload fd %lu\n", input_fd,
                                rw_done_payload->buff.alloc_info.alloc_handle);
                          break;
                      }
@@ -845,7 +845,7 @@ Return<int32_t> AGM::ipc_agm_set_params_to_acdb_tunnel(
     int32_t ret = 0;
 
     if (payload.size() < size) {
-        ALOGE("%s: Invalid payload.size[%d] less than size %d\n", __func__, payload.size(), size);
+        ALOGE("%s: Invalid payload.size[%zu] less than size %d\n", __func__, payload.size(), size);
         return -EINVAL;
     }
 
