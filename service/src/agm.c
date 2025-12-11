@@ -508,7 +508,7 @@ int agm_set_params_to_acdb_tunnel(void *payload, size_t size)
     }
 
     payloadACDBTunnelInfo = (struct agm_acdb_tunnel_param *)payload;
-    AGM_LOGD("payload size is 0x%x", size);
+    AGM_LOGD("payload size is 0x%zx", size);
     AGM_LOGD("tag=%x istkv=%x num_gkvs=0x%x num_kvs=0x%x blob_size=0x%x",
         payloadACDBTunnelInfo->tag,
         payloadACDBTunnelInfo->isTKV,
