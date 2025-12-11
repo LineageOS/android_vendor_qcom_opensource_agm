@@ -296,7 +296,7 @@ int agm_compress_read(struct compress_plugin *plugin, void *buff, size_t count)
     priv->bytes_read += count;
 
     pthread_mutex_unlock(&priv->lock);
-    AGM_LOGV("Exit: read bytes: %d",count);
+    AGM_LOGV("Exit: read bytes: %zu",count);
     return count;
 }
 
@@ -1006,7 +1006,7 @@ COMPRESS_PLUGIN_OPEN_FN(agm_compress_plugin)
     priv->session_config.sess_mode = sess_mode;
     priv->session_config.dir = (flags & COMPRESS_IN) ? RX : TX;
     priv->session_id = session_id;
-    AGM_LOGD("%s: requested agm session mode: %zu", __func__,
+    AGM_LOGD("%s: requested agm session mode: %u", __func__,
              priv->session_config.sess_mode);
 
     if ((priv->session_config.dir == RX) && !is_playback) {

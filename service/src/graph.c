@@ -212,7 +212,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
           (sess_obj->stream_config.dir == (RX | TX))) {
 
         /*configure read params*/
-        AGM_LOGD("read params: mode %d sess buf_sz %zu num_bufs %d metadata %d \n",
+        AGM_LOGD("read params: mode %d sess buf_sz %zu num_bufs %d metadata %zu \n",
                  mode, sess_obj->in_buffer_config.size,
                  sess_obj->in_buffer_config.count,
                  sess_obj->in_buffer_config.max_metadata_size);
@@ -245,7 +245,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
         /*configure write params, note that only few parameters change for read and write params
          * e.g, attributes, start_threshold, stop_threshold are same for both.
          */
-        AGM_LOGD("write params: mode %d sess buf_sz %zu num_bufs %d metadata %d \n",
+        AGM_LOGD("write params: mode %d sess buf_sz %zu num_bufs %d metadata %zu \n",
                  mode, sess_obj->out_buffer_config.size,
                  sess_obj->out_buffer_config.count,
                  sess_obj->out_buffer_config.max_metadata_size);
@@ -1298,7 +1298,7 @@ int graph_rw_acdb_param(void *payload, bool is_param_write)
             payloadACDBTunnelInfo->num_kvs * sizeof(struct agm_key_value),
             &temp_sum);
     __builtin_sub_overflow(payloadACDBTunnelInfo->blob_size, temp_sum, &actual_size);
-    AGM_LOGD("actual size = 0x%x", actual_size);
+    AGM_LOGD("actual size = 0x%zx", actual_size);
     AGM_LOGI("num kvs = %zu", kv.num_kvs);
     ptr = (uint32_t *)(kv.kv);
     for (i = 0; i < kv.num_kvs; i++) {

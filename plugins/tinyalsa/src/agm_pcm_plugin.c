@@ -387,7 +387,7 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
             priv->pos_buf->hw_ptr_base = hw_base;
             AGM_LOGD("%s: crossed_boundary = %u, new_hw_ptr=%ld \n",
                                                 __func__, crossed_boundary, new_hw_ptr);
-            AGM_LOGD("%s: delta_wall_clk_frames = %lx, delta_wall_clk_us=%ld \n",
+            AGM_LOGD("%s: delta_wall_clk_frames = %x, delta_wall_clk_us=%ld \n",
                                                 __func__, delta_wall_clk_frames, delta_wall_clk_us);
             AGM_LOGD("%s: shared buffer length = %lx \n",
                                                 __func__, priv->total_size_frames);
@@ -460,7 +460,7 @@ static int agm_pcm_plugin_reset(struct pcm_plugin *plugin)
     priv->pos_buf->wall_clk_msw = 0;
     priv->pos_buf->wall_clk_lsw = 0;
     priv->pos_buf->crossed_boundary_cnt = 0;
-    AGM_LOGD("%s: reset hw_ptr to %d \n", __func__, priv->pos_buf->hw_ptr);
+    AGM_LOGD("%s: reset hw_ptr to %lu \n", __func__, priv->pos_buf->hw_ptr);
     return ret;
 }
 
