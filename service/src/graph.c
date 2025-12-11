@@ -206,7 +206,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
           (sess_obj->stream_config.dir == (RX | TX))) {
 
         /*configure read params*/
-        AGM_LOGD("read params: mode %d sess buf_sz %zu num_bufs %d metadata %d \n",
+        AGM_LOGD("read params: mode %d sess buf_sz %zu num_bufs %d metadata %zu \n",
                  mode, sess_obj->in_buffer_config.size,
                  sess_obj->in_buffer_config.count,
                  sess_obj->in_buffer_config.max_metadata_size);
@@ -239,7 +239,7 @@ int configure_buffer_params(struct graph_obj *gph_obj,
         /*configure write params, note that only few parameters change for read and write params
          * e.g, attributes, start_threshold, stop_threshold are same for both.
          */
-        AGM_LOGD("write params: mode %d sess buf_sz %zu num_bufs %d metadata %d \n",
+        AGM_LOGD("write params: mode %d sess buf_sz %zu num_bufs %d metadata %zu \n",
                  mode, sess_obj->out_buffer_config.size,
                  sess_obj->out_buffer_config.count,
                  sess_obj->out_buffer_config.max_metadata_size);
@@ -1243,13 +1243,13 @@ int graph_rw_acdb_param(void *payload, bool is_param_write)
 
     ret = gsl_get_tags_with_module_info(&gkv, NULL, &size);
     if (ret) {
-        AGM_LOGE("failed to get tag info size = %d size=0x%x", ret, size);
+        AGM_LOGE("failed to get tag info size = %d size=0x%zx", ret, size);
         return ret;
     }
 
     ret = gsl_get_tags_with_module_info(&gkv, tag_pool, &size);
     if (ret) {
-        AGM_LOGE("failed to get tag pool ret = %d size=0x%x", ret, size);
+        AGM_LOGE("failed to get tag pool ret = %d size=0x%zx", ret, size);
         return ret;
     }
 
@@ -1292,8 +1292,8 @@ int graph_rw_acdb_param(void *payload, bool is_param_write)
             payloadACDBTunnelInfo->num_kvs * sizeof(struct agm_key_value),
             &temp_sum);
     __builtin_sub_overflow(payloadACDBTunnelInfo->blob_size, temp_sum, &actual_size);
-    AGM_LOGD("actual size = 0x%x", actual_size);
-    AGM_LOGI("num kvs = %d", kv.num_kvs);
+    AGM_LOGD("actual size = 0x%zx", actual_size);
+    AGM_LOGI("num kvs = %zu", kv.num_kvs);
     ptr = kv.kv;
     for (i = 0; i < kv.num_kvs; i++) {
         AGM_LOGI("kv %d %x", i, *ptr++);
@@ -2222,7 +2222,7 @@ int graph_get_tckv_data_from_acdb(
         goto end;
     }
 
-    AGM_LOGI("expected size = %d query_size= %d",
+    AGM_LOGI("expected size = %zu query_size= %zu",
                 *payload_size, query_payload_size);
     if (*payload_size > query_payload_size) {
         AGM_LOGE("payload size is too small to hold result.");

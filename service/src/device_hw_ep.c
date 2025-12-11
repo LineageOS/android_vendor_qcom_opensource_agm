@@ -421,7 +421,7 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj)
     case PCM_DUMMY:
         return populate_pcm_dummy_ep_info(&dev_obj->hw_ep_info, value);
     default:
-        AGM_LOGE("Unsupported interface name %s\n", __func__, dev_obj->name);
+        AGM_LOGE("Unsupported interface name %s\n", dev_obj->name);
         return -EINVAL;
     }
 }
