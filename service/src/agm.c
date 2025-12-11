@@ -113,19 +113,19 @@ int agm_init()
 
 #ifdef AGM_USE_CUTILS
     if (property_get("ro.boot.product.vendor.sku", vendor_sku, "") <= 0) {
-        AGM_LOGE(LOG_TAG, "Failed to get vendor.sku prop");
+        AGM_LOGE("Failed to get vendor.sku prop");
     } else {
         if (!strcmp(vendor_sku, "ravelin") || !strcmp(vendor_sku, "bourtzi")) {
             ret = property_set("vendor.audio.feature.dmabuf.cma.memory.enable", "1");
             if (ret != 0) {
-                AGM_LOGE(LOG_TAG, "Failed to set vendor.audio.feature.dmabuf.cma.memory.enable prop for SKU %s, ret=%d",
+                AGM_LOGE("Failed to set vendor.audio.feature.dmabuf.cma.memory.enable prop for SKU %s, ret=%d",
                         vendor_sku, ret);
             } else {
                 /* Optional: verify the properties after setting */
                 char enabled_val[PROPERTY_VALUE_MAX] = {'\0'};
                 property_get("vendor.audio.feature.dmabuf.cma.memory.enable", enabled_val, "");
                 if (strcmp(enabled_val, "1")) {
-                    AGM_LOGE(LOG_TAG, "Verification failed for dmabuf.cma.memory.enable prop for SKU %s, enabled=%s",
+                    AGM_LOGE("Verification failed for dmabuf.cma.memory.enable prop for SKU %s, enabled=%s",
                         vendor_sku, enabled_val);
                 }
             }
@@ -374,7 +374,7 @@ int agm_get_params_from_acdb_tunnel(void *payload, size_t *size)
     }
 
     payloadACDBTunnelInfo = (struct agm_acdb_tunnel_param *)payload;
-    AGM_LOGD("payload size is 0x%x", *size);
+    AGM_LOGD("payload size is 0x%zx", *size);
     AGM_LOGD("tag=%x istkv=%x num_gkvs=0x%x num_kvs=0x%x blob_size=0x%x",
         payloadACDBTunnelInfo->tag,
         payloadACDBTunnelInfo->isTKV,
@@ -595,7 +595,7 @@ int agm_set_params_to_acdb_tunnel(void *payload, size_t size)
     }
 
     payloadACDBTunnelInfo = (struct agm_acdb_tunnel_param *)payload;
-    AGM_LOGD("payload size is 0x%x", size);
+    AGM_LOGD("payload size is 0x%zx", size);
     AGM_LOGD("tag=%x istkv=%x num_gkvs=0x%x num_kvs=0x%x blob_size=0x%x",
         payloadACDBTunnelInfo->tag,
         payloadACDBTunnelInfo->isTKV,
