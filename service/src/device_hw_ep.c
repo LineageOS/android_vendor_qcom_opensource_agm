@@ -149,7 +149,7 @@ static int populate_hw_ep_intf_idx(hw_ep_info_t *hw_ep_info, char *intf_idx)
         }
         break;
     default:
-        AGM_LOGE("Unsupported HW endpoint %d\n", hw_ep_info->intf);
+        AGM_LOGE("Unsupported HW endpoint %u\n", hw_ep_info->intf);
         return -EINVAL;
     }
 
@@ -421,7 +421,7 @@ int populate_device_hw_ep_info(struct device_obj *dev_obj)
     case PCM_DUMMY:
         return populate_pcm_dummy_ep_info(&dev_obj->hw_ep_info, value);
     default:
-        AGM_LOGE("Unsupported interface name %s\n", __func__, dev_obj->name);
+        AGM_LOGE("%s: Unsupported interface name %s\n", __func__, dev_obj->name);
         return -EINVAL;
     }
 }
