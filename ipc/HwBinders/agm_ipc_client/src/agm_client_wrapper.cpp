@@ -919,7 +919,7 @@ int agm_session_write_with_metadata(uint64_t handle, struct agm_buff *buf, size_
     int32_t ret = -EINVAL;
 
     if (!agm_server_died) {
-        ALOGV("%s:%d hndl %p",__func__, __LINE__, handle);
+        ALOGV("%s:%d hndl %lu",__func__, __LINE__, handle);
         android::sp<IAGM> agm_client = get_agm_server();
         hidl_vec<AgmBuff> buf_hidl(1);
         native_handle_t *allocHidlHandle = nullptr;
