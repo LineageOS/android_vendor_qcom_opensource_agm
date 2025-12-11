@@ -16,7 +16,8 @@
 #define RETURN_IF_KVPAIR_EXCEEDS_RANGE(pair)                              \
     ({                                                                    \
         if (pair > MAX_KVPAIR) {                                          \
-            ALOGE("Num KVs %d more than expected: %d", pair, MAX_KVPAIR); \
+            ALOGE("Num KVs %zu more than expected: %d",                   \
+                (size_t)pair, MAX_KVPAIR);                                \
             return status_tToBinderResult(-ENOMEM);                       \
         }                                                                 \
     })
