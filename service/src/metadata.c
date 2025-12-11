@@ -171,12 +171,12 @@ void metadata_update_cal(struct agm_meta_data_gsl *meta_data,
     }
 
     if (!(meta_data->ckv.kv)) {
-        AGM_LOGE("metadata->ckv.kv is NULL, num_kvs=%d\n",
+        AGM_LOGE("metadata->ckv.kv is NULL, num_kvs=%zu\n",
                                     meta_data->ckv.num_kvs);
         return;
     }
     if (!(ckv->kv)) {
-        AGM_LOGE("ckv->kv is NULL, num_kvs=%d\n",
+        AGM_LOGE("ckv->kv is NULL, num_kvs=%zu\n",
                                     ckv->num_kvs);
         return;
     }
@@ -221,7 +221,7 @@ struct agm_meta_data_gsl* metadata_merge(int num, ...)
 
     if ((merged->gkv.num_kvs > MAX_KVPAIR_PROPS) || (merged->ckv.num_kvs > MAX_KVPAIR_PROPS)
                                              || (merged->sg_props.num_values > MAX_KVPAIR_PROPS)) {
-        AGM_LOGE("Num GKVs %d Num CKVs %d Num Props %d more than expected: %d", merged->gkv.num_kvs,
+        AGM_LOGE("Num GKVs %zu Num CKVs %zu Num Props %d more than expected: %d", merged->gkv.num_kvs,
                                 merged->ckv.num_kvs, merged->sg_props.num_values, MAX_KVPAIR_PROPS);
         free(merged);
         return NULL;
