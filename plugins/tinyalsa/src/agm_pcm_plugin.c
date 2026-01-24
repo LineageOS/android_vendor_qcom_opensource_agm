@@ -180,7 +180,7 @@ static inline int snd_mask_val(const struct snd_mask *mask)
     return 0;
 }
 
-static unsigned int agm_format_to_bits(enum agm_media_format format)
+static unsigned int agm_format_to_bits(enum pcm_format format)
 {
     switch (format) {
     case AGM_FORMAT_PCM_S32_LE:
