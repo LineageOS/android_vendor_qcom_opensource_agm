@@ -27,6 +27,9 @@ cc_library_shared {
     ] + select(soong_config_variable("qtiaudio", "feature_ar_memlogger"), {
         "true": [],
         default: ["-DAGM_MEMLOG_UNSUPPORTED"],
+    }) + select(soong_config_variable("qtiaudio", "aw882xx_support"), {
+        true: ["-DAGM_SUPPORT_AW882XX"],
+        default: [],
     }),
 
     srcs: [

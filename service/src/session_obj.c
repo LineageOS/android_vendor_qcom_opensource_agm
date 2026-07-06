@@ -36,6 +36,9 @@
 #include <string.h>
 #include <agm/session_obj.h>
 #include <agm/utils.h>
+#ifdef AGM_SUPPORT_AW882XX
+#include "apm_api.h"
+#endif
 
 #ifdef DYNAMIC_LOG_ENABLED
 #include <log_xml_parser.h>
@@ -1524,6 +1527,24 @@ int session_obj_set_sess_aif_params(struct session_obj *sess_obj,
        aif_obj->params = NULL;
        aif_obj->params_size = 0;
    }
+#ifdef AGM_SUPPORT_AW882XX
+   else {
+       struct apm_module_param_data_t *aw_data =
+                       (struct apm_module_param_data_t *)payload;
+
+       if (aw_data->param_id == 0x10013D2A ||
+           aw_data->param_id == 0x10013D2B ||
+           aw_data->param_id == 0x10013D36 ||
+           aw_data->param_id == 0x10013D33 ||
+           aw_data->param_id == 0x10013D2E ||
+           aw_data->param_id == 0x10013D11 ||
+           aw_data->param_id == 0x10013D12) {
+           free(aif_obj->params);
+           aif_obj->params = NULL;
+           aif_obj->params_size = 0;
+       }
+   }
+#endif
 
 done:
     pthread_mutex_unlock(&sess_obj->lock);
