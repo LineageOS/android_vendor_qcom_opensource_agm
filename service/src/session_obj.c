@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,8 +26,8 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #define LOG_TAG "AGM: session"
@@ -970,6 +969,9 @@ static int session_prepare(struct session_obj *sess_obj)
 {
     int ret = 0;
     struct aif *aif_obj = NULL;
+#ifdef ENABLE_DEV_PREPARE_BEFORE_GRAPH_START_SEQ
+    enum direction dir = sess_obj->stream_config.dir;
+#endif
     enum agm_session_mode sess_mode = sess_obj->stream_config.sess_mode;
     struct listnode *node = NULL;
     uint32_t count = 0;
@@ -994,26 +996,65 @@ static int session_prepare(struct session_obj *sess_obj)
             if (ret)
                 goto done;
         }
-
-        if ((sess_obj->state != SESSION_STARTED)) {
+#ifdef ENABLE_DEV_PREPARE_BEFORE_GRAPH_START_SEQ
+        // In this mode, devices are prepared before graph for TX
+        // Expected state: AIF_PREPARED after session_prepare()
+        if ((dir == TX) && (sess_obj->state != SESSION_STARTED)) {
             pthread_mutex_lock(&hwep_lock);
             ret = graph_prepare(sess_obj->graph);
-            pthread_mutex_unlock(&hwep_lock);
             if (ret) {
                 AGM_LOGE("Error:%d preparing graph\n", ret);
+                pthread_mutex_unlock(&hwep_lock);
+                goto done;
+            }
+            pthread_mutex_unlock(&hwep_lock);
+        }
+
+        list_for_each(node, &sess_obj->aif_pool) {
+            aif_obj = node_to_item(node, struct aif, node);
+            if (!aif_obj) {
+                AGM_LOGE("Error:%d could not find aif node\n", ret);
+                goto done;
+            }
+            //TODO : Prepare only those AFI's which are not prepared yet.
+            //Don't call device_prepare for AFI's already in prepared state.
+            if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_STOPPED) {
+                ret = device_prepare(aif_obj->dev_obj);
+                if (ret) {
+                    AGM_LOGE("Error:%d preparing device\n", ret);
+                    goto done;
+                }
+                aif_obj->state = AIF_PREPARED;
+            }
+        }
+        if ((dir == RX) && (sess_obj->state != SESSION_STARTED)) {
+#else
+        // In standard mode, devices are prepared after graph
+        // Expected state: AIF_OPENED after session_prepare()
+        if ((sess_obj->state != SESSION_STARTED)) {
+#endif
+            pthread_mutex_lock(&hwep_lock);
+            ret = graph_prepare(sess_obj->graph);
+             if (ret) {
+                AGM_LOGE("Error:%d preparing graph\n", ret);
+                pthread_mutex_unlock(&hwep_lock);
                 goto done;
             } else {
                 sess_obj->state = SESSION_PREPARED;
             }
+            pthread_mutex_unlock(&hwep_lock);
         }
     } else if(sess_obj->state != SESSION_STARTED) {
+        pthread_mutex_lock(&hwep_lock);
         ret = graph_prepare(sess_obj->graph);
         if (ret) {
              AGM_LOGE("Error:%d preparing graph\n", ret);
+             pthread_mutex_unlock(&hwep_lock);
              goto done;
         } else {
              sess_obj->state = SESSION_PREPARED;
         }
+        pthread_mutex_unlock(&hwep_lock);
     }
 
 done:
@@ -1086,7 +1127,19 @@ static int session_start(struct session_obj *sess_obj)
                     goto done;
                 }
             }
+#ifdef ENABLE_DEV_PREPARE_BEFORE_GRAPH_START_SEQ
+            pthread_mutex_lock(&hwep_lock);
+            ret = graph_start(sess_obj->graph);
+            if (ret) {
+                AGM_LOGE("Error:%d starting graph\n", ret);
+                pthread_mutex_unlock(&hwep_lock);
+                goto done;
+            }
+            pthread_mutex_unlock(&hwep_lock);
         }
+#else
+        }
+#endif
 
         pthread_mutex_lock(&hwep_lock);
 
@@ -1123,11 +1176,13 @@ static int session_start(struct session_obj *sess_obj)
             }
         }
 
+#ifndef ENABLE_DEV_PREPARE_BEFORE_GRAPH_START_SEQ
         ret = graph_start(sess_obj->graph);
         if (ret) {
             AGM_LOGE("Error:%d starting graph\n", ret);
             goto device_stop;
         }
+#endif
 
         list_for_each(node, &sess_obj->aif_pool) {
             aif_obj = node_to_item(node, struct aif, node);
@@ -1140,7 +1195,7 @@ static int session_start(struct session_obj *sess_obj)
             //Continue/SKIP for SLIMBUS EP as they are started early.
             if (aif_obj->dev_obj->hw_ep_info.intf == SLIMBUS)
                 continue;
-
+#ifndef ENABLE_DEV_PREPARE_BEFORE_GRAPH_START_SEQ
             if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_STOPPED) {
                 ret = device_prepare(aif_obj->dev_obj);
                 if (ret) {
@@ -1150,7 +1205,7 @@ static int session_start(struct session_obj *sess_obj)
                 }
                 aif_obj->state = AIF_PREPARED;
             }
-
+#endif
             if (aif_obj->state == AIF_OPENED || aif_obj->state == AIF_PREPARED ||
                                                  aif_obj->state == AIF_STOPPED ) {
                 ret = device_start(aif_obj->dev_obj);
@@ -1163,13 +1218,25 @@ static int session_start(struct session_obj *sess_obj)
                 aif_obj->state = AIF_STARTED;
             }
         }
+#ifdef ENABLE_DEV_PREPARE_BEFORE_GRAPH_START_SEQ
+        if (dir == RX) {
+            ret = graph_start(sess_obj->graph);
+            if (ret) {
+                AGM_LOGE("Error:%d starting graph\n", ret);
+                goto device_stop;
+            }
+        }
+#endif
         pthread_mutex_unlock(&hwep_lock);
     } else {
+        pthread_mutex_lock(&hwep_lock);
         ret = graph_start(sess_obj->graph);
         if (ret) {
             AGM_LOGE("Error:%d starting graph\n", ret);
+            pthread_mutex_unlock(&hwep_lock);
             goto unwind;
         }
+        pthread_mutex_unlock(&hwep_lock);
     }
 
     sess_obj->state = SESSION_STARTED;
@@ -1177,7 +1244,9 @@ static int session_start(struct session_obj *sess_obj)
 
 unwind:
     pthread_mutex_lock(&hwep_lock);
-    graph_stop(sess_obj->graph, NULL);
+    if(sess_obj->graph != NULL){
+        graph_stop(sess_obj->graph, NULL);
+    }
 device_stop:
     if (sess_mode != AGM_SESSION_NON_TUNNEL  && sess_mode != AGM_SESSION_NO_CONFIG) {
         list_for_each(node, &sess_obj->aif_pool) {

@@ -47,6 +47,16 @@ AC_ARG_WITH([agm_no_ipc],
 AM_CONDITIONAL([AGM_NO_IPC], [test "x${with_agm_no_ipc}" = "xyes"])
 
 
+AC_ARG_WITH([32bit],
+    AS_HELP_STRING([--with-32bit], [Enable 32-bit support for AGM (default is no)]),
+    [with_32bit=$withval],
+    [with_32bit=no])
+AM_CONDITIONAL([AGM_32BIT], [test "x${with_32bit}" = "xyes"])
+
+if test "x$with_32bit" = "xyes"; then
+    AC_DEFINE([AGM_32BIT], [1], [Enable 32-bit support in C code])
+fi
+
 PKG_CHECK_MODULES([SPF], [spf])
 AC_SUBST(SPF_CFLAGS)
 

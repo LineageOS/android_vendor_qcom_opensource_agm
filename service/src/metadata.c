@@ -71,7 +71,13 @@
 #define NUM_PROPS(x)                    *((uint32_t *) PTR_TO_NUM_PROPS(x))
 #define PTR_TO_PROPS(x)                 (PTR_TO_NUM_PROPS(x) + sizeof(uint32_t))
 
+#ifdef AGM_32BIT
+/* 32-bit platforms need larger key-value pair limits due to memory alignment differences */
+#define MAX_KVPAIR 128
+#else
+/* 64-bit platforms need the default key-value pair limit */
 #define MAX_KVPAIR 48
+#endif
 
 void metadata_print(struct agm_meta_data_gsl* metadata)
 {
