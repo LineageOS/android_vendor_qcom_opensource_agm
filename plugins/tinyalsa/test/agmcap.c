@@ -26,8 +26,8 @@
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 ** DAMAGE.
 **
-** Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-** Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+** Changes from Qualcomm Technologies, Inc. are provided under the following license:
+** Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 ** SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -82,7 +82,7 @@ static void sigint_handler(int sig)
 
 static void usage(void)
 {
-    printf(" Usage: %s file.wav [-help print usage] [-D card] [-d device]\n"
+    printf(" Usage: agmcap file.wav [-help print usage] [-D card] [-d device]\n"
            " [-c channels] [-r rate] [-b bits] [-p period_size]\n"
            " [-n n_periods] [-T capture time] [-i intf_name] [-dkv device_kv]\n"
            " [-dppkv deviceppkv] : Assign 0 if no device pp in the graph\n"
