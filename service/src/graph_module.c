@@ -47,6 +47,7 @@
 #define LOG_MASK AGM_MOD_FILE_GRAPH_MODULE
 #include <log_utils.h>
 #endif
+#include <cutils/properties.h>
 
 #define MONO 1
 #define GET_BITS_PER_SAMPLE(format, bit_width) \
@@ -2034,7 +2035,16 @@ done:
         free(payload);
 
     if (ret == 0 && graph_obj->state != STARTED) {
-        ret = configure_spr_session_time_reset_info(spr_mod, graph_obj);
+        char vendor_sku[PROPERTY_VALUE_MAX] = {'\0'};
+        if (property_get("ro.boot.product.vendor.sku", vendor_sku, "") <= 0) {
+            AGM_LOGE("Failed to get vendor.sku prop");
+        } else {
+            /* PARAM_ID_SPR_SESSION_TIME_RESET_INFO is not supported by ravelin/bourtzi
+               variants so avoid calling configure_spr_session_time_reset_info() */
+            if (strcmp(vendor_sku, "ravelin") && strcmp(vendor_sku, "bourtzi")) {
+                ret = configure_spr_session_time_reset_info(spr_mod, graph_obj);
+            }
+        }
     }
 
     return ret;
