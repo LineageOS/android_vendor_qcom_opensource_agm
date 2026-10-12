@@ -346,6 +346,10 @@ int graph_init()
         ret = -ENOENT;
         goto err;
     }
+#ifdef ACDB_PATH_OVERRIDE
+    /* Device ships its ACDB files in a fixed, sound card agnostic directory */
+    snprintf(acdb_path, ACDB_PATH_MAX_LENGTH, "%s", ACDB_PATH_OVERRIDE);
+#endif
     AGM_LOGI("acdb file path: %s\n", acdb_path);
 
     ret = get_acdb_files_from_directory(acdb_path, &acdb_files);
